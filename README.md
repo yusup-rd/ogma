@@ -14,3 +14,7 @@ Use Node.js 24.15 or later on the 24.x line, Corepack, and Docker Compose. Run t
 Run `corepack yarn build`, `corepack yarn lint`, `corepack yarn typecheck`, and `corepack yarn format:check` before integrating changes. Install Playwright Chromium with `corepack yarn workspace @ogma/api exec playwright install chromium` when working on PDF rendering.
 
 The API health route is a process check. Database connection, schema, and migrations are the next implementation step.
+
+## Optional AI configuration
+
+The planned rewrite and cover letter features will use `AI_API_KEY`, `AI_BASE_URL`, and `AI_MODEL` from `apps/api/.env.local`. Set these to the credentials, API base URL, and model ID for your OpenAI-compatible provider when those features are implemented. Resume Check works independently of AI.

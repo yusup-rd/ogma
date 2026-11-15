@@ -17,7 +17,6 @@
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
     "docx": "^9.0.0",
-    "groq-sdk": "^0.37.0",
     "mammoth": "^1.0.0",
     "pdfjs-dist": "^5.0.0",
     "pg": "^8.0.0",
