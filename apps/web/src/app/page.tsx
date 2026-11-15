@@ -1,4 +1,4 @@
-import { DocumentWorkspace } from "@/features/document-prototype/components/document-workspace";
+import { DocumentWorkspace } from "@/components/document-prototype/document-workspace";
 
 const HomePage = () => {
   return <DocumentWorkspace />;

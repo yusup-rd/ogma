@@ -1,11 +1,12 @@
 "use client";
 
 import * as Dialog from "@radix-ui/react-dialog";
-import { Download, X } from "lucide-react";
+import { LuDownload, LuX } from "react-icons/lu";
 import { useState } from "react";
+import type { ResumeDraft } from "@/lib/document-prototype/resume-layout-model";
 
 interface ExportDialogProps {
-  query: string;
+  draft: ResumeDraft | null;
 }
 
 const formats = [
@@ -17,25 +18,28 @@ const formats = [
   {
     value: "docx",
     label: "Word (.docx)",
-    description: "An editable document with headings and lists.",
+    description: "Editable text in a single-column Word layout.",
   },
 ] as const;
 type ExportFormat = (typeof formats)[number]["value"];
 
-const ExportDialog = ({ query }: ExportDialogProps) => {
+const ExportDialog = ({ draft }: ExportDialogProps) => {
   const [open, setOpen] = useState(false);
   const [format, setFormat] = useState<ExportFormat>("pdf");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
 
   const download = async () => {
+    if (!draft) return;
     setPending(true);
     setError("");
 
     try {
-      const response = await fetch(
-        `/api/document-prototype/resume.${format}${query}`,
-      );
+      const response = await fetch(`/api/resume-layouts/resume.${format}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(draft),
+      });
       if (!response.ok) {
         throw new Error("Export unavailable");
       }
@@ -43,7 +47,7 @@ const ExportDialog = ({ query }: ExportDialogProps) => {
       const url = URL.createObjectURL(await response.blob());
       const link = document.createElement("a");
       link.href = url;
-      link.download = `alex-morgan-sample.${format}`;
+      link.download = `resume.${format}`;
       document.body.append(link);
       link.click();
       link.remove();
@@ -66,12 +70,12 @@ const ExportDialog = ({ query }: ExportDialogProps) => {
         }
       }}
     >
-      <Dialog.Trigger asChild>
+      <Dialog.Trigger asChild disabled={!draft}>
         <button
           type="button"
           className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-accent px-3.5 text-sm font-semibold text-white hover:bg-accent-hover"
         >
-          <Download aria-hidden="true" className="size-4" />
+          <LuDownload aria-hidden="true" className="size-4" />
           Export
         </button>
       </Dialog.Trigger>
@@ -84,7 +88,7 @@ const ExportDialog = ({ query }: ExportDialogProps) => {
                 Export resume
               </Dialog.Title>
               <Dialog.Description className="text-sm text-muted">
-                Choose a format for this sample resume.
+                Choose a format for this resume.
               </Dialog.Description>
             </div>
             <Dialog.Close asChild>
@@ -94,7 +98,7 @@ const ExportDialog = ({ query }: ExportDialogProps) => {
                 disabled={pending}
                 className="grid size-11 shrink-0 place-items-center rounded-lg text-muted hover:bg-canvas"
               >
-                <X aria-hidden="true" className="size-4" />
+                <LuX aria-hidden="true" className="size-4" />
               </button>
             </Dialog.Close>
           </div>
@@ -141,8 +145,9 @@ const ExportDialog = ({ query }: ExportDialogProps) => {
               type="button"
               onClick={() => void download()}
               disabled={pending}
-              className="min-h-11 rounded-lg bg-accent px-3.5 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60"
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-accent px-3.5 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60"
             >
+              <LuDownload aria-hidden="true" className="size-4" />
               {pending
                 ? "Preparing download…"
                 : format === "pdf"

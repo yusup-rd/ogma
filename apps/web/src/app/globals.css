@@ -19,3 +19,9 @@
 :root {
   color-scheme: light;
 }
+
+html,
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #ab9bb7 transparent;
+}
