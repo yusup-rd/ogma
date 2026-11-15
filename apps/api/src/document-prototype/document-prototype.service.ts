@@ -5,7 +5,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
-import { chromium, type Browser } from "playwright";
+import { chromium, type Browser, type Page } from "playwright";
 import { renderSampleHtml } from "./render-sample-html";
 import { sampleResume } from "./sample-resume";
 
@@ -21,36 +21,58 @@ export class DocumentPrototypeService implements OnModuleDestroy {
     await browser?.close();
   }
 
-  async exportPdf(includeHighlights: boolean) {
+  exportPdf(includeHighlights: boolean) {
+    return this.printPdf(renderSampleHtml(includeHighlights));
+  }
+
+  async prepareHtml(html: string, prepare: (page: Page) => Promise<void>) {
+    return this.withDocumentPage(html, async (page) => {
+      await prepare(page);
+      return page.content();
+    });
+  }
+
+  async printPdf(html: string, prepare?: (page: Page) => Promise<void>) {
     if (this.rendering) {
       throw new ServiceUnavailableException(
-        "A sample PDF is already being rendered. Try again shortly.",
+        "A PDF is already being rendered. Try again shortly.",
       );
     }
 
     this.rendering = true;
+    try {
+      return await this.withDocumentPage(html, async (page) => {
+        await prepare?.(page);
+        return page.pdf({
+          preferCSSPageSize: true,
+          printBackground: true,
+          tagged: true,
+        });
+      });
+    } finally {
+      this.rendering = false;
+    }
+  }
 
+  private async withDocumentPage<T>(
+    html: string,
+    action: (page: Page) => Promise<T>,
+  ) {
     try {
       const browser = await this.getBrowser();
       const context = await browser.newContext({ offline: true });
       try {
         const page = await context.newPage();
         page.setDefaultTimeout(10_000);
-        await page.setContent(renderSampleHtml(includeHighlights), {});
-        return await page.pdf({
-          preferCSSPageSize: true,
-          printBackground: true,
-          tagged: true,
-        });
+        await page.setContent(html);
+        return await action(page);
       } finally {
         await context.close();
       }
     } catch {
       throw new ServiceUnavailableException(
-        "Sample PDF rendering is unavailable. Check that Chromium is installed.",
+        "The document could not be rendered. Check that Chromium is installed and try again.",
       );
-    } finally {
-      this.rendering = false;
     }
   }
 

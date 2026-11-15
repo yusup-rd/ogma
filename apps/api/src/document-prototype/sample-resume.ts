@@ -13,9 +13,9 @@ interface SampleResume {
 }
 
 export const sampleResume: SampleResume = {
-  name: "Alex Morgan",
+  name: "John Doe",
   title: "Senior product designer",
-  contact: "Halifax, Canada · alex@sample.test · alexmorgan.example",
+  contact: "Halifax, Canada · john.doe@example.com · john-doe.example",
   pages: [
     [
       {
@@ -41,10 +41,10 @@ export const sampleResume: SampleResume = {
     ],
     [
       {
-        heading: "Проекты",
+        heading: "Projects",
         detail: "Open Design System",
         paragraphs: [
-          "Создал библиотеку доступных компонентов и документацию для продуктовых команд.",
+          "Built an accessible component library and wrote documentation for product teams.",
         ],
       },
       {

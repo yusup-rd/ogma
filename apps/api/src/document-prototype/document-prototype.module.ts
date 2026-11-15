@@ -5,5 +5,6 @@ import { DocumentPrototypeService } from "./document-prototype.service";
 @Module({
   controllers: [DocumentPrototypeController],
   providers: [DocumentPrototypeService],
+  exports: [DocumentPrototypeService],
 })
 export class DocumentPrototypeModule {}
