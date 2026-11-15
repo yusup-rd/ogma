@@ -101,9 +101,9 @@ const NumberSetting = ({
     onChange(value === fallback ? undefined : value);
   return (
     <div className={`flex min-w-0 flex-col gap-1 ${className ?? ""}`}>
-      <label className="flex min-w-0 flex-col gap-1 text-xs font-semibold">
+      <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs font-semibold">
         {label}
-        <span className="relative">
+        <span className="relative mt-auto">
           <input
             aria-label={label}
             type="number"
