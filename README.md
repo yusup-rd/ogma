@@ -14,7 +14,7 @@ Use Node.js 24.15 or later on the 24.x line, Corepack, and Docker Compose. Run t
 
 Run `corepack yarn build`, `corepack yarn lint`, `corepack yarn typecheck`, and `corepack yarn format:check` before integrating changes. Install Playwright Chromium with `corepack yarn workspace @ogma/api exec playwright install chromium` when working on PDF rendering.
 
-The API health route is a process check. `/api/health/ready` checks PostgreSQL and the migrated resume table. The homepage runs the synthetic two-page A4 document prototype, including PDF and Word export. PDF export uses Playwright Chromium by default. For local development, you can set `CHROMIUM_CHANNEL=msedge` in `apps/api/.env.local` to use an installed Microsoft Edge browser.
+The API health route is a process check. `/api/health/ready` checks PostgreSQL and the migrated resume table. The homepage opens the template editor with sample content. Switch to Design to choose one of 23 layouts, tune its style, and download the current draft as PDF or Word. The draft lives in memory for this version. PDF export uses Playwright Chromium by default. For local development, you can set `CHROMIUM_CHANNEL=msedge` in `apps/api/.env.local` to use an installed Microsoft Edge browser.
 
 ## Optional AI configuration
 
