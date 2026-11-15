@@ -20,7 +20,8 @@
     "format:check": "prettier --check .",
     "db:up": "docker compose --env-file .env.local up -d --wait db",
     "db:down": "docker compose --env-file .env.local stop db",
-    "db:logs": "docker compose --env-file .env.local logs -f db"
+    "db:logs": "docker compose --env-file .env.local logs -f db",
+    "db:migrate": "yarn workspace @ogma/api db:migrate"
   },
   "devDependencies": {
     "concurrently": "^9.0.0",

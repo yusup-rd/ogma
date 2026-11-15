@@ -9,11 +9,12 @@ Use Node.js 24.15 or later on the 24.x line, Corepack, and Docker Compose. Run t
 1. Copy `.env.example` to `.env.local` at the root and in both apps if the local files are missing. PostgreSQL defaults to host port 5432. If you change its credentials or port, update the API's `DATABASE_URL` too.
 2. Run `corepack yarn install --immutable`.
 3. Start PostgreSQL with `corepack yarn db:up`. Use `corepack yarn db:down` to stop it and retain its data.
-4. Run `corepack yarn dev`. Open [Ogma](http://localhost:3000) or check [API health through Next.js](http://localhost:3000/api/health). NestJS listens on port 3001.
+4. Apply the local PostgreSQL migrations with `corepack yarn db:migrate`.
+5. Run `corepack yarn dev`. Open [Ogma](http://localhost:3000) or check [API health through Next.js](http://localhost:3000/api/health). NestJS listens on port 3001.
 
 Run `corepack yarn build`, `corepack yarn lint`, `corepack yarn typecheck`, and `corepack yarn format:check` before integrating changes. Install Playwright Chromium with `corepack yarn workspace @ogma/api exec playwright install chromium` when working on PDF rendering.
 
-The API health route is a process check. Database connection, schema, and migrations are the next implementation step.
+The API health route is a process check. `/api/health/ready` checks PostgreSQL and the migrated resume table. The homepage runs the synthetic two-page A4 document prototype, including PDF and Word export. PDF export uses Playwright Chromium by default. For local development, you can set `CHROMIUM_CHANNEL=msedge` in `apps/api/.env.local` to use an installed Microsoft Edge browser.
 
 ## Optional AI configuration
 

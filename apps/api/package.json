@@ -3,11 +3,12 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "nest start --watch",
-    "build": "nest build",
+    "dev": "prisma generate && nest start --watch",
+    "build": "prisma generate && nest build",
     "start": "node dist/main.js",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "prisma generate && tsc --noEmit",
+    "db:migrate": "prisma migrate dev"
   },
   "dependencies": {
     "@nestjs/common": "12.5.0",
