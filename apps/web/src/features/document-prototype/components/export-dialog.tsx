@@ -69,21 +69,21 @@ const ExportDialog = ({ query }: ExportDialogProps) => {
       <Dialog.Trigger asChild>
         <button
           type="button"
-          className="bg-accent hover:bg-accent-hover inline-flex min-h-11 items-center gap-2 rounded-lg px-3.5 text-sm font-semibold text-white"
+          className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-accent px-3.5 text-sm font-semibold text-white hover:bg-accent-hover"
         >
           <Download aria-hidden="true" className="size-4" />
           Export
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Overlay className="bg-ink/35 fixed inset-0 z-20" />
-        <Dialog.Content className="border-line bg-paper fixed top-1/2 left-1/2 z-30 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col gap-5 overflow-auto rounded-2xl border p-5 shadow-xl sm:p-6">
+        <Dialog.Overlay className="fixed inset-0 z-20 bg-ink/35" />
+        <Dialog.Content className="fixed top-1/2 left-1/2 z-30 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col gap-5 overflow-auto rounded-2xl border border-line bg-paper p-5 shadow-xl sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div className="flex flex-col gap-1.5">
               <Dialog.Title className="text-2xl font-semibold tracking-tight">
                 Export resume
               </Dialog.Title>
-              <Dialog.Description className="text-muted text-sm">
+              <Dialog.Description className="text-sm text-muted">
                 Choose a format for this sample resume.
               </Dialog.Description>
             </div>
@@ -92,7 +92,7 @@ const ExportDialog = ({ query }: ExportDialogProps) => {
                 type="button"
                 aria-label="Close export dialog"
                 disabled={pending}
-                className="text-muted hover:bg-canvas grid size-11 shrink-0 place-items-center rounded-lg"
+                className="grid size-11 shrink-0 place-items-center rounded-lg text-muted hover:bg-canvas"
               >
                 <X aria-hidden="true" className="size-4" />
               </button>
@@ -104,18 +104,18 @@ const ExportDialog = ({ query }: ExportDialogProps) => {
             {formats.map((option) => (
               <label
                 key={option.value}
-                className="border-line has-checked:border-accent/30 has-checked:bg-accent-soft flex cursor-pointer items-start gap-3 rounded-xl border p-3.5"
+                className="flex cursor-pointer items-start gap-3 rounded-xl border border-line p-3.5 has-checked:border-accent/30 has-checked:bg-accent-soft"
               >
                 <input
                   type="radio"
                   name="export-format"
                   checked={format === option.value}
                   onChange={() => setFormat(option.value)}
-                  className="accent-accent mt-0.5 size-4 shrink-0"
+                  className="mt-0.5 size-4 shrink-0 accent-accent"
                 />
                 <span className="flex flex-col gap-1">
                   <span className="text-sm font-semibold">{option.label}</span>
-                  <span className="text-muted text-xs">
+                  <span className="text-xs text-muted">
                     {option.description}
                   </span>
                 </span>
@@ -132,7 +132,7 @@ const ExportDialog = ({ query }: ExportDialogProps) => {
               <button
                 type="button"
                 disabled={pending}
-                className="border-line hover:bg-canvas min-h-11 rounded-lg border px-3.5 text-sm font-semibold"
+                className="min-h-11 rounded-lg border border-line px-3.5 text-sm font-semibold hover:bg-canvas"
               >
                 Cancel
               </button>
@@ -141,7 +141,7 @@ const ExportDialog = ({ query }: ExportDialogProps) => {
               type="button"
               onClick={() => void download()}
               disabled={pending}
-              className="bg-accent hover:bg-accent-hover min-h-11 rounded-lg px-3.5 text-sm font-semibold text-white disabled:opacity-60"
+              className="min-h-11 rounded-lg bg-accent px-3.5 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60"
             >
               {pending
                 ? "Preparing download…"

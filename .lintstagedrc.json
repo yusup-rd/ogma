@@ -1,0 +1,5 @@
+{
+  "apps/web/**/*.{js,mjs,ts,tsx}": "corepack yarn workspace @ogma/web exec eslint --fix --max-warnings 0",
+  "apps/api/**/*.{js,mjs,ts,tsx}": "corepack yarn workspace @ogma/api exec eslint --fix --max-warnings 0",
+  "*": "prettier --write --ignore-unknown"
+}

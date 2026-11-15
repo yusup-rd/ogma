@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 const RootLayout = ({ children }: RootLayoutProps) => {
   return (
     <html lang="en" className={inter.variable}>
-      <body className="bg-canvas text-ink font-sans antialiased">
+      <body className="bg-canvas font-sans text-ink antialiased">
         {children}
       </body>
     </html>

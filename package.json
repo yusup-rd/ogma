@@ -21,10 +21,16 @@
     "db:up": "docker compose --env-file .env.local up -d --wait db",
     "db:down": "docker compose --env-file .env.local stop db",
     "db:logs": "docker compose --env-file .env.local logs -f db",
-    "db:migrate": "yarn workspace @ogma/api db:migrate"
+    "db:migrate": "yarn workspace @ogma/api db:migrate",
+    "postinstall": "husky",
+    "lint:staged": "lint-staged --concurrent false",
+    "spellcheck": "cspell --no-progress \"*.md\" \"*.{json,mjs,yaml}\" \"apps/**/*.{ts,tsx,css,mjs,prisma}\" \"packages/**/*.{ts,tsx,css,mjs}\""
   },
   "devDependencies": {
     "concurrently": "^9.0.0",
+    "cspell": "10.4.0",
+    "husky": "9.1.7",
+    "lint-staged": "17.6.0",
     "prettier": "^3.0.0",
     "prettier-plugin-tailwindcss": "^0.7.0",
     "typescript": "~6.0.0"

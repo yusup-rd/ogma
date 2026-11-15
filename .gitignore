@@ -15,4 +15,5 @@ next-env.d.ts
 !.yarn/versions
 .pnp.*
 apps/api/src/generated/
-.vscode
+.vscode/*
+!.vscode/settings.json
