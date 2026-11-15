@@ -1,6 +1,6 @@
 # Ogma contributor instructions
 
-These instructions apply throughout the repository. Use [PLAN.md](PLAN.md) for product scope and [ARCHITECTURE.md](ARCHITECTURE.md) for technical decisions.
+These instructions apply throughout the repository. Do ongoing development on `dev`. Use [PLAN.md](PLAN.md) for product scope and [ARCHITECTURE.md](ARCHITECTURE.md) for technical decisions.
 
 ## TypeScript and components
 
@@ -15,6 +15,12 @@ These instructions apply throughout the repository. Use [PLAN.md](PLAN.md) for p
 - In `apps/api/src`, group Nest modules by feature and keep controllers, services, request schemas, and data access within their owning module. Put shared contracts in `packages/contracts` when both apps need them.
 - Follow established software engineering practices and project coding standards. Keep modules focused, dependencies explicit, and interfaces narrow. Reuse existing logic, validate inputs at boundaries, and handle failures where they can be acted on.
 - Use route-level code splitting and lazy-load heavy client features such as document previews when first needed. Keep client components and providers scoped to the parts of the tree that need them. Verify the loading and error states of deferred features.
+
+## Antiplagiarism and Unique architecture guardrails
+
+- **No boilerplate signatures.** Adapt starter kits and optional folder structures to Ogma's features. Give project-specific hooks and utilities names that describe their roles. Preserve required framework conventions and third-party attribution.
+- **Unique UI and UX identity.** Use Ogma's visual tokens, spacing system, and component hierarchy to give the editor a recognizable identity. Design custom interactions where they clarify the workflow or provide useful feedback.
+- **Algorithmic diversification.** Write original helpers and state models for Ogma-specific behavior. Derive the implementation from the domain requirements and use the simplest design that satisfies them. Reuse established libraries for standard behavior.
 
 ## Tailwind and UI
 
