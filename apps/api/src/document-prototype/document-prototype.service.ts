@@ -6,7 +6,12 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
 import { setTimeout as wait } from "node:timers/promises";
-import { chromium, type Browser, type Page } from "playwright";
+import {
+  chromium,
+  type Browser,
+  type BrowserContext,
+  type Page,
+} from "playwright";
 import { renderSampleHtml } from "./render-sample-html";
 import { sampleResume } from "./sample-resume";
 
@@ -71,26 +76,42 @@ export class DocumentPrototypeService implements OnModuleDestroy {
 
     this.activeDocumentPages++;
     try {
-      const browser = await this.getBrowser();
-      const context = await browser.newContext({ offline: true });
+      const browserRequest = this.getBrowser();
+      const browser = await browserRequest;
       const deadline = new AbortController();
+      const timeoutError = new Error("Document rendering timed out.");
       const expired = wait(renderTimeout, undefined, {
         signal: deadline.signal,
       }).then(() => {
-        throw new Error("Document rendering timed out.");
+        throw timeoutError;
       });
+      const contextRequest = browser.newContext({ offline: true });
+      let context: BrowserContext | undefined;
       try {
-        const render = async () => {
+        const render = async (context: BrowserContext) => {
           const page = await context.newPage();
           page.setDefaultTimeout(10_000);
           await page.setContent(html);
           return action(page);
         };
-        return await Promise.race([render(), expired]);
+        context = await Promise.race([contextRequest, expired]);
+        return await Promise.race([render(context), expired]);
+      } catch (error) {
+        if (error === timeoutError && !context) {
+          if (this.browser === browserRequest) this.browser = undefined;
+          try {
+            await browser.close({ reason: timeoutError.message });
+          } finally {
+            // Context creation can finish while the browser is shutting down.
+            const lateContext = await contextRequest.catch(() => undefined);
+            await lateContext?.close();
+          }
+        }
+        throw error;
       } finally {
         deadline.abort();
         // Closing the context interrupts any Playwright work still using its page.
-        await context.close();
+        await context?.close();
       }
     } catch {
       throw new ServiceUnavailableException(
@@ -163,22 +184,25 @@ export class DocumentPrototypeService implements OnModuleDestroy {
   }
 
   private getBrowser() {
-    this.browser ??= chromium
+    if (this.browser) return this.browser;
+
+    const browserRequest = chromium
       .launch({
         channel: this.config.get<string>("CHROMIUM_CHANNEL"),
         timeout: 10_000,
       })
       .then((browser) => {
         browser.once("disconnected", () => {
-          this.browser = undefined;
+          if (this.browser === browserRequest) this.browser = undefined;
         });
         return browser;
       })
       .catch((error: unknown) => {
-        this.browser = undefined;
+        if (this.browser === browserRequest) this.browser = undefined;
         throw error;
       });
 
-    return this.browser;
+    this.browser = browserRequest;
+    return browserRequest;
   }
 }
