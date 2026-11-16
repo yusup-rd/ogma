@@ -167,7 +167,7 @@ const ResumesDashboard = ({
           </Link>
         </nav>
         <div className="md:mt-auto md:border-t md:border-line md:pt-3">
-          <SignOutDialog />
+          <SignOutDialog sidebar />
         </div>
       </aside>
       <main className="mx-auto flex w-full max-w-7xl flex-col gap-7 px-4 py-7 md:gap-8 md:px-10 md:py-10">
