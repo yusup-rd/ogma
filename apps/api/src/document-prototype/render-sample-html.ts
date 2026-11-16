@@ -47,7 +47,7 @@ export function renderSampleHtml(includeHighlights: boolean) {
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>Alex Morgan · Sample resume</title>
+      <title>${escapeText(sampleResume.name)} · Sample resume</title>
       <style>
         * { box-sizing: border-box; }
         html { color-scheme: light; }

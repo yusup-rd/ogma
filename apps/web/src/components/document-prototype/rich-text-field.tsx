@@ -14,6 +14,7 @@ import type { RichText } from "../../../../../packages/contracts/resume-content"
 
 interface RichTextFieldProps {
   label: string;
+  placeholder?: string;
   value: RichText;
   onChange: (value: RichText) => void;
 }
@@ -31,7 +32,12 @@ const extensions = [
   }),
 ];
 
-const RichTextField = ({ label, value, onChange }: RichTextFieldProps) => {
+const RichTextField = ({
+  label,
+  placeholder,
+  value,
+  onChange,
+}: RichTextFieldProps) => {
   const editor = useEditor({
     immediatelyRender: false,
     extensions,
@@ -41,10 +47,11 @@ const RichTextField = ({ label, value, onChange }: RichTextFieldProps) => {
     editorProps: {
       attributes: {
         "aria-label": label,
+        ...(placeholder ? { "aria-placeholder": placeholder } : {}),
         role: "textbox",
         "aria-multiline": "true",
         class:
-          "min-h-24 px-3 py-2.5 text-sm outline-none [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_p+p]:mt-1.5",
+          "min-h-[calc(4lh+1.25rem)] cursor-text px-3 py-2.5 text-sm outline-none [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_p+p]:mt-1.5",
       },
     },
     onUpdate: ({ editor }) => onChange(editor.getJSON() as RichText),
@@ -52,6 +59,7 @@ const RichTextField = ({ label, value, onChange }: RichTextFieldProps) => {
   const state = useEditorState({
     editor,
     selector: ({ editor }) => ({
+      empty: editor?.isEmpty,
       bold: editor?.isActive("bold"),
       italic: editor?.isActive("italic"),
       underline: editor?.isActive("underline"),
@@ -117,7 +125,17 @@ const RichTextField = ({ label, value, onChange }: RichTextFieldProps) => {
             </button>
           ))}
         </div>
-        <EditorContent editor={editor} />
+        <div className="relative focus-within:ring-2 focus-within:ring-accent focus-within:ring-inset">
+          <EditorContent editor={editor} />
+          {placeholder && state?.empty && (
+            <p
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-3 top-2.5 text-sm text-muted"
+            >
+              {placeholder}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

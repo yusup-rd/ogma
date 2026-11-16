@@ -62,7 +62,7 @@ export const SelectSetting = <Value extends string | number>({
                 <Select.Item
                   key={id}
                   value={`option:${id}`}
-                  className="flex min-h-9 cursor-default items-center justify-between gap-3 rounded-lg px-2.5 text-sm outline-none data-highlighted:bg-accent-soft data-highlighted:text-accent"
+                  className="flex min-h-9 items-center justify-between gap-3 rounded-lg px-2.5 text-sm outline-none data-highlighted:bg-accent-soft data-highlighted:text-accent"
                 >
                   <Select.ItemText className="min-w-0 truncate">
                     {title}

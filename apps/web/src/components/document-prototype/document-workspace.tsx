@@ -185,6 +185,13 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
                 <ResumeContentForm
                   content={model.content}
                   photo={model.photo}
+                  initialPersonalDetailsOpen={
+                    resume.draftRevision === 1 &&
+                    !resume.document.content.targetTitle &&
+                    !Object.values(resume.document.content.contact).some(
+                      Boolean,
+                    )
+                  }
                   onPhoto={model.setPhoto}
                   showWorkProjects={
                     model.style?.workProjectTables ??

@@ -34,7 +34,7 @@ export class DocumentPrototypeController {
     const file = await this.documents.exportPdf(includeHighlights(highlights));
     return new StreamableFile(file, {
       type: "application/pdf",
-      disposition: 'attachment; filename="alex-morgan-sample.pdf"',
+      disposition: 'attachment; filename="john-doe-sample.pdf"',
     });
   }
 
@@ -43,7 +43,7 @@ export class DocumentPrototypeController {
     const file = await this.documents.exportDocx(includeHighlights(highlights));
     return new StreamableFile(file, {
       type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      disposition: 'attachment; filename="alex-morgan-sample.docx"',
+      disposition: 'attachment; filename="john-doe-sample.docx"',
     });
   }
 }

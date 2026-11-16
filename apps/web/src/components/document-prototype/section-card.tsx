@@ -46,6 +46,7 @@ interface SectionCardProps<Value> extends VisibilityProps {
   value: Value;
   onSave: (value: Value) => void;
   subtitle?: string;
+  initialOpen?: boolean;
   children: (
     value: Value,
     update: (value: Value) => void,
@@ -58,11 +59,12 @@ const SectionCard = <Value,>({
   value,
   onSave,
   subtitle,
+  initialOpen = false,
   hidden,
   onToggle,
   children,
 }: SectionCardProps<Value>) => {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initialOpen);
   const [{ draft, revision, resetCount }, setDraftState] = useState<{
     draft?: Value;
     revision: number;
