@@ -4,11 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   defaultSectionOrder,
   sectionKey,
+  withBulletIds,
   visibleResume,
   type EditorSectionId,
 } from "@/lib/document-prototype/content-presentation";
 import {
   defaultStyle,
+  templateCatalogSchema,
   type DraftContent,
   type ResumeDraft,
   type TemplateCatalog,
@@ -32,15 +34,18 @@ export function useResumeLayouts() {
   }>();
   const [error, setError] = useState("");
   const [reload, setReload] = useState(0);
+  const [previewRetry, setPreviewRetry] = useState(0);
 
   useEffect(() => {
     const request = new AbortController();
     fetch("/api/resume-layouts", { signal: request.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error("Catalog unavailable");
-        const next: TemplateCatalog = await response.json();
+        const next: TemplateCatalog = templateCatalogSchema.parse(
+          await response.json(),
+        );
         if (request.signal.aborted) return;
-        setCatalog(next);
+        setCatalog({ ...next, sample: withBulletIds(next.sample) });
         setTemplate(
           next.layouts.find((layout) => layout.id === "classic") ??
             next.layouts[0],
@@ -142,7 +147,7 @@ export function useResumeLayouts() {
         if (queue.running === request) queue.running = undefined;
       }
     })();
-  }, [exportDraft]);
+  }, [exportDraft, previewRetry]);
 
   const updateStyle = (changes: Partial<TemplateStyle>) => {
     if (!template) return;
@@ -187,7 +192,7 @@ export function useResumeLayouts() {
     },
     retry: () => {
       setError("");
-      if (catalog) setSettings((current) => ({ ...current }));
+      if (catalog) setPreviewRetry((value) => value + 1);
       else setReload((value) => value + 1);
     },
   };

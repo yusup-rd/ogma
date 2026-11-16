@@ -11,6 +11,7 @@ export type RichList =
     };
 export type RichListItem = {
   type: "listItem";
+  attrs?: { id?: string };
   content: [RichParagraph, ...RichBlock[]];
 };
 export type RichBlock = RichParagraph | RichList;

@@ -1,6 +1,7 @@
 import type { Page } from "playwright";
 
 export async function paginateResume(page: Page) {
+  await page.emulateMedia({ media: "print" });
   await page.waitForFunction(() => document.fonts.status === "loaded");
   await page.evaluate(async () => {
     await Promise.all(
@@ -152,13 +153,14 @@ export async function paginateResume(page: Page) {
         function fits(box: HTMLElement) {
           const { sheet } = pageAt(pageIndex);
           const pageTop = sheet.getBoundingClientRect().top;
+          const section = box.parentElement!;
+          const sectionEnd =
+            section.getBoundingClientRect().bottom +
+            parseFloat(getComputedStyle(section).marginBottom);
           const bottomPadding = parseFloat(
             getComputedStyle(sheet).paddingBottom,
           );
-          return (
-            box.getBoundingClientRect().bottom <=
-            pageTop + printHeight - bottomPadding
-          );
+          return sectionEnd <= pageTop + printHeight - bottomPadding;
         }
         function nextPage() {
           if (target && !target.children.length) currentSection?.remove();

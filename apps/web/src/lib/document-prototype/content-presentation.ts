@@ -42,29 +42,61 @@ export function defaultSectionOrder(
 export const sectionKey = (id: EditorSectionId) => "section/" + id;
 export const entryKey = (id: string) => "entry/" + id;
 
-export function bulletKey(entryId: string, path: string, item: RichListItem) {
-  return (
-    "bullet/" + entryId + "/" + path + "/" + JSON.stringify(item.content[0])
-  );
+const bulletKey = (entryId: string, bulletId: string) =>
+  "bullet/" + entryId + "/" + bulletId;
+
+export function withBulletIds(content: DraftContent): DraftContent {
+  function identify(block: RichBlock): RichBlock {
+    if (block.type === "paragraph") return block;
+    return {
+      ...block,
+      content: block.content.map((item): RichListItem => {
+        const [paragraph, ...children] = item.content;
+        return {
+          ...item,
+          attrs: {
+            id:
+              item.attrs?.id ??
+              crypto.getRandomValues(new Uint32Array(4)).join("-"),
+          },
+          content: [paragraph, ...children.map(identify)],
+        };
+      }),
+    };
+  }
+  const identifyEntries = <T extends { description: RichText }>(entries: T[]) =>
+    entries.map((entry) => ({
+      ...entry,
+      description: {
+        ...entry.description,
+        content: entry.description.content?.map(identify),
+      },
+    }));
+  return {
+    ...content,
+    experience: identifyEntries(content.experience),
+    education: identifyEntries(content.education),
+    projects: identifyEntries(content.projects),
+    volunteering: identifyEntries(content.volunteering),
+    publications: identifyEntries(content.publications),
+  };
 }
 
 export function descriptionBullets(description: RichText, entryId: string) {
   const items: { key: string; label: string }[] = [];
-  function visit(block: RichBlock, path: string) {
+  function visit(block: RichBlock) {
     if (block.type === "paragraph") return;
-    block.content.forEach((item, index) => {
-      const prefix = path + "." + index;
+    block.content.forEach((item) => {
       const label = item.content[0].content
         ?.map((part) => (part.type === "text" ? part.text : " "))
         .join("")
         .trim();
-      if (label) items.push({ key: bulletKey(entryId, prefix, item), label });
-      item.content.forEach((child, childIndex) =>
-        visit(child, prefix + "." + childIndex),
-      );
+      const id = item.attrs?.id;
+      if (label && id) items.push({ key: bulletKey(entryId, id), label });
+      item.content.forEach(visit);
     });
   }
-  description.content?.forEach((block, index) => visit(block, String(index)));
+  description.content?.forEach(visit);
   return items;
 }
 
@@ -73,19 +105,19 @@ function visibleDescription(
   entryId: string,
   hidden: ReadonlySet<string>,
 ): RichText {
-  function filter(block: RichBlock, path: string): RichBlock | null {
+  function filter(block: RichBlock): RichBlock | null {
     if (block.type === "paragraph") return block;
-    const content = block.content.flatMap((item, index): RichListItem[] => {
-      const prefix = path + "." + index;
-      if (hidden.has(bulletKey(entryId, prefix, item))) return [];
+    const content = block.content.flatMap((item): RichListItem[] => {
+      const id = item.attrs?.id;
+      if (id && hidden.has(bulletKey(entryId, id))) return [];
       const [paragraph, ...children] = item.content;
       return [
         {
           ...item,
           content: [
             paragraph,
-            ...children.flatMap((child, childIndex) => {
-              const result = filter(child, prefix + "." + (childIndex + 1));
+            ...children.flatMap((child) => {
+              const result = filter(child);
               return result ? [result] : [];
             }),
           ],
@@ -96,8 +128,8 @@ function visibleDescription(
   }
   return {
     ...value,
-    content: value.content?.flatMap((block, index) => {
-      const result = filter(block, String(index));
+    content: value.content?.flatMap((block) => {
+      const result = filter(block);
       return result ? [result] : [];
     }),
   };

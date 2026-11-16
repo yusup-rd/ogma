@@ -470,6 +470,7 @@ html { --paper-width:${paper.width}; --paper-height:${paper.height}; }
 .resume-page {
   --ink-accent:${colors.accent}; --supporting-ink:${colors.supportingInk}; --table-ink:${colors.tableInk}; --table-paper:${colors.tablePaper}; --paper:${layout.paper}; --preset-side:${layout.sideColor ?? layout.paper};
   --split:${layout.ratio}%;
+  --rail-edge:${toWidth(margins.left + ((paper.width - margins.left - margins.right) * layout.ratio) / 100)};
   --margin-top:${toWidth(margins.top)}; --margin-right:${toWidth(margins.right)};
   --margin-bottom:${toWidth(margins.bottom)}; --margin-left:${toWidth(margins.left)};
   --gap:${toWidth(style.sectionGap)};

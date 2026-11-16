@@ -1,5 +1,6 @@
 "use client";
 
+import UniqueID from "@tiptap/extension-unique-id";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import {
@@ -18,6 +19,7 @@ interface RichTextFieldProps {
 }
 
 const extensions = [
+  UniqueID.configure({ types: ["listItem"] }),
   StarterKit.configure({
     blockquote: false,
     code: false,

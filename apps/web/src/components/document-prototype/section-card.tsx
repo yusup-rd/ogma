@@ -63,8 +63,23 @@ const SectionCard = <Value,>({
   children,
 }: SectionCardProps<Value>) => {
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState<Value>();
-  const [revision, setRevision] = useState(0);
+  const [{ draft, revision, resetCount }, setDraftState] = useState<{
+    draft?: Value;
+    revision: number;
+    resetCount: number;
+  }>({ revision: 0, resetCount: 0 });
+  const updateDraft = (resolve: (current: Value) => Value) => {
+    setDraftState((current) =>
+      current.revision === revision
+        ? { ...current, draft: resolve(current.draft ?? value) }
+        : current,
+    );
+  };
+  const clearDraft = (resetForm = false) =>
+    setDraftState((current) => ({
+      revision: current.revision + 1,
+      resetCount: current.resetCount + Number(resetForm),
+    }));
   const bodyId = useId();
   const title = sectionTitles[section];
   const sortable = section !== "personal" && section !== "summary";
@@ -124,9 +139,11 @@ const SectionCard = <Value,>({
       <div id={bodyId} hidden={!open}>
         {open && (
           <div className="flex flex-col gap-4 border-t border-line p-3">
-            <div key={revision} className="flex flex-col gap-3">
-              {children(draft ?? value, setDraft, (resolve) =>
-                setDraft((current) => resolve(current ?? value)),
+            <div key={resetCount} className="flex flex-col gap-3">
+              {children(
+                draft ?? value,
+                (next) => updateDraft(() => next),
+                updateDraft,
               )}
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
@@ -138,10 +155,7 @@ const SectionCard = <Value,>({
               <button
                 type="button"
                 disabled={draft === undefined}
-                onClick={() => {
-                  setDraft(undefined);
-                  setRevision((n) => n + 1);
-                }}
+                onClick={() => clearDraft(true)}
                 className="min-h-10 rounded-lg border border-line px-3 text-sm font-semibold enabled:hover:bg-canvas disabled:opacity-45"
               >
                 Cancel
@@ -151,7 +165,7 @@ const SectionCard = <Value,>({
                 disabled={draft === undefined}
                 onClick={() => {
                   if (draft !== undefined) onSave(draft);
-                  setDraft(undefined);
+                  clearDraft();
                 }}
                 className="min-h-10 rounded-lg bg-accent px-3 text-sm font-semibold text-white enabled:hover:bg-accent-hover disabled:opacity-45"
               >

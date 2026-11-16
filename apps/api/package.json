@@ -15,6 +15,7 @@
     "@nestjs/config": "12.1.1",
     "@nestjs/core": "12.5.0",
     "@nestjs/platform-express": "12.5.0",
+    "@ogma/contracts": "workspace:*",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
     "docx": "^9.0.0",

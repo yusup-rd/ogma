@@ -2,7 +2,7 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import { LuDownload, LuX } from "react-icons/lu";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ResumeDraft } from "@/lib/document-prototype/resume-layout-model";
 
 interface ExportDialogProps {
@@ -28,9 +28,13 @@ const ExportDialog = ({ draft }: ExportDialogProps) => {
   const [format, setFormat] = useState<ExportFormat>("pdf");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const activeRequest = useRef<AbortController>(null);
+  useEffect(() => () => activeRequest.current?.abort(), []);
 
   const download = async () => {
-    if (!draft) return;
+    if (!draft || activeRequest.current) return;
+    const request = new AbortController();
+    activeRequest.current = request;
     setPending(true);
     setError("");
 
@@ -39,12 +43,15 @@ const ExportDialog = ({ draft }: ExportDialogProps) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(draft),
+        signal: request.signal,
       });
       if (!response.ok) {
         throw new Error("Export unavailable");
       }
 
-      const url = URL.createObjectURL(await response.blob());
+      const blob = await response.blob();
+      if (request.signal.aborted) return;
+      const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.download = `resume.${format}`;
@@ -54,9 +61,13 @@ const ExportDialog = ({ draft }: ExportDialogProps) => {
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       setOpen(false);
     } catch {
-      setError("Couldn’t download this format. Try again.");
+      if (!request.signal.aborted)
+        setError("Couldn’t download this format. Try again.");
     } finally {
-      setPending(false);
+      if (activeRequest.current === request) {
+        activeRequest.current = null;
+        setPending(false);
+      }
     }
   };
 
@@ -64,10 +75,13 @@ const ExportDialog = ({ draft }: ExportDialogProps) => {
     <Dialog.Root
       open={open}
       onOpenChange={(nextOpen) => {
-        if (!pending) {
-          setOpen(nextOpen);
-          setError("");
+        if (!nextOpen) {
+          activeRequest.current?.abort();
+          activeRequest.current = null;
+          setPending(false);
         }
+        setOpen(nextOpen);
+        setError("");
       }}
     >
       <Dialog.Trigger asChild disabled={!draft}>
@@ -95,7 +109,6 @@ const ExportDialog = ({ draft }: ExportDialogProps) => {
               <button
                 type="button"
                 aria-label="Close export dialog"
-                disabled={pending}
                 className="grid size-11 shrink-0 place-items-center rounded-lg text-muted hover:bg-canvas"
               >
                 <LuX aria-hidden="true" className="size-4" />
@@ -135,7 +148,6 @@ const ExportDialog = ({ draft }: ExportDialogProps) => {
             <Dialog.Close asChild>
               <button
                 type="button"
-                disabled={pending}
                 className="min-h-11 rounded-lg border border-line px-3.5 text-sm font-semibold hover:bg-canvas"
               >
                 Cancel

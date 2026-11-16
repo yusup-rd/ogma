@@ -13,7 +13,10 @@ export class HealthController {
   @Get("ready")
   async getReadiness() {
     try {
-      await this.database.resume.findFirst({ select: { id: true } });
+      await this.database.$transaction(async (transaction) => {
+        await transaction.$executeRaw`SET LOCAL statement_timeout = '2s'`;
+        await transaction.resume.findFirst({ select: { id: true } });
+      });
       return { status: "ok", database: "ok" };
     } catch {
       throw new ServiceUnavailableException({

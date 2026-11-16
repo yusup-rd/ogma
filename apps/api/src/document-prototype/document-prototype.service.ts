@@ -5,14 +5,19 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
+import { setTimeout as wait } from "node:timers/promises";
 import { chromium, type Browser, type Page } from "playwright";
 import { renderSampleHtml } from "./render-sample-html";
 import { sampleResume } from "./sample-resume";
+
+const maxDocumentPages = 2;
+const renderTimeout = 20_000;
 
 @Injectable()
 export class DocumentPrototypeService implements OnModuleDestroy {
   private browser?: Promise<Browser>;
   private rendering = false;
+  private activeDocumentPages = 0;
 
   constructor(private readonly config: ConfigService) {}
 
@@ -58,21 +63,41 @@ export class DocumentPrototypeService implements OnModuleDestroy {
     html: string,
     action: (page: Page) => Promise<T>,
   ) {
+    if (this.activeDocumentPages >= maxDocumentPages) {
+      throw new ServiceUnavailableException(
+        "The document renderer is busy. Try again shortly.",
+      );
+    }
+
+    this.activeDocumentPages++;
     try {
       const browser = await this.getBrowser();
       const context = await browser.newContext({ offline: true });
+      const deadline = new AbortController();
+      const expired = wait(renderTimeout, undefined, {
+        signal: deadline.signal,
+      }).then(() => {
+        throw new Error("Document rendering timed out.");
+      });
       try {
-        const page = await context.newPage();
-        page.setDefaultTimeout(10_000);
-        await page.setContent(html);
-        return await action(page);
+        const render = async () => {
+          const page = await context.newPage();
+          page.setDefaultTimeout(10_000);
+          await page.setContent(html);
+          return action(page);
+        };
+        return await Promise.race([render(), expired]);
       } finally {
+        deadline.abort();
+        // Closing the context interrupts any Playwright work still using its page.
         await context.close();
       }
     } catch {
       throw new ServiceUnavailableException(
         "The document could not be rendered. Check that Chromium is installed and try again.",
       );
+    } finally {
+      this.activeDocumentPages--;
     }
   }
 

@@ -156,9 +156,9 @@ header { display:grid; gap:.42em; margin-bottom:var(--gap); }
 .rail-left .side,.rail-left-column .side { grid-area:1 / 1; }
 .rail-left .main,.rail-left-column .main { grid-area:1 / 2; }
 .rail-left,.rail-right { --column-gap:7cqw; }
-.rail-left { background-image:linear-gradient(90deg,var(--side) var(--rail-edge,36%),var(--paper) 0); }
-.rail-right { background-image:linear-gradient(90deg,var(--paper) var(--rail-edge,63%),var(--side) 0); }
-.rail-right header { max-width:calc(var(--rail-edge,63cqw) - var(--margin-left) - var(--margin-right)); }
+.rail-left { background-image:linear-gradient(90deg,var(--side) var(--rail-edge),var(--paper) 0); }
+.rail-right { background-image:linear-gradient(90deg,var(--paper) var(--rail-edge),var(--side) 0); }
+.rail-right header { max-width:calc(var(--rail-edge) - var(--margin-left) - var(--column-gap) / 2); }
 .rail-right .side { margin-top:var(--gap); }
 .rail-left .side,.rail-right .side {
   color:white; --heading-color:white; --title-color:white; --rules:color-mix(in srgb,white 72%,var(--ink-accent)); --voice:#fff; --icon-ink:var(--rules); --meta:#e5eff0;
@@ -168,8 +168,8 @@ header { display:grid; gap:.42em; margin-bottom:var(--gap); }
 .rail-left::before,.template-elegant-logos::before {
   content:""; display:block; height:1.6cqw; margin:calc(-1 * var(--margin-top)) calc(-1 * var(--margin-right)) calc(var(--margin-top) - 1.6cqw) calc(-1 * var(--margin-left));
 }
-.rail-left::before { background:linear-gradient(90deg,color-mix(in srgb,var(--side) 67%,black) 36%,transparent 0) }
-.template-elegant-logos::before { background:linear-gradient(90deg,transparent 63%,color-mix(in srgb,var(--side) 67%,black) 0) }
+.rail-left::before { background:linear-gradient(90deg,color-mix(in srgb,var(--side) 67%,black) var(--rail-edge),transparent 0) }
+.template-elegant-logos::before { background:linear-gradient(90deg,transparent var(--rail-edge),color-mix(in srgb,var(--side) 67%,black) 0) }
 .template-polished .portrait { --portrait-size:12.6cqw; }
 .portrait-square .portrait { border-radius:.2em; }
 .template-polished .job-heading,.template-elegant .job-heading,.template-elegant-logos .job-heading { flex-wrap:nowrap; }
