@@ -5,6 +5,7 @@ import { DocumentPrototypeModule } from "./document-prototype/document-prototype
 import { HealthController } from "./health.controller";
 import { OwnerAuthModule } from "./owner-auth/owner-auth.module";
 import { ResumeLayoutsModule } from "./resume-layouts/resume-layouts.module";
+import { ResumesModule } from "./resumes/resumes.module";
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { ResumeLayoutsModule } from "./resume-layouts/resume-layouts.module";
     OwnerAuthModule,
     DocumentPrototypeModule,
     ResumeLayoutsModule,
+    ResumesModule,
   ],
   controllers: [HealthController],
 })

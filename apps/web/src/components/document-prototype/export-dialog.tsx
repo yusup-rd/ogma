@@ -3,10 +3,12 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { LuDownload, LuX } from "react-icons/lu";
 import { useEffect, useRef, useState } from "react";
-import type { ResumeDraft } from "@/lib/document-prototype/resume-layout-model";
 
 interface ExportDialogProps {
-  draft: ResumeDraft | null;
+  resumeId: string;
+  ready: boolean;
+  beforeExport: () => Promise<number | null>;
+  onConflict: () => void;
 }
 
 const formats = [
@@ -23,7 +25,12 @@ const formats = [
 ] as const;
 type ExportFormat = (typeof formats)[number]["value"];
 
-const ExportDialog = ({ draft }: ExportDialogProps) => {
+const ExportDialog = ({
+  resumeId,
+  ready,
+  beforeExport,
+  onConflict,
+}: ExportDialogProps) => {
   const [open, setOpen] = useState(false);
   const [format, setFormat] = useState<ExportFormat>("pdf");
   const [pending, setPending] = useState(false);
@@ -32,19 +39,33 @@ const ExportDialog = ({ draft }: ExportDialogProps) => {
   useEffect(() => () => activeRequest.current?.abort(), []);
 
   const download = async () => {
-    if (!draft || activeRequest.current) return;
+    if (!ready || activeRequest.current) return;
     const request = new AbortController();
     activeRequest.current = request;
     setPending(true);
     setError("");
 
     try {
-      const response = await fetch(`/api/resume-layouts/resume.${format}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(draft),
-        signal: request.signal,
-      });
+      const expectedRevision = await beforeExport();
+      if (request.signal.aborted) return;
+      if (expectedRevision === null) {
+        setOpen(false);
+        return;
+      }
+      const response = await fetch(
+        `/api/resumes/${resumeId}/export/${format}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ expectedRevision }),
+          signal: request.signal,
+        },
+      );
+      if ([404, 409].includes(response.status)) {
+        setOpen(false);
+        onConflict();
+        return;
+      }
       if (!response.ok) {
         throw new Error("Export unavailable");
       }
@@ -84,13 +105,15 @@ const ExportDialog = ({ draft }: ExportDialogProps) => {
         setError("");
       }}
     >
-      <Dialog.Trigger asChild disabled={!draft}>
+      <Dialog.Trigger asChild disabled={!ready}>
         <button
           type="button"
-          className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-accent px-3.5 text-sm font-semibold text-white hover:bg-accent-hover"
+          disabled={!ready}
+          aria-label="Export"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg bg-accent text-sm font-semibold text-white hover:bg-accent-hover sm:px-3.5"
         >
           <LuDownload aria-hidden="true" className="size-4" />
-          Export
+          <span className="hidden sm:inline">Export</span>
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>
@@ -121,7 +144,7 @@ const ExportDialog = ({ draft }: ExportDialogProps) => {
             {formats.map((option) => (
               <label
                 key={option.value}
-                className="flex cursor-pointer items-start gap-3 rounded-xl border border-line p-3.5 has-checked:border-accent/30 has-checked:bg-accent-soft"
+                className="flex items-start gap-3 rounded-xl border border-line p-3.5 has-checked:border-accent/30 has-checked:bg-accent-soft"
               >
                 <input
                   type="radio"

@@ -1,11 +1,15 @@
 "use client";
 
-import { LuFileText, LuPalette } from "react-icons/lu";
+import { LuChevronLeft, LuFileText, LuPalette } from "react-icons/lu";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useState } from "react";
+import type { SavedResume } from "@ogma/contracts/resume-workspace";
 import { SignOutDialog } from "@/components/owner-auth/sign-out-dialog";
+import { ResumeConflictDialog } from "@/components/resumes/resume-conflict-dialog";
+import { CheckpointHistory } from "@/components/resumes/checkpoint-history";
 import { useResumeLayouts } from "@/hooks/document-prototype/use-resume-layouts";
+import { useResumeAutosave } from "@/hooks/resumes/use-resume-autosave";
 import { ExportDialog } from "./export-dialog";
 import { ResumeContentForm } from "./resume-content-form";
 import { ResumePreview } from "./resume-preview";
@@ -17,26 +21,101 @@ const TemplateDesignForm = dynamic(() =>
   import("./template-design-form").then((module) => module.TemplateDesignForm),
 );
 
-const DocumentWorkspace = () => {
-  const model = useResumeLayouts();
+interface DocumentWorkspaceProps {
+  resume: SavedResume;
+}
+
+const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
+  const model = useResumeLayouts(resume.document);
+  const [title, setTitle] = useState(resume.title);
+  const savedTitle = title.trim() || "Untitled resume";
+  const autosave = useResumeAutosave(resume, savedTitle, model.document);
   const [screen, setScreen] = useState<"Content" | "Design">("Content");
   const [mobileView, setMobileView] = useState<"Edit" | "Preview">("Edit");
 
   return (
     <main className="flex min-h-dvh flex-col bg-canvas text-ink lg:h-dvh">
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-paper px-4 py-3 lg:min-h-19 lg:gap-5 lg:px-6">
-        <Image src="/icon.svg" alt="Ogma" width={32} height={32} />
+        <Image
+          src="/icon.svg"
+          alt="Ogma"
+          width={32}
+          height={32}
+          className="hidden sm:block"
+        />
+        <button
+          type="button"
+          aria-label="Back to resumes"
+          onClick={async () => {
+            if ((await autosave.flush()) !== null)
+              window.location.assign(new URL("/", window.location.origin));
+          }}
+          className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-1.5 text-xs font-semibold hover:bg-canvas sm:px-2"
+        >
+          <LuChevronLeft aria-hidden="true" className="size-4" />
+          <span className="hidden sm:inline">Resumes</span>
+        </button>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-sm font-semibold sm:text-base">
-            {model.content?.targetTitle || "Resume editor"}
-          </h1>
-          <p className="text-xs text-muted">
-            Draft · Changes apply to this session
-          </p>
+          <h1 className="sr-only">Resume editor</h1>
+          <input
+            aria-label="Resume name"
+            className="w-full rounded-sm text-sm font-semibold focus-visible:outline-2 focus-visible:outline-accent sm:text-base"
+            value={title}
+            placeholder="Untitled resume"
+            maxLength={120}
+            onBlur={() => setTitle(savedTitle)}
+            onChange={(event) => setTitle(event.currentTarget.value)}
+          />
+          <div className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted">
+            <p role="status">
+              {autosave.phase === "saved"
+                ? "Saved"
+                : autosave.phase === "saving"
+                  ? "Saving…"
+                  : autosave.phase === "conflict"
+                    ? "Save conflict"
+                    : "Save failed"}
+            </p>
+            {autosave.phase === "error" && (
+              <button
+                type="button"
+                className="font-semibold text-accent underline"
+                onClick={() => void autosave.flush()}
+              >
+                Retry save
+              </button>
+            )}
+            {autosave.phase === "conflict" && (
+              <button
+                type="button"
+                className="font-semibold text-accent underline"
+                onClick={() => autosave.setConflictOpen(true)}
+              >
+                Resolve
+              </button>
+            )}
+          </div>
         </div>
-        <ExportDialog draft={model.exportDraft} />
-        <SignOutDialog />
+        <CheckpointHistory
+          resumeId={resume.id}
+          beforeAction={autosave.flush}
+          onConflict={autosave.reportConflict}
+          onRestored={autosave.reload}
+        />
+        <ExportDialog
+          resumeId={resume.id}
+          ready={Boolean(model.template)}
+          beforeExport={autosave.flush}
+          onConflict={autosave.reportConflict}
+        />
+        <SignOutDialog beforeSignOut={autosave.flush} />
       </header>
+      <ResumeConflictDialog
+        open={autosave.conflictOpen}
+        onOpenChange={autosave.setConflictOpen}
+        onReload={autosave.reload}
+        onSaveCopy={autosave.saveCopy}
+      />
 
       <div
         className="grid grid-cols-2 gap-1 border-b border-line bg-paper p-2 lg:hidden"

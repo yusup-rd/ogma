@@ -25,6 +25,10 @@ export class HealthController {
         await transaction.signInAttempt.findFirst({
           select: { tokenHash: true },
         });
+        await transaction.resumeCheckpoint.findFirst({ select: { id: true } });
+        await transaction.resumeCheckpointRestore.findFirst({
+          select: { id: true },
+        });
       });
       return { status: "ok", database: "ok" };
     } catch {

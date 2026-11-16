@@ -1,15 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { ResumeDocument } from "@ogma/contracts/resume-workspace";
+import { defaultStyle, resolveResume } from "@ogma/contracts/resolve-resume";
 import {
   defaultSectionOrder,
-  sectionKey,
-  withBulletIds,
-  visibleResume,
   type EditorSectionId,
 } from "@/lib/document-prototype/content-presentation";
 import {
-  defaultStyle,
   templateCatalogSchema,
   type DraftContent,
   type ResumeDraft,
@@ -18,14 +16,9 @@ import {
   type TemplateStyle,
 } from "@/lib/document-prototype/resume-layout-model";
 
-export function useResumeLayouts() {
+export function useResumeLayouts(initialDocument: ResumeDocument) {
   const [catalog, setCatalog] = useState<TemplateCatalog | null>(null);
-  const [editedContent, setContent] = useState<DraftContent | null>(null);
-  const [template, setTemplate] = useState<TemplateOption | null>(null);
-  const [settings, setSettings] = useState<Record<string, TemplateStyle>>({});
-  const [photo, setPhoto] = useState<string>();
-  const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
-  const [customOrder, setOrder] = useState<EditorSectionId[]>();
+  const [editedDocument, setEditedDocument] = useState<ResumeDocument>();
   const [preview, setPreview] = useState<{
     html: string;
     pages: number;
@@ -45,11 +38,7 @@ export function useResumeLayouts() {
           await response.json(),
         );
         if (request.signal.aborted) return;
-        setCatalog({ ...next, sample: withBulletIds(next.sample) });
-        setTemplate(
-          next.layouts.find((layout) => layout.id === "classic") ??
-            next.layouts[0],
-        );
+        setCatalog(next);
       })
       .catch(() => {
         if (!request.signal.aborted)
@@ -58,29 +47,19 @@ export function useResumeLayouts() {
     return () => request.abort();
   }, [reload]);
 
-  const content = editedContent ?? catalog?.sample ?? null;
+  const document = editedDocument ?? initialDocument;
+  const { content, settings, photo, sectionOrder: customOrder } = document;
+  const hidden = useMemo(() => new Set(document.hidden), [document.hidden]);
+  const template =
+    catalog?.layouts.find(({ id }) => id === document.layoutId) ?? null;
   const order = customOrder ?? defaultSectionOrder(template);
   const style = useMemo(
     () => (template ? (settings[template.id] ?? defaultStyle(template)) : null),
     [template, settings],
   );
   const exportDraft = useMemo<ResumeDraft | null>(
-    () =>
-      template && content && style
-        ? {
-            layoutId: template.id,
-            sectionOrder: customOrder?.filter(
-              (section) => section !== "personal",
-            ),
-            content: visibleResume(content, hidden),
-            style: {
-              ...style,
-              showPhoto: style.showPhoto && !hidden.has(sectionKey("personal")),
-            },
-            photo,
-          }
-        : null,
-    [template, customOrder, content, hidden, style, photo],
+    () => (template ? resolveResume(document, template) : null),
+    [template, document],
   );
 
   const previewQueue = useRef<{
@@ -149,18 +128,26 @@ export function useResumeLayouts() {
     })();
   }, [exportDraft, previewRetry]);
 
+  const setDocument = (update: (current: ResumeDocument) => ResumeDocument) => {
+    setEditedDocument((current) => update(current ?? initialDocument));
+  };
+
   const updateStyle = (changes: Partial<TemplateStyle>) => {
     if (!template) return;
-    setSettings((current) => ({
+    setDocument((current) => ({
       ...current,
-      [template.id]: {
-        ...(current[template.id] ?? defaultStyle(template)),
-        ...changes,
+      settings: {
+        ...current.settings,
+        [template.id]: {
+          ...(current.settings[template.id] ?? defaultStyle(template)),
+          ...changes,
+        },
       },
     }));
   };
 
   return {
+    document,
     catalog,
     content,
     template,
@@ -171,23 +158,34 @@ export function useResumeLayouts() {
     order,
     hidden,
     photo,
-    setContent,
-    setTemplate,
-    setPhoto,
-    setOrder,
+    setContent: (content: DraftContent) =>
+      setDocument((current) => ({ ...current, content })),
+    setTemplate: (selected: TemplateOption) =>
+      setDocument((current) =>
+        current.layoutId === selected.id
+          ? current
+          : { ...current, layoutId: selected.id },
+      ),
+    setPhoto: (photo: string | undefined) =>
+      setDocument((current) => ({ ...current, photo })),
+    setOrder: (sectionOrder: EditorSectionId[]) =>
+      setDocument((current) => ({ ...current, sectionOrder })),
     updateStyle,
     toggleVisibility: (key: string) =>
-      setHidden((previous) => {
-        const next = new Set(previous);
+      setDocument((current) => {
+        const next = new Set(current.hidden);
         if (next.has(key)) next.delete(key);
         else next.add(key);
-        return next;
+        return { ...current, hidden: [...next] };
       }),
     resetStyle: () => {
       if (template)
-        setSettings((current) => ({
+        setDocument((current) => ({
           ...current,
-          [template.id]: defaultStyle(template),
+          settings: {
+            ...current.settings,
+            [template.id]: defaultStyle(template),
+          },
         }));
     },
     retry: () => {

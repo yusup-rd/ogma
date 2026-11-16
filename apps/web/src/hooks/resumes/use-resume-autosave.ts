@@ -1,0 +1,151 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  resumeSummarySchema,
+  type ResumeDocument,
+  type SavedResume,
+} from "@ogma/contracts/resume-workspace";
+import {
+  createResume,
+  requestResume,
+  ResumeRequestError,
+} from "@/lib/resumes/resume-api";
+
+interface DraftSnapshot {
+  title: string;
+  document: ResumeDocument;
+}
+
+function matches(left: DraftSnapshot, right: DraftSnapshot) {
+  return left.title === right.title && left.document === right.document;
+}
+
+export function useResumeAutosave(
+  initial: SavedResume,
+  title: string,
+  draft: ResumeDocument,
+) {
+  const [phase, setPhase] = useState<"saved" | "saving" | "error" | "conflict">(
+    "saved",
+  );
+  const [acknowledged, setAcknowledged] = useState({
+    title: initial.title,
+    document: initial.document,
+  });
+  const [conflictOpen, setConflictOpen] = useState(false);
+  const queue = useRef({
+    latest: { title: initial.title, document: initial.document },
+    saved: { title: initial.title, document: initial.document },
+    revision: initial.draftRevision,
+    request: undefined as Promise<boolean> | undefined,
+    conflict: false,
+    allowNavigation: false,
+    copy: undefined as { id: string; snapshot: DraftSnapshot } | undefined,
+  });
+
+  const flush = useCallback(async (): Promise<number | null> => {
+    const state = queue.current;
+    if (state.conflict) {
+      setConflictOpen(true);
+      return null;
+    }
+    while (!matches(state.latest, state.saved)) {
+      if (state.conflict) return null;
+      if (!state.request) {
+        const snapshot = state.latest;
+        setPhase("saving");
+        state.request = requestResume(`/${initial.id}`, resumeSummarySchema, {
+          method: "PATCH",
+          body: { ...snapshot, expectedRevision: state.revision },
+        })
+          .then((result) => {
+            state.revision = result.draftRevision;
+            state.saved = snapshot;
+            setAcknowledged(snapshot);
+            setPhase("saved");
+            return true;
+          })
+          .catch((error: unknown) => {
+            if (
+              error instanceof ResumeRequestError &&
+              [404, 409].includes(error.status)
+            ) {
+              state.conflict = true;
+              setPhase("conflict");
+              setConflictOpen(true);
+            } else {
+              setPhase("error");
+            }
+            return false;
+          })
+          .finally(() => {
+            state.request = undefined;
+          });
+      }
+      if (!(await state.request)) return null;
+    }
+    return state.revision;
+  }, [initial.id]);
+
+  useEffect(() => {
+    const state = queue.current;
+    state.latest = { title, document: draft };
+    if (matches(state.latest, state.saved) || state.conflict) return;
+    const timer = window.setTimeout(() => void flush(), 600);
+    return () => window.clearTimeout(timer);
+  }, [title, draft, flush]);
+
+  useEffect(() => {
+    const state = queue.current;
+    const guard = (event: BeforeUnloadEvent) => {
+      if (state.allowNavigation || matches(state.latest, state.saved)) return;
+      event.preventDefault();
+      event.returnValue = true;
+    };
+    window.addEventListener("beforeunload", guard);
+    return () => window.removeEventListener("beforeunload", guard);
+  }, []);
+
+  const reload = () => {
+    queue.current.allowNavigation = true;
+    window.location.reload();
+  };
+
+  const saveCopy = async () => {
+    const state = queue.current;
+    const attempt = (state.copy ??= {
+      id: crypto.randomUUID(),
+      snapshot: state.latest,
+    });
+    const { title, document } = attempt.snapshot;
+    const saved = await createResume({
+      id: attempt.id,
+      document,
+      title: `${title.slice(0, 113)} (copy)`,
+    });
+    state.allowNavigation = true;
+    window.location.assign(
+      new URL(`/resumes/${saved.id}`, window.location.origin),
+    );
+  };
+
+  const reportConflict = () => {
+    queue.current.conflict = true;
+    setPhase("conflict");
+    setConflictOpen(true);
+  };
+
+  const dirty =
+    phase === "saved" && !matches(acknowledged, { title, document: draft });
+
+  return {
+    phase: dirty ? "saving" : phase,
+    conflictOpen,
+    setConflictOpen,
+    flush,
+    reload,
+    saveCopy,
+    reportConflict,
+  };
+}

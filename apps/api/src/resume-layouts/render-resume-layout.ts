@@ -377,7 +377,11 @@ function formattingRules(
   return rules.join("\n");
 }
 
-export function renderResumeLayout(draft: LayoutDraft, layout: ResumeLayout) {
+export function renderResumeLayout(
+  draft: LayoutDraft,
+  layout: ResumeLayout,
+  thumbnail = false,
+) {
   const { content, style } = draft;
   const paper = paperDimensions(style);
   const margins = pageMargins(style);
@@ -483,6 +487,18 @@ html { --paper-width:${paper.width}; --paper-height:${paper.height}; }
 ${resumeLayoutStyles}
 ${formattingRules(effectiveStyle, toPoints, style.spacing?.titleContent !== undefined)}
 ${fontStyles(style.font)}
+${
+  thumbnail
+    ? `
+@media screen {
+  html, body { overflow:hidden; background:transparent; }
+  .workspace { min-width:0; padding:0; }
+  .workspace .page { width:100%; box-shadow:none; }
+  .workspace .page + .page { display:none; }
+}
+`
+    : ""
+}
 </style></head><body><main class="workspace" data-paper-width="${paper.width}" data-paper-height="${paper.height}" data-template-name="${escapeText(layout.name)}"><div class="page"><div class="${classes}">
 ${headerInMain ? "" : header}
 <div class="columns"><div class="column main">${headerInMain ? header : ""}${renderSections(main, { ...draft, style: effectiveStyle }, layout, defaults, skills)}</div>

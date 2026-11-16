@@ -43,16 +43,45 @@ model SignInAttempt {
 }
 
 model Resume {
-  id            String    @id @default(uuid()) @db.Uuid
-  ownerId       String    @map("owner_id") @db.Uuid
+  id            String             @id @default(uuid()) @db.Uuid
+  ownerId       String             @map("owner_id") @db.Uuid
   title         String
-  draftRevision Int       @default(1) @map("draft_revision")
-  document      Json      @db.JsonB
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
-  archivedAt    DateTime? @map("archived_at") @db.Timestamptz(3)
-  owner         Owner     @relation(fields: [ownerId], references: [id])
+  draftRevision Int                @default(1) @map("draft_revision")
+  pageCount     Int?               @map("page_count")
+  document      Json               @db.JsonB
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  archivedAt    DateTime?          @map("archived_at") @db.Timestamptz(3)
+  owner         Owner              @relation(fields: [ownerId], references: [id])
+  checkpoints   ResumeCheckpoint[]
 
   @@index([ownerId, archivedAt, updatedAt])
   @@map("resumes")
+}
+
+model ResumeCheckpoint {
+  id            String                    @id @db.Uuid
+  resumeId      String                    @map("resume_id") @db.Uuid
+  name          String
+  resumeTitle   String                    @map("resume_title")
+  draftRevision Int                       @map("draft_revision")
+  document      Json                      @db.JsonB
+  resolved      Json                      @db.JsonB
+  layoutVersion Int                       @default(1) @map("layout_version")
+  createdAt     DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  resume        Resume                    @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  restores      ResumeCheckpointRestore[]
+
+  @@index([resumeId, createdAt])
+  @@map("resume_checkpoints")
+}
+
+model ResumeCheckpointRestore {
+  id            String           @id @db.Uuid
+  checkpointId  String           @map("checkpoint_id") @db.Uuid
+  draftRevision Int              @map("draft_revision")
+  checkpoint    ResumeCheckpoint @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+
+  @@index([checkpointId])
+  @@map("resume_checkpoint_restores")
 }

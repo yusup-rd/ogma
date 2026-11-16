@@ -42,6 +42,13 @@ export class DocumentPrototypeService implements OnModuleDestroy {
     });
   }
 
+  countPages(html: string, prepare: (page: Page) => Promise<void>) {
+    return this.withDocumentPage(html, async (page) => {
+      await prepare(page);
+      return page.locator(".workspace > .page").count();
+    });
+  }
+
   async printPdf(html: string, prepare?: (page: Page) => Promise<void>) {
     if (this.rendering) {
       throw new ServiceUnavailableException(
