@@ -6,6 +6,10 @@
   --color-ink: #252825;
   --color-muted: #555e58;
   --color-accent: #6b3fa0;
+  --color-accent-hover: #593487;
+  --color-accent-soft: #f1e8fa;
+  --color-line: #e1dcd4;
+  --color-preview: #ece8e1;
 }
 
 @theme inline {
@@ -14,4 +18,10 @@
 
 :root {
   color-scheme: light;
+}
+
+html,
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #ab9bb7 transparent;
 }

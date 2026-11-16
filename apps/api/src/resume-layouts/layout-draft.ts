@@ -1,0 +1,159 @@
+import {
+  draftContentSchema,
+  field,
+  picture,
+} from "@ogma/contracts/resume-content-schema";
+import { z } from "zod";
+import type { DraftContent } from "../../../../packages/contracts/resume-content";
+import { upgradeResumeContent } from "./upgrade-resume-content";
+import { getResumeLayout, sectionIds } from "./layout-catalog";
+
+const contentSchema = draftContentSchema.transform((content): DraftContent => {
+  const jobs = new Map(content.experience.map((job) => [job.id, job]));
+  const projects = content.projects.flatMap(({ workEntryId, ...project }) => {
+    const job = workEntryId ? jobs.get(workEntryId) : undefined;
+    if (!job) return [project];
+    if (!job.projects?.some(({ id }) => id === project.id)) {
+      const context = [project.organization, project.startDate, project.endDate]
+        .filter(Boolean)
+        .join(" · ");
+      job.projects = [
+        ...(job.projects ?? []),
+        {
+          id: project.id,
+          name: project.name,
+          description: context
+            ? {
+                type: "doc",
+                content: [
+                  {
+                    type: "paragraph",
+                    content: [{ type: "text", text: context }],
+                  },
+                  ...(project.description.content ?? []),
+                ],
+              }
+            : project.description,
+        },
+      ];
+    }
+    return [];
+  });
+  return { ...content, projects };
+});
+
+const previousText = z.string().max(1600);
+const previousContentSchema = z
+  .object({
+    name: field,
+    role: field,
+    contact: field,
+    summary: previousText,
+    experience: z
+      .array(
+        z.object({
+          title: field,
+          dates: field,
+          details: previousText,
+          projects: previousText.optional(),
+        }),
+      )
+      .max(4),
+    achievements: previousText,
+    strengths: previousText.default(""),
+    skills: previousText,
+    education: previousText,
+    training: previousText,
+    languages: previousText,
+    projects: previousText,
+    focus: previousText.default(""),
+  })
+  .transform(upgradeResumeContent);
+
+const marginSize = z.number().min(5).max(45);
+const textSize = z.number().min(5).max(60);
+const pointGap = z.number().min(0).max(60);
+const textWeight = z.literal([200, 300, 400, 600, 700]);
+
+export const layoutDraftSchema = z.object({
+  layoutId: z
+    .string()
+    .refine((value) => Boolean(getResumeLayout(value)), "Unknown template"),
+  sectionOrder: z.array(z.enum(sectionIds)).max(sectionIds.length).optional(),
+  content: z.union([contentSchema, previousContentSchema]),
+  style: z.object({
+    accent: z.string().regex(/^#[a-f\d]{6}$/i),
+    font: z.enum(["sans", "humanist", "serif", "editorial", "inter"]),
+    bodySize: z.number().min(6).max(24),
+    sectionGap: z.number().min(2).max(13),
+    margin: z.number().min(8).max(27),
+    lineHeight: z.number().min(0.9).max(2.5),
+    showPhoto: z.boolean(),
+    paperSize: z.enum(["a4", "letter"]).optional(),
+    listLineHeight: z.number().min(0.9).max(2.5).optional(),
+    dateFormat: z.enum(["numeric", "year", "short", "long"]).optional(),
+    headerAlignment: z.enum(["left", "center", "right"]).optional(),
+    dateAlignment: z.enum(["left", "right"]).optional(),
+    locationAlignment: z.enum(["left", "right"]).optional(),
+    employmentTypeAlignment: z.enum(["left", "right"]).optional(),
+    dateNewLine: z.boolean().optional(),
+    locationNewLine: z.boolean().optional(),
+    employmentTypeNewLine: z.boolean().optional(),
+    skillsLayout: z
+      .enum(["inline", "list", "bullet", "columns", "lined"])
+      .optional(),
+    groupSkills: z.boolean().optional(),
+    showProficiency: z.boolean().optional(),
+    proficiencyIndicator: z
+      .enum(["dots", "bold-dots", "sticks", "bar"])
+      .optional(),
+    showContactIcons: z.boolean().optional(),
+    showSectionIcons: z.boolean().optional(),
+    workProjectTables: z.boolean().optional(),
+    projectTable: z.boolean().optional(),
+    margins: z
+      .object({
+        top: marginSize,
+        right: marginSize,
+        bottom: marginSize,
+        left: marginSize,
+      })
+      .partial()
+      .optional(),
+    sizes: z
+      .object({
+        primary: textSize,
+        secondary: textSize,
+        section: textSize,
+        name: textSize,
+        minor: textSize,
+      })
+      .partial()
+      .optional(),
+    weights: z
+      .object({
+        body: textWeight,
+        primary: textWeight,
+        secondary: textWeight,
+        section: textWeight,
+        name: textWeight,
+        minor: textWeight,
+      })
+      .partial()
+      .optional(),
+    spacing: z
+      .object({
+        sections: pointGap,
+        titleContent: pointGap,
+        headings: pointGap,
+        blocks: pointGap,
+        listItems: pointGap,
+      })
+      .partial()
+      .optional(),
+  }),
+  photo: picture.optional(),
+  logo: picture.optional(),
+});
+
+export type LayoutDraft = z.infer<typeof layoutDraftSchema>;

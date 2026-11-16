@@ -1,0 +1,38 @@
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit",
+    "source.removeUnusedImports": "explicit"
+  },
+  "cSpell.words": [
+    "alexmorgan",
+    "Antiplagiarism",
+    "Enhancv",
+    "healthcheck",
+    "interruptible",
+    "isready",
+    "Northstar",
+    "officedocument",
+    "Ogma",
+    "openxmlformats",
+    "parseability",
+    "Streamable",
+    "Timestamptz",
+    "twips",
+    "unitless",
+    "wordprocessingml",
+    "yusuprd",
+    "zoomable"
+  ],
+  "cSpell.ignorePaths": [
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/.next/**",
+    "**/dist/**",
+    "**/generated/**",
+    "yarn.lock",
+    "**/*.woff2",
+    "**/*-OFL.txt"
+  ]
+}
