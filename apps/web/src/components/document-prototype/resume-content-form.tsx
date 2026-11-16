@@ -21,7 +21,7 @@ import {
 import {
   SectionCard,
   VisibilityCheckbox,
-  type VisibilityProps,
+  type SectionControls,
 } from "./section-card";
 import dynamic from "next/dynamic";
 import type {
@@ -38,13 +38,14 @@ const RichTextField = dynamic(() =>
   import("./rich-text-field").then((module) => module.RichTextField),
 );
 
-interface ResumeContentFormProps extends VisibilityProps {
+interface ResumeContentFormProps extends SectionControls {
   order: EditorSectionId[];
   onReorder: (order: EditorSectionId[]) => void;
   content: DraftContent;
   photo?: string;
   onPhoto: (photo?: string) => void;
   showWorkProjects: boolean;
+  initialPersonalDetailsOpen: boolean;
   onChange: (content: DraftContent) => void;
 }
 
@@ -59,6 +60,7 @@ interface TextFieldProps {
   value: string;
   onChange: (value: string) => void;
   type?: "text" | "month" | "date" | "email" | "tel";
+  placeholder?: string;
   disabled?: boolean;
   inputRef?: Ref<HTMLInputElement>;
 }
@@ -71,21 +73,24 @@ interface DateRangeFieldsProps {
 }
 
 const inputClass =
-  "min-h-10 w-full min-w-0 rounded-lg border border-line bg-paper px-3 py-2 text-sm font-normal disabled:bg-canvas disabled:text-muted";
+  "min-h-10 w-full min-w-0 rounded-lg border border-line bg-paper px-3 py-2 text-sm font-normal placeholder:text-muted disabled:bg-canvas disabled:text-muted";
+const summarySize =
+  "col-start-1 row-start-1 min-h-[calc(4lh+1rem+2px)] wrap-anywhere whitespace-pre-wrap";
 const contactFields: [
   keyof ContactInformation,
   string,
+  string,
   TextFieldProps["type"]?,
 ][] = [
-  ["firstName", "First name"],
-  ["lastName", "Last name"],
-  ["pronouns", "Pronouns"],
-  ["email", "Email", "email"],
-  ["linkedin", "LinkedIn"],
-  ["address", "Address"],
-  ["phone", "Phone", "tel"],
-  ["website", "Website or portfolio"],
-  ["github", "GitHub"],
+  ["firstName", "First name", "John"],
+  ["lastName", "Last name", "Doe"],
+  ["pronouns", "Pronouns", "he/him"],
+  ["email", "Email", "john.doe@example.com", "email"],
+  ["linkedin", "LinkedIn", "linkedin.com/in/john-doe"],
+  ["address", "Address", "Halifax, Nova Scotia"],
+  ["phone", "Phone", "+1 902-555-0136", "tel"],
+  ["website", "Website or portfolio", "john-doe.example.com"],
+  ["github", "GitHub", "github.com/john-doe"],
 ];
 const employmentTypes = [
   "Full-time",
@@ -125,6 +130,7 @@ const TextField = ({
   value,
   onChange,
   type = "text",
+  placeholder,
   disabled = false,
   inputRef,
 }: TextFieldProps) => {
@@ -135,6 +141,7 @@ const TextField = ({
         ref={inputRef}
         className={inputClass}
         type={type}
+        placeholder={placeholder}
         value={value}
         disabled={disabled}
         maxLength={240}
@@ -221,12 +228,14 @@ const WorkProjectsFields = ({
         >
           <TextField
             label={`Project ${index + 1} name`}
+            placeholder="Customer onboarding redesign"
             value={project.name}
             inputRef={project.id === newProject ? newName : undefined}
             onChange={(name) => update(project.id, { name })}
           />
           <RichTextField
             label={`Project ${index + 1} description`}
+            placeholder="Describe your contribution and what changed."
             value={project.description}
             onChange={(description) => update(project.id, { description })}
           />
@@ -270,11 +279,13 @@ const ResumeContentForm = ({
   photo,
   onPhoto,
   showWorkProjects,
+  initialPersonalDetailsOpen,
   onChange,
   order,
   onReorder,
   hidden,
   onToggle,
+  onDraftChange,
 }: ResumeContentFormProps) => {
   const field = <Key extends keyof DraftContent>(
     key: Key,
@@ -287,13 +298,14 @@ const ResumeContentForm = ({
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
-  const visibility = { hidden, onToggle };
+  const controls = { hidden, onToggle, onDraftChange };
   const sections = {
     personal: (
       <SectionCard<PersonalDetailsDraft>
         section="personal"
+        initialOpen={initialPersonalDetailsOpen}
         subtitle="Name, title and contact information"
-        {...visibility}
+        {...controls}
         value={{
           contact: content.contact,
           targetTitle: content.targetTitle,
@@ -306,7 +318,7 @@ const ResumeContentForm = ({
       >
         {(details, update, updateCurrent) => (
           <div className="grid grid-cols-2 gap-3">
-            {contactFields.map(([key, label, type], index) => (
+            {contactFields.map(([key, label, placeholder, type], index) => (
               <div
                 key={key}
                 className={`flex min-w-0 items-end gap-2 ${index > 1 ? "col-span-2" : ""}`}
@@ -322,6 +334,7 @@ const ResumeContentForm = ({
                   <TextField
                     label={label}
                     type={type}
+                    placeholder={placeholder}
                     value={details.contact[key]}
                     onChange={(value) =>
                       update({
@@ -344,6 +357,7 @@ const ResumeContentForm = ({
               <div className="min-w-0 flex-1">
                 <TextField
                   label="Target Title"
+                  placeholder="Product Designer"
                   value={details.targetTitle}
                   onChange={(targetTitle) =>
                     update({ ...details, targetTitle })
@@ -367,26 +381,35 @@ const ResumeContentForm = ({
     summary: (
       <SectionCard
         section="summary"
-        {...visibility}
+        {...controls}
         value={content.summary}
         onSave={(value) => field("summary", value)}
       >
         {(value, update) => (
-          <textarea
-            aria-label="Professional Summary"
-            className={inputClass}
-            rows={4}
-            maxLength={8000}
-            value={value}
-            onChange={(event) => update(event.currentTarget.value)}
-          />
+          <div className="grid">
+            <div
+              aria-hidden="true"
+              className={`${inputClass} ${summarySize} invisible`}
+            >
+              {value + "\u200B"}
+            </div>
+            <textarea
+              aria-label="Professional Summary"
+              placeholder="Summarize your experience, strengths, and the role you’re targeting."
+              className={`${inputClass} ${summarySize} resize-none self-stretch overflow-hidden`}
+              rows={4}
+              maxLength={8000}
+              value={value}
+              onChange={(event) => update(event.currentTarget.value)}
+            />
+          </div>
         )}
       </SectionCard>
     ),
     experience: (
       <EntrySection<DraftContent["experience"][number]>
         section="experience"
-        {...visibility}
+        {...controls}
         singular="position"
         entries={content.experience}
         update={(entries) => field("experience", entries)}
@@ -405,16 +428,19 @@ const ResumeContentForm = ({
           <>
             <TextField
               label="Position"
+              placeholder="Software Engineer"
               value={entry.position}
               onChange={(position) => patch({ position })}
             />
             <TextField
               label="Employer"
+              placeholder="Company name"
               value={entry.employer ?? ""}
               onChange={(employer) => patch({ employer })}
             />
             <TextField
               label="Location"
+              placeholder="City, country or remote"
               value={entry.location}
               onChange={(location) => patch({ location })}
             />
@@ -445,6 +471,7 @@ const ResumeContentForm = ({
             </label>
             <RichTextField
               label="Position description"
+              placeholder="Describe what you did and the results you achieved."
               value={entry.description}
               onChange={(description) => patch({ description })}
             />
@@ -465,7 +492,7 @@ const ResumeContentForm = ({
     education: (
       <EntrySection<DraftContent["education"][number]>
         section="education"
-        {...visibility}
+        {...controls}
         singular="education entry"
         entries={content.education}
         update={(entries) => field("education", entries)}
@@ -495,32 +522,38 @@ const ResumeContentForm = ({
             />
             <TextField
               label="University name"
+              placeholder="University or college name"
               value={entry.university}
               onChange={(university) => patch({ university })}
             />
             <TextField
               label="Location"
+              placeholder="City, country"
               value={entry.location}
               onChange={(location) => patch({ location })}
             />
             <TextField
               label="Degree"
+              placeholder="Bachelor of Science"
               value={entry.degree}
               onChange={(degree) => patch({ degree })}
             />
             <TextField
               label="Field of study"
+              placeholder="Computer Science"
               value={entry.fieldOfStudy}
               onChange={(fieldOfStudy) => patch({ fieldOfStudy })}
             />
             <TextField
               label="GPA"
+              placeholder="3.8 / 4.0"
               value={entry.gpa}
               onChange={(gpa) => patch({ gpa })}
             />
             <DateRangeFields {...entry} onChange={patch} />
             <RichTextField
               label="Additional information"
+              placeholder="Add relevant coursework, honors, or activities."
               value={entry.description}
               onChange={(description) => patch({ description })}
             />
@@ -531,7 +564,7 @@ const ResumeContentForm = ({
     skills: (
       <EntrySection<DraftContent["skills"][number]>
         section="skills"
-        {...visibility}
+        {...controls}
         singular="category"
         entries={content.skills}
         update={(entries) => field("skills", entries)}
@@ -542,6 +575,7 @@ const ResumeContentForm = ({
           <>
             <TextField
               label="Category"
+              placeholder="Development tools"
               value={entry.category}
               onChange={(category) => patch({ category })}
             />
@@ -560,6 +594,7 @@ const ResumeContentForm = ({
                 </label>
                 <TextField
                   label={`Skill or interest ${index + 1}`}
+                  placeholder="TypeScript"
                   value={skill.name}
                   onChange={(name) =>
                     patch({
@@ -621,7 +656,7 @@ const ResumeContentForm = ({
     certifications: (
       <EntrySection
         section="certifications"
-        {...visibility}
+        {...controls}
         singular="certification"
         entries={content.certifications}
         update={(entries) => field("certifications", entries)}
@@ -637,11 +672,13 @@ const ResumeContentForm = ({
           <>
             <TextField
               label="Certification"
+              placeholder="Google Data Analytics Certificate"
               value={entry.name}
               onChange={(name) => patch({ name })}
             />
             <TextField
               label="Provider"
+              placeholder="Issuing organization"
               value={entry.provider}
               onChange={(provider) => patch({ provider })}
             />
@@ -653,7 +690,7 @@ const ResumeContentForm = ({
     awards: (
       <EntrySection<DraftContent["awards"][number]>
         section="awards"
-        {...visibility}
+        {...controls}
         singular="award or scholarship"
         entries={content.awards}
         update={(entries) => field("awards", entries)}
@@ -669,11 +706,13 @@ const ResumeContentForm = ({
           <>
             <TextField
               label="Award or scholarship name"
+              placeholder="Academic Excellence Award"
               value={entry.name}
               onChange={(name) => patch({ name })}
             />
             <TextField
               label="Organization"
+              placeholder="Awarding organization"
               value={entry.organization}
               onChange={(organization) => patch({ organization })}
             />
@@ -700,7 +739,7 @@ const ResumeContentForm = ({
     projects: (
       <EntrySection<DraftContent["projects"][number]>
         section="projects"
-        {...visibility}
+        {...controls}
         singular="project"
         entries={content.projects}
         update={(entries) => field("projects", entries)}
@@ -717,17 +756,20 @@ const ResumeContentForm = ({
           <>
             <TextField
               label="Project name"
+              placeholder="Personal portfolio"
               value={entry.name}
               onChange={(name) => patch({ name })}
             />
             <TextField
               label="Organization"
+              placeholder="Organization or client"
               value={entry.organization}
               onChange={(organization) => patch({ organization })}
             />
             <DateRangeFields {...entry} onChange={patch} />
             <RichTextField
               label="Additional information"
+              placeholder="Explain the goal, your role, and the outcome."
               value={entry.description}
               onChange={(description) => patch({ description })}
             />
@@ -738,7 +780,7 @@ const ResumeContentForm = ({
     volunteering: (
       <EntrySection
         section="volunteering"
-        {...visibility}
+        {...controls}
         singular="volunteer or leadership role"
         entries={content.volunteering}
         update={(entries) => field("volunteering", entries)}
@@ -757,22 +799,26 @@ const ResumeContentForm = ({
           <>
             <TextField
               label="Organization"
+              placeholder="Nonprofit or community group"
               value={entry.organization}
               onChange={(organization) => patch({ organization })}
             />
             <TextField
               label="Involvement"
+              placeholder="Volunteer coordinator"
               value={entry.involvement}
               onChange={(involvement) => patch({ involvement })}
             />
             <div className="grid grid-cols-2 gap-2">
               <TextField
                 label="City"
+                placeholder="Toronto"
                 value={entry.city}
                 onChange={(city) => patch({ city })}
               />
               <TextField
                 label="State"
+                placeholder="Ontario"
                 value={entry.state}
                 onChange={(state) => patch({ state })}
               />
@@ -780,6 +826,7 @@ const ResumeContentForm = ({
             <DateRangeFields {...entry} onChange={patch} />
             <RichTextField
               label="Additional information"
+              placeholder="Describe who you supported and the impact of your work."
               value={entry.description}
               onChange={(description) => patch({ description })}
             />
@@ -790,7 +837,7 @@ const ResumeContentForm = ({
     publications: (
       <EntrySection
         section="publications"
-        {...visibility}
+        {...controls}
         singular="publication"
         entries={content.publications}
         update={(entries) => field("publications", entries)}
@@ -807,11 +854,13 @@ const ResumeContentForm = ({
           <>
             <TextField
               label="Publication name"
+              placeholder="Title of your article or paper"
               value={entry.name}
               onChange={(name) => patch({ name })}
             />
             <TextField
               label="Publisher"
+              placeholder="Journal or publisher name"
               value={entry.publisher}
               onChange={(publisher) => patch({ publisher })}
             />
@@ -823,6 +872,7 @@ const ResumeContentForm = ({
             />
             <RichTextField
               label="Additional information"
+              placeholder="Add co-authors, a link, or a brief summary."
               value={entry.description}
               onChange={(description) => patch({ description })}
             />

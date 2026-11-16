@@ -1,12 +1,35 @@
-import { readFileSync } from "node:fs";
-
-const settings = JSON.parse(
-  readFileSync(new URL("./.vscode/settings.json", import.meta.url), "utf8"),
-);
-
 export default {
   version: "0.2",
-  words: settings["cSpell.words"],
-  ignorePaths: settings["cSpell.ignorePaths"],
+  words: [
+    "alexmorgan",
+    "Antiplagiarism",
+    "Enhancv",
+    "healthcheck",
+    "interruptible",
+    "isready",
+    "Northstar",
+    "officedocument",
+    "Ogma",
+    "openxmlformats",
+    "parseability",
+    "PKCE",
+    "Streamable",
+    "Timestamptz",
+    "twips",
+    "unitless",
+    "wordprocessingml",
+    "yusuprd",
+    "zoomable",
+  ],
+  ignorePaths: [
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/.next/**",
+    "**/dist/**",
+    "**/generated/**",
+    "yarn.lock",
+    "**/*.woff2",
+    "**/*-OFL.txt",
+  ],
   ignoreRegExpList: ["/[\\p{Script=Cyrillic}]+/gu"],
 };

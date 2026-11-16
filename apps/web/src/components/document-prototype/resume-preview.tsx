@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { LuEye, LuMinus, LuPlus } from "react-icons/lu";
+import { formatPageCount, formatPercent } from "@/lib/formatUtil";
 
 interface ResumePreviewProps {
   html?: string;
@@ -171,9 +172,7 @@ const ResumePreview = ({
           title={templateName}
         >
           {paper}
-          {pages !== undefined
-            ? ` · ${pages} ${pages === 1 ? "page" : "pages"}`
-            : ""}
+          {pages !== undefined ? ` · ${formatPageCount(pages)}` : ""}
           {templateName ? ` · ${templateName}` : ""}
         </p>
         <div
@@ -203,7 +202,7 @@ const ResumePreview = ({
             }
             onClick={() => changeZoom(1)}
           >
-            {zoom === 1 ? "Fit" : `${Math.round(zoom * 100)}%`}
+            {zoom === 1 ? "Fit" : formatPercent(zoom)}
           </button>
           <button
             type="button"

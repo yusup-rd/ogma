@@ -1,10 +1,16 @@
 "use client";
 
-import { LuFileText, LuPalette } from "react-icons/lu";
+import { LuChevronLeft, LuFileText, LuPalette } from "react-icons/lu";
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import type { SavedResume } from "@ogma/contracts/resume-workspace";
+import { SignOutDialog } from "@/components/owner-auth/sign-out-dialog";
+import { ResumeConflictDialog } from "@/components/resumes/resume-conflict-dialog";
+import { CheckpointHistory } from "@/components/resumes/checkpoint-history";
 import { useResumeLayouts } from "@/hooks/document-prototype/use-resume-layouts";
+import { useResumeAutosave } from "@/hooks/resumes/use-resume-autosave";
+import type { EditorSectionId } from "@/lib/document-prototype/content-presentation";
 import { ExportDialog } from "./export-dialog";
 import { ResumeContentForm } from "./resume-content-form";
 import { ResumePreview } from "./resume-preview";
@@ -16,25 +22,165 @@ const TemplateDesignForm = dynamic(() =>
   import("./template-design-form").then((module) => module.TemplateDesignForm),
 );
 
-const DocumentWorkspace = () => {
-  const model = useResumeLayouts();
+interface DocumentWorkspaceProps {
+  resume: SavedResume;
+}
+
+const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
+  const model = useResumeLayouts(resume.document);
+  const [title, setTitle] = useState(resume.title);
+  const savedTitle = title.trim() || "Untitled resume";
+  const [sectionDrafts, setSectionDrafts] = useState(
+    () => new Set<EditorSectionId>(),
+  );
+  const onDraftChange = useCallback(
+    (section: EditorSectionId, hasDraft: boolean) => {
+      setSectionDrafts((current) => {
+        if (current.has(section) === hasDraft) return current;
+        const next = new Set(current);
+        if (hasDraft) next.add(section);
+        else next.delete(section);
+        return next;
+      });
+    },
+    [],
+  );
+  const hasSectionDrafts = sectionDrafts.size > 0;
+  const autosave = useResumeAutosave(
+    resume,
+    savedTitle,
+    model.document,
+    hasSectionDrafts,
+  );
   const [screen, setScreen] = useState<"Content" | "Design">("Content");
   const [mobileView, setMobileView] = useState<"Edit" | "Preview">("Edit");
+  const [leaving, setLeaving] = useState(false);
+  const draftNotice = useRef<HTMLParagraphElement>(null);
+  const backToResumes = async () => {
+    if (hasSectionDrafts) {
+      setScreen("Content");
+      setMobileView("Edit");
+      requestAnimationFrame(() => draftNotice.current?.focus());
+      return;
+    }
+    setLeaving(true);
+    const savedRevision = await autosave.flush();
+    if (savedRevision === null) {
+      setLeaving(false);
+      return;
+    }
+    window.location.assign(new URL("/", window.location.origin));
+  };
+  const gallery = model.catalog && (
+    <TemplateGallery
+      templates={model.catalog.layouts}
+      active={model.document.layoutId}
+      onSelect={model.setTemplate}
+    />
+  );
 
   return (
     <main className="flex min-h-dvh flex-col bg-canvas text-ink lg:h-dvh">
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-paper px-4 py-3 lg:min-h-19 lg:gap-5 lg:px-6">
-        <Image src="/icon.svg" alt="Ogma" width={32} height={32} />
+        <Image
+          src="/icon.svg"
+          alt="Ogma"
+          width={32}
+          height={32}
+          className="hidden sm:block"
+        />
+        <button
+          type="button"
+          aria-label="Back to resumes"
+          disabled={leaving}
+          onClick={() => void backToResumes()}
+          className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-1.5 text-xs font-semibold enabled:hover:bg-canvas disabled:opacity-60 sm:px-2"
+        >
+          <LuChevronLeft aria-hidden="true" className="size-4" />
+          <span className="hidden sm:inline">Resumes</span>
+        </button>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-sm font-semibold sm:text-base">
-            {model.content?.targetTitle || "Resume editor"}
-          </h1>
-          <p className="text-xs text-muted">
-            Draft · Changes apply to this session
-          </p>
+          <h1 className="sr-only">Resume editor</h1>
+          <input
+            aria-label="Resume name"
+            className="w-full rounded-sm text-sm font-semibold focus-visible:outline-2 focus-visible:outline-accent sm:text-base"
+            value={title}
+            disabled={leaving}
+            placeholder="Untitled resume"
+            maxLength={120}
+            onBlur={() => setTitle(savedTitle)}
+            onChange={(event) => setTitle(event.currentTarget.value)}
+          />
+          <div className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted">
+            <p role="status">
+              {autosave.phase === "saved"
+                ? hasSectionDrafts
+                  ? "Unsaved section edits"
+                  : "Saved"
+                : autosave.phase === "saving"
+                  ? "Saving…"
+                  : autosave.phase === "conflict"
+                    ? "Save conflict"
+                    : "Save failed"}
+            </p>
+            {autosave.phase === "error" && (
+              <button
+                type="button"
+                className="font-semibold text-accent underline"
+                onClick={() => void autosave.flush()}
+              >
+                Retry save
+              </button>
+            )}
+            {autosave.phase === "conflict" && (
+              <button
+                type="button"
+                className="font-semibold text-accent underline"
+                onClick={() => autosave.setConflictOpen(true)}
+              >
+                Resolve
+              </button>
+            )}
+          </div>
         </div>
-        <ExportDialog draft={model.exportDraft} />
+        <CheckpointHistory
+          resumeId={resume.id}
+          beforeAction={autosave.flush}
+          onConflict={autosave.reportConflict}
+          onRestored={autosave.reloadFromServer}
+        />
+        <ExportDialog
+          resumeId={resume.id}
+          ready={Boolean(model.template)}
+          beforeExport={autosave.flush}
+          onConflict={autosave.reportConflict}
+        />
+        <SignOutDialog
+          beforeSignOut={() => {
+            if (hasSectionDrafts) {
+              setScreen("Content");
+              setMobileView("Edit");
+              throw new Error(
+                "Choose Save or Cancel in each edited section before signing out.",
+              );
+            }
+            return autosave.flush();
+          }}
+        />
       </header>
+      <ResumeConflictDialog
+        open={autosave.conflictOpen}
+        onOpenChange={(open) => {
+          autosave.setConflictOpen(open);
+          if (!open && hasSectionDrafts) {
+            setScreen("Content");
+            setMobileView("Edit");
+          }
+        }}
+        onReload={autosave.reloadFromServer}
+        onSaveCopy={autosave.saveCopy}
+        hasSectionDrafts={hasSectionDrafts}
+      />
 
       <div
         className="grid grid-cols-2 gap-1 border-b border-line bg-paper p-2 lg:hidden"
@@ -68,7 +214,10 @@ const DocumentWorkspace = () => {
         </div>
       )}
 
-      <div className="min-h-0 flex-1 lg:grid lg:grid-cols-[minmax(21rem,34.3%)_minmax(0,1fr)]">
+      <div
+        inert={leaving}
+        className="min-h-0 flex-1 lg:grid lg:grid-cols-[minmax(21rem,34.3%)_minmax(0,1fr)]"
+      >
         <section
           aria-label="Resume controls"
           className={`${mobileView === "Edit" ? "flex" : "hidden"} min-h-0 flex-col bg-paper lg:flex lg:overflow-auto lg:border-r lg:border-line`}
@@ -94,16 +243,47 @@ const DocumentWorkspace = () => {
           </div>
 
           <div className="flex flex-col gap-5 px-5 py-6">
+            {hasSectionDrafts && screen === "Content" && (
+              <p
+                ref={draftNotice}
+                tabIndex={-1}
+                className="rounded-lg border border-line bg-canvas p-3 text-sm text-muted"
+              >
+                Choose Save or Cancel in each edited section before leaving the
+                editor.
+              </p>
+            )}
             {!model.catalog && !model.error && (
               <p role="status" className="text-sm text-muted">
                 Loading templates…
               </p>
+            )}
+            {model.catalog && !model.template && screen === "Content" && (
+              <div className="flex items-center gap-3 rounded-lg border border-line bg-canvas p-3">
+                <p role="status" className="text-sm text-muted">
+                  This resume’s template is unavailable.
+                </p>
+                <button
+                  type="button"
+                  className="text-sm font-semibold text-accent underline"
+                  onClick={() => setScreen("Design")}
+                >
+                  Choose a template
+                </button>
+              </div>
             )}
             {model.content && (
               <div hidden={screen !== "Content"}>
                 <ResumeContentForm
                   content={model.content}
                   photo={model.photo}
+                  initialPersonalDetailsOpen={
+                    resume.draftRevision === 1 &&
+                    !resume.document.content.targetTitle &&
+                    !Object.values(resume.document.content.contact).some(
+                      Boolean,
+                    )
+                  }
                   onPhoto={model.setPhoto}
                   showWorkProjects={
                     model.style?.workProjectTables ??
@@ -115,38 +295,34 @@ const DocumentWorkspace = () => {
                   onReorder={model.setOrder}
                   hidden={model.hidden}
                   onToggle={model.toggleVisibility}
+                  onDraftChange={onDraftChange}
                 />
               </div>
             )}
-            {screen === "Design" &&
-              model.catalog &&
-              model.template &&
-              model.style && (
-                <>
-                  <div className="flex flex-col gap-1">
-                    <h2 className="text-2xl font-semibold tracking-tight">
-                      Design
-                    </h2>
-                    <p className="text-sm text-muted">
-                      Each template keeps its own style settings.
-                    </p>
-                  </div>
+            {screen === "Design" && model.catalog && (
+              <>
+                <div className="flex flex-col gap-1">
+                  <h2 className="text-2xl font-semibold tracking-tight">
+                    Design
+                  </h2>
+                  <p className="text-sm text-muted">
+                    Each template keeps its own style settings.
+                  </p>
+                </div>
+                {model.template && model.style ? (
                   <TemplateDesignForm
-                    gallery={
-                      <TemplateGallery
-                        templates={model.catalog.layouts}
-                        active={model.template.id}
-                        onSelect={model.setTemplate}
-                      />
-                    }
+                    gallery={gallery}
                     template={model.template}
                     style={model.style}
                     fonts={model.catalog.fonts}
                     onChange={model.updateStyle}
                     onReset={model.resetStyle}
                   />
-                </>
-              )}
+                ) : (
+                  gallery
+                )}
+              </>
+            )}
           </div>
         </section>
 

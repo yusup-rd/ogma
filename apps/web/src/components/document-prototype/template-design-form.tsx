@@ -1,6 +1,7 @@
-import * as Dialog from "@radix-ui/react-dialog";
 import { useState, type ReactNode } from "react";
 import { LuCheck } from "react-icons/lu";
+import { ConfirmationDialog } from "@/components/confirmation-dialog";
+import { ratioToPercent } from "@/lib/formatUtil";
 import type {
   TemplateOption,
   TemplateStyle,
@@ -10,7 +11,7 @@ import { SelectSetting } from "./select-setting";
 interface TemplateDesignFormProps {
   template: TemplateOption;
   style: TemplateStyle;
-  fonts: { value: string; label: string }[];
+  fonts: { value: TemplateStyle["font"]; label: string }[];
   onChange: (changes: Partial<TemplateStyle>) => void;
   onReset: () => void;
   gallery: ReactNode;
@@ -269,9 +270,9 @@ const TemplateDesignForm = ({
               value={
                 style.lineHeight === template.lineHeight
                   ? undefined
-                  : Number((style.lineHeight * 100).toFixed(2))
+                  : ratioToPercent(style.lineHeight, 2)
               }
-              fallback={Number((template.lineHeight * 100).toFixed(2))}
+              fallback={ratioToPercent(template.lineHeight, 2)}
               min={90}
               max={250}
               unit="%"
@@ -282,9 +283,9 @@ const TemplateDesignForm = ({
               value={
                 style.listLineHeight === undefined
                   ? undefined
-                  : Number((style.listLineHeight * 100).toFixed(2))
+                  : ratioToPercent(style.listLineHeight, 2)
               }
-              fallback={Number((template.lineHeight * 100).toFixed(2))}
+              fallback={ratioToPercent(template.lineHeight, 2)}
               min={90}
               max={250}
               unit="%"
@@ -558,47 +559,20 @@ const TemplateDesignForm = ({
           </SettingsGroup>
         </>
       )}
-      <Dialog.Root>
-        <Dialog.Trigger asChild>
+      <ConfirmationDialog
+        trigger={
           <button
             type="button"
             className="min-h-10 self-start rounded-lg border border-line px-3 text-sm font-semibold hover:bg-canvas"
           >
             Reset template settings
           </button>
-        </Dialog.Trigger>
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-40 bg-ink/35" />
-          <Dialog.Content className="fixed top-1/2 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 flex-col gap-3 rounded-2xl border border-line bg-paper p-5 shadow-xl">
-            <Dialog.Title className="text-lg font-semibold tracking-tight">
-              Reset template settings?
-            </Dialog.Title>
-            <Dialog.Description className="text-sm leading-relaxed text-muted">
-              Restore the original design settings for {template.name}. Your
-              resume content and uploaded images will be kept.
-            </Dialog.Description>
-            <div className="mt-1 flex flex-wrap justify-end gap-2">
-              <Dialog.Close asChild>
-                <button
-                  type="button"
-                  className="min-h-10 rounded-lg border border-line px-3 text-sm font-semibold hover:bg-canvas"
-                >
-                  Cancel
-                </button>
-              </Dialog.Close>
-              <Dialog.Close asChild>
-                <button
-                  type="button"
-                  onClick={onReset}
-                  className="min-h-10 rounded-lg bg-accent px-3 text-sm font-semibold text-white hover:bg-accent-hover"
-                >
-                  Reset settings
-                </button>
-              </Dialog.Close>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+        }
+        title="Reset template settings?"
+        description={`Restore the original design settings for ${template.name}. Your resume content and uploaded images will be kept.`}
+        confirmLabel="Reset settings"
+        action={onReset}
+      />
     </div>
   );
 };

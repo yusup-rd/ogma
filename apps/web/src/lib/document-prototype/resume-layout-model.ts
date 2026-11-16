@@ -1,8 +1,12 @@
 import { draftContentSchema } from "@ogma/contracts/resume-content-schema";
+import type { ResolvedResume } from "@ogma/contracts/resolve-resume";
+import {
+  resumeFontSchema,
+  type WorkspaceStyle,
+} from "@ogma/contracts/resume-workspace";
 import { z } from "zod";
 import type {
   DesignDefaults,
-  DesignOptions,
   DraftContent,
   ResumeSectionId,
 } from "../../../../../packages/contracts/resume-content";
@@ -17,7 +21,7 @@ export interface TemplateOption {
   photo: string;
   photoShape: "circle" | "square";
   logos: string;
-  font: string;
+  font: WorkspaceStyle["font"];
   accent: string;
   paper: string;
   sideColor?: string;
@@ -32,27 +36,13 @@ export interface TemplateOption {
   designDefaults: DesignDefaults;
 }
 
-export interface TemplateStyle extends DesignOptions {
-  font: string;
-  accent: string;
-  bodySize: number;
-  sectionGap: number;
-  margin: number;
-  lineHeight: number;
-  showPhoto: boolean;
-}
+export type TemplateStyle = WorkspaceStyle;
 
-export interface ResumeDraft {
-  layoutId: string;
-  sectionOrder?: ResumeSectionId[];
-  content: DraftContent;
-  style: TemplateStyle;
-  photo?: string;
-}
+export type ResumeDraft = ResolvedResume;
 
 export interface TemplateCatalog {
   layouts: TemplateOption[];
-  fonts: { value: string; label: string }[];
+  fonts: { value: WorkspaceStyle["font"]; label: string }[];
   sample: DraftContent;
 }
 
@@ -121,7 +111,7 @@ export const templateCatalogSchema = z.object({
         photo: z.enum(["none", "top", "right", "rail"]),
         photoShape: z.enum(["circle", "square"]),
         logos: z.enum(["none", "left", "right"]),
-        font: z.string().min(1),
+        font: resumeFontSchema,
         accent: color,
         paper: color,
         sideColor: color.optional(),
@@ -137,16 +127,8 @@ export const templateCatalogSchema = z.object({
       }),
     )
     .min(1),
-  fonts: z.array(z.object({ value: z.string(), label: z.string() })).min(1),
+  fonts: z
+    .array(z.object({ value: resumeFontSchema, label: z.string() }))
+    .min(1),
   sample: draftContentSchema,
 }) satisfies z.ZodType<TemplateCatalog>;
-
-export const defaultStyle = (template: TemplateOption): TemplateStyle => ({
-  font: template.font,
-  accent: template.accent,
-  bodySize: template.bodySize,
-  sectionGap: template.sectionGap,
-  margin: template.margin,
-  lineHeight: template.lineHeight,
-  showPhoto: template.photo !== "none",
-});

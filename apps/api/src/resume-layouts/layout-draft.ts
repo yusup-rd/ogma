@@ -3,6 +3,7 @@ import {
   field,
   picture,
 } from "@ogma/contracts/resume-content-schema";
+import { resumeStyleSchema } from "@ogma/contracts/resume-workspace";
 import { z } from "zod";
 import type { DraftContent } from "../../../../packages/contracts/resume-content";
 import { upgradeResumeContent } from "./upgrade-resume-content";
@@ -70,88 +71,13 @@ const previousContentSchema = z
   })
   .transform(upgradeResumeContent);
 
-const marginSize = z.number().min(5).max(45);
-const textSize = z.number().min(5).max(60);
-const pointGap = z.number().min(0).max(60);
-const textWeight = z.literal([200, 300, 400, 600, 700]);
-
 export const layoutDraftSchema = z.object({
   layoutId: z
     .string()
     .refine((value) => Boolean(getResumeLayout(value)), "Unknown template"),
   sectionOrder: z.array(z.enum(sectionIds)).max(sectionIds.length).optional(),
   content: z.union([contentSchema, previousContentSchema]),
-  style: z.object({
-    accent: z.string().regex(/^#[a-f\d]{6}$/i),
-    font: z.enum(["sans", "humanist", "serif", "editorial", "inter"]),
-    bodySize: z.number().min(6).max(24),
-    sectionGap: z.number().min(2).max(13),
-    margin: z.number().min(8).max(27),
-    lineHeight: z.number().min(0.9).max(2.5),
-    showPhoto: z.boolean(),
-    paperSize: z.enum(["a4", "letter"]).optional(),
-    listLineHeight: z.number().min(0.9).max(2.5).optional(),
-    dateFormat: z.enum(["numeric", "year", "short", "long"]).optional(),
-    headerAlignment: z.enum(["left", "center", "right"]).optional(),
-    dateAlignment: z.enum(["left", "right"]).optional(),
-    locationAlignment: z.enum(["left", "right"]).optional(),
-    employmentTypeAlignment: z.enum(["left", "right"]).optional(),
-    dateNewLine: z.boolean().optional(),
-    locationNewLine: z.boolean().optional(),
-    employmentTypeNewLine: z.boolean().optional(),
-    skillsLayout: z
-      .enum(["inline", "list", "bullet", "columns", "lined"])
-      .optional(),
-    groupSkills: z.boolean().optional(),
-    showProficiency: z.boolean().optional(),
-    proficiencyIndicator: z
-      .enum(["dots", "bold-dots", "sticks", "bar"])
-      .optional(),
-    showContactIcons: z.boolean().optional(),
-    showSectionIcons: z.boolean().optional(),
-    workProjectTables: z.boolean().optional(),
-    projectTable: z.boolean().optional(),
-    margins: z
-      .object({
-        top: marginSize,
-        right: marginSize,
-        bottom: marginSize,
-        left: marginSize,
-      })
-      .partial()
-      .optional(),
-    sizes: z
-      .object({
-        primary: textSize,
-        secondary: textSize,
-        section: textSize,
-        name: textSize,
-        minor: textSize,
-      })
-      .partial()
-      .optional(),
-    weights: z
-      .object({
-        body: textWeight,
-        primary: textWeight,
-        secondary: textWeight,
-        section: textWeight,
-        name: textWeight,
-        minor: textWeight,
-      })
-      .partial()
-      .optional(),
-    spacing: z
-      .object({
-        sections: pointGap,
-        titleContent: pointGap,
-        headings: pointGap,
-        blocks: pointGap,
-        listItems: pointGap,
-      })
-      .partial()
-      .optional(),
-  }),
+  style: resumeStyleSchema,
   photo: picture.optional(),
   logo: picture.optional(),
 });

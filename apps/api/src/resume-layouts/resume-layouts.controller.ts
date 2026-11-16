@@ -5,7 +5,6 @@ import {
   Get,
   Header,
   Post,
-  StreamableFile,
 } from "@nestjs/common";
 import { DocumentPrototypeService } from "../document-prototype/document-prototype.service";
 import { fontChoices, getResumeLayout, resumeLayouts } from "./layout-catalog";
@@ -14,7 +13,7 @@ import { designDefaults } from "./design-options";
 import { sampleContent } from "./demo-resume";
 import { paginateResume } from "./paginate-resume";
 import { renderResumeLayout } from "./render-resume-layout";
-import { renderResumeWord } from "./render-resume-word";
+import { exportResume } from "./resume-export";
 
 function resolveDraft(body: unknown) {
   const parsed = layoutDraftSchema.safeParse(body);
@@ -59,27 +58,15 @@ export class ResumeLayoutsController {
 
   @Post("resume.pdf")
   @Header("Cache-Control", "no-store")
-  async pdf(@Body() body: unknown) {
+  pdf(@Body() body: unknown) {
     const { draft, layout } = resolveDraft(body);
-    return new StreamableFile(
-      await this.documents.printPdf(
-        renderResumeLayout(draft, layout),
-        paginateResume,
-      ),
-      {
-        type: "application/pdf",
-        disposition: 'attachment; filename="resume.pdf"',
-      },
-    );
+    return exportResume(this.documents, draft, layout, "pdf");
   }
 
   @Post("resume.docx")
   @Header("Cache-Control", "no-store")
-  async docx(@Body() body: unknown) {
+  docx(@Body() body: unknown) {
     const { draft, layout } = resolveDraft(body);
-    return new StreamableFile(await renderResumeWord(draft, layout), {
-      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      disposition: 'attachment; filename="resume.docx"',
-    });
+    return exportResume(this.documents, draft, layout, "docx");
   }
 }

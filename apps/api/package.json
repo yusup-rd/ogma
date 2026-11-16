@@ -20,6 +20,7 @@
     "@prisma/client": "7.10.1",
     "docx": "^9.0.0",
     "mammoth": "^1.0.0",
+    "openid-client": "^6.8.5",
     "pdfjs-dist": "^5.0.0",
     "pg": "^8.0.0",
     "playwright": "^1.60.0",
@@ -33,6 +34,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.0",
     "@nestjs/cli": "12.0.13",
+    "@types/express": "^5.0.0",
     "@types/node": "^24.0.0",
     "@types/pg": "^8.0.0",
     "@types/react": "19.0.0",

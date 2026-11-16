@@ -3,7 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "exports": {
-    "./resume-content-schema": "./resume-content-schema.cjs"
+    "./resume-content-schema": "./resume-content-schema.cjs",
+    "./resume-workspace": "./resume-workspace.cjs",
+    "./resolve-resume": "./resolve-resume.cjs"
   },
   "dependencies": {
     "zod": "^4.0.0"
