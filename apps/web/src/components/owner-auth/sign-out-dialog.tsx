@@ -18,22 +18,13 @@ const SignOutDialog = ({ beforeSignOut }: SignOutDialogProps) => {
       title="Sign out of Ogma?"
       description="You’ll need to sign in again to access your workspace."
       confirmLabel="Sign out"
-      action={
-        beforeSignOut
-          ? async () => {
-              if ((await beforeSignOut()) === null)
-                throw new Error(
-                  "Save or recover your edits before signing out.",
-                );
-              const response = await fetch("/api/auth/sign-out", {
-                method: "POST",
-              });
-              if (!response.ok)
-                throw new Error("Couldn’t sign out. Try again.");
-              window.location.replace(new URL("/", window.location.origin));
-            }
-          : "/api/auth/sign-out"
-      }
+      action={async () => {
+        if (beforeSignOut && (await beforeSignOut()) === null)
+          throw new Error("Save or recover your edits before signing out.");
+        const response = await fetch("/api/auth/sign-out", { method: "POST" });
+        if (!response.ok) throw new Error("Couldn’t sign out. Try again.");
+        window.location.replace(new URL("/", window.location.origin));
+      }}
     />
   );
 };

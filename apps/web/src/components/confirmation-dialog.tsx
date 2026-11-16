@@ -9,7 +9,7 @@ interface ConfirmationDialogProps {
   description: string;
   confirmLabel: string;
   destructive?: boolean;
-  action: string | (() => void | Promise<void>);
+  action: () => void | Promise<void>;
 }
 
 const ConfirmationDialog = ({
@@ -49,11 +49,8 @@ const ConfirmationDialog = ({
             </p>
           )}
           <form
-            action={typeof action === "string" ? action : undefined}
-            method="post"
             className="mt-1 flex flex-wrap justify-end gap-2"
             onSubmit={async (event) => {
-              if (typeof action === "string") return;
               event.preventDefault();
               if (pending) return;
               setPending(true);

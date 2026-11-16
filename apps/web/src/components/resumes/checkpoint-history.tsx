@@ -73,7 +73,6 @@ const CheckpointHistory = ({
   };
 
   const saveCheckpoint = async () => {
-    const key = "save/" + name.trim();
     setBusy(true);
     setError("");
     try {
@@ -82,6 +81,7 @@ const CheckpointHistory = ({
         setOpen(false);
         return;
       }
+      const key = `save/${expectedRevision}/${name.trim()}`;
       const checkpoint = await requestResume(base, checkpointSchema, {
         method: "POST",
         body: { id: operationId(key), name: name.trim(), expectedRevision },
@@ -108,10 +108,12 @@ const CheckpointHistory = ({
         setOpen(false);
         return;
       }
+      const key = `restore/${checkpoint.id}/${expectedRevision}`;
       await requestResume(`${base}/${checkpoint.id}/restore`, restoreResult, {
         method: "POST",
-        body: { id: operationId("restore/" + checkpoint.id), expectedRevision },
+        body: { id: operationId(key), expectedRevision },
       });
+      ids.current.delete(key);
       onRestored();
     } catch (error) {
       if (!onFailure(error))

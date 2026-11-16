@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   resumeSummarySchema,
   type ResumeDocument,
@@ -46,49 +52,51 @@ export function useResumeAutosave(
 
   const flush = useCallback(async (): Promise<number | null> => {
     const state = queue.current;
-    if (state.conflict) {
-      setConflictOpen(true);
-      return null;
-    }
-    while (!matches(state.latest, state.saved)) {
-      if (state.conflict) return null;
-      if (!state.request) {
-        const snapshot = state.latest;
-        setPhase("saving");
-        state.request = requestResume(`/${initial.id}`, resumeSummarySchema, {
-          method: "PATCH",
-          body: { ...snapshot, expectedRevision: state.revision },
-        })
-          .then((result) => {
-            state.revision = result.draftRevision;
-            state.saved = snapshot;
-            setAcknowledged(snapshot);
-            setPhase("saved");
-            return true;
-          })
-          .catch((error: unknown) => {
-            if (
-              error instanceof ResumeRequestError &&
-              [404, 409].includes(error.status)
-            ) {
-              state.conflict = true;
-              setPhase("conflict");
-              setConflictOpen(true);
-            } else {
-              setPhase("error");
-            }
-            return false;
-          })
-          .finally(() => {
-            state.request = undefined;
-          });
+    for (;;) {
+      if (state.conflict) {
+        setConflictOpen(true);
+        return null;
       }
-      if (!(await state.request)) return null;
+      // A pending write can change the saved draft even after a local revert.
+      if (state.request) {
+        if (!(await state.request)) return null;
+        continue;
+      }
+      if (matches(state.latest, state.saved)) return state.revision;
+
+      const snapshot = state.latest;
+      setPhase("saving");
+      state.request = requestResume(`/${initial.id}`, resumeSummarySchema, {
+        method: "PATCH",
+        body: { ...snapshot, expectedRevision: state.revision },
+      })
+        .then((result) => {
+          state.revision = result.draftRevision;
+          state.saved = snapshot;
+          setAcknowledged(snapshot);
+          setPhase("saved");
+          return true;
+        })
+        .catch((error: unknown) => {
+          if (
+            error instanceof ResumeRequestError &&
+            [404, 409].includes(error.status)
+          ) {
+            state.conflict = true;
+            setPhase("conflict");
+            setConflictOpen(true);
+          } else {
+            setPhase("error");
+          }
+          return false;
+        })
+        .finally(() => {
+          state.request = undefined;
+        });
     }
-    return state.revision;
   }, [initial.id]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const state = queue.current;
     state.latest = { title, document: draft };
     if (matches(state.latest, state.saved) || state.conflict) return;
@@ -99,7 +107,11 @@ export function useResumeAutosave(
   useEffect(() => {
     const state = queue.current;
     const guard = (event: BeforeUnloadEvent) => {
-      if (state.allowNavigation || matches(state.latest, state.saved)) return;
+      if (
+        state.allowNavigation ||
+        (!state.request && matches(state.latest, state.saved))
+      )
+        return;
       event.preventDefault();
       event.returnValue = true;
     };
@@ -107,17 +119,19 @@ export function useResumeAutosave(
     return () => window.removeEventListener("beforeunload", guard);
   }, []);
 
-  const reload = () => {
+  const reloadFromServer = () => {
     queue.current.allowNavigation = true;
     window.location.reload();
   };
 
   const saveCopy = async () => {
     const state = queue.current;
-    const attempt = (state.copy ??= {
-      id: crypto.randomUUID(),
-      snapshot: state.latest,
-    });
+    const previous = state.copy;
+    const attempt =
+      previous && matches(previous.snapshot, state.latest)
+        ? previous
+        : { id: crypto.randomUUID(), snapshot: state.latest };
+    state.copy = attempt;
     const { title, document } = attempt.snapshot;
     const saved = await createResume({
       id: attempt.id,
@@ -144,7 +158,7 @@ export function useResumeAutosave(
     conflictOpen,
     setConflictOpen,
     flush,
-    reload,
+    reloadFromServer,
     saveCopy,
     reportConflict,
   };

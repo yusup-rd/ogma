@@ -494,7 +494,6 @@ ${
   html, body { overflow:hidden; background:transparent; }
   .workspace { min-width:0; padding:0; }
   .workspace .page { width:100%; box-shadow:none; }
-  .workspace .page + .page { display:none; }
 }
 `
     : ""

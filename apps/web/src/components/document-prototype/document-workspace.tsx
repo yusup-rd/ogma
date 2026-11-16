@@ -100,7 +100,7 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
           resumeId={resume.id}
           beforeAction={autosave.flush}
           onConflict={autosave.reportConflict}
-          onRestored={autosave.reload}
+          onRestored={autosave.reloadFromServer}
         />
         <ExportDialog
           resumeId={resume.id}
@@ -113,7 +113,7 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
       <ResumeConflictDialog
         open={autosave.conflictOpen}
         onOpenChange={autosave.setConflictOpen}
-        onReload={autosave.reload}
+        onReload={autosave.reloadFromServer}
         onSaveCopy={autosave.saveCopy}
       />
 
