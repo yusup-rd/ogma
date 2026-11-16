@@ -1,6 +1,7 @@
 import { entryMetadata } from "./entry-metadata";
 import {
   AlignmentType,
+  BorderStyle,
   Document,
   HeadingLevel,
   ImageRun,
@@ -9,6 +10,10 @@ import {
   Paragraph,
   TextRun,
   Tab,
+  Table,
+  TableCell,
+  TableRow,
+  WidthType,
   TabStopType,
   type INumberingOptions,
 } from "docx";
@@ -23,16 +28,40 @@ import {
   resumeColumns,
   type ResumeLayout,
 } from "./layout-catalog";
-import { designDefaults, pageMargins, paperDimensions } from "./design-options";
+import {
+  designDefaults,
+  pageMargins,
+  paperDimensions,
+  resolveProficiency,
+} from "./design-options";
 import type { LayoutDraft } from "./layout-draft";
-import { resumeEntries, resumeHeader, sectionNames } from "./resume-content";
+import { resumeColors } from "./resume-colors";
+import {
+  resumeEntries,
+  resumeHeader,
+  resumeSkills,
+  sectionNames,
+  workProjectEntries,
+  type ResumeEntry,
+} from "./resume-content";
 
+// cspell:ignore IHDR
 function image(dataUri: string, size: number) {
   const [mime, data] = dataUri.split(",");
+  const png = mime.includes("png");
+  const bytes = Buffer.from(data, "base64");
+  const dimensions =
+    png && bytes.length >= 24 && bytes.toString("ascii", 12, 16) === "IHDR"
+      ? { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) }
+      : { width: size, height: size };
+  const scale = size / Math.max(1, dimensions.width, dimensions.height);
   return new ImageRun({
-    type: mime.includes("png") ? "png" : "jpg",
-    data: Buffer.from(data, "base64"),
-    transformation: { width: size, height: size },
+    type: png ? "png" : "jpg",
+    data: bytes,
+    transformation: {
+      width: Math.max(1, Math.round(dimensions.width * scale)),
+      height: Math.max(1, Math.round(dimensions.height * scale)),
+    },
   });
 }
 
@@ -52,7 +81,10 @@ function runs(paragraph: RichParagraph) {
 export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
   const { content, style } = draft;
   const { name, title, pronouns, details } = resumeHeader(content);
-  const accent = style.accent.slice(1);
+  const ivyLeague = layout.heading === "center-rule";
+  const colors = resumeColors(layout, style.accent);
+  const accent = colors.accent.slice(1);
+  const supportingInk = colors.supportingInk.slice(1);
   const paper = paperDimensions(style);
   const margins = pageMargins(style);
   const mmTwips = (mm: number) => Math.round((mm * 1440) / 25.4);
@@ -95,6 +127,7 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
 
   const skillMode = style.skillsLayout ?? defaults.skillsLayout;
   const dateFormat = style.dateFormat ?? defaults.dateFormat;
+  const proficiency = resolveProficiency(style, defaults.proficiencyIndicator);
   const farRight = mmTwips(paper.width - margins.left - margins.right);
   const categoryListRef = "skill-category-list";
   if (skillMode === "list") {
@@ -151,7 +184,7 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
         return [
           new Paragraph({
             children: runs(node),
-            spacing: { before: pointTwips(style.spacing?.blocks) },
+            spacing: { before: pointTwips(style.spacing?.blocks), after: 0 },
           }),
         ];
 
@@ -196,8 +229,8 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
               line: Math.round(
                 (style.listLineHeight ?? layout.lineHeight) * 240,
               ),
-              before:
-                index > 0 ? pointTwips(style.spacing?.listItems) : undefined,
+              before: index > 0 ? pointTwips(style.spacing?.listItems) : 0,
+              after: 0,
             },
           }),
           ...following.flatMap((nested) => block(nested, depth + 1)),
@@ -207,6 +240,58 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
     return value?.content?.flatMap((node) => block(node)) ?? [];
   }
 
+  function projectTable(entries: readonly ResumeEntry[]) {
+    if (!entries.length) return [];
+    const widths = [32, 68];
+    const heading = new TableRow({
+      tableHeader: true,
+      children: ["Project name", "Description"].map(
+        (text, index) =>
+          new TableCell({
+            width: { size: widths[index], type: WidthType.PERCENTAGE },
+            shading: { fill: colors.tablePaper.slice(1) },
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text,
+                    bold: true,
+                    color: colors.tableInk.slice(1),
+                  }),
+                ],
+              }),
+            ],
+          }),
+      ),
+    });
+    const rows = entries.map((entry) => {
+      const description = richParagraphs(entry.description, false);
+      return new TableRow({
+        children: [
+          new TableCell({
+            width: { size: widths[0], type: WidthType.PERCENTAGE },
+            children: [
+              new Paragraph(entry.title),
+              ...[entry.subtitle, entry.date].flatMap((text) =>
+                text ? [new Paragraph(text)] : [],
+              ),
+            ],
+          }),
+          new TableCell({
+            width: { size: widths[1], type: WidthType.PERCENTAGE },
+            children: description.length ? description : [new Paragraph("")],
+          }),
+        ],
+      });
+    });
+    return [
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [heading, ...rows],
+      }),
+    ];
+  }
+
   const contents = [...main, ...side].flatMap((id) => {
     const body =
       id === "summary"
@@ -214,139 +299,173 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
             .split(/\r?\n/)
             .filter((line) => line.trim())
             .map((text) => new Paragraph(text))
-        : resumeEntries(content, id, dateFormat).flatMap((entry, index) => {
-            const skills =
-              entry.skills?.map((skill) =>
-                layout.showSkillLevels && skill.level
-                  ? `${skill.name} (${skill.level})`
-                  : skill.name,
-              ) ?? [];
-            const inlineSkills =
-              id === "skills" && skillMode !== "columns" && skills.length > 0;
-            const { left, right, rail, rows } = entryMetadata(
-              entry,
-              style,
-              id === "experience" && layout.timeline,
-            );
-            const leftText = [...left, ...rail]
-              .map((field) => field.text)
-              .join(" | ");
-            const rightText = right.map((field) => field.text).join(" | ");
-            const title = entry.title.trim();
-            const paragraphSpace = {
-              before: index > 0 ? pointTwips(style.spacing?.blocks) : undefined,
-            };
-            return [
-              ...(title || inlineSkills || leftText || rightText
-                ? [
-                    new Paragraph({
-                      spacing: {
-                        ...paragraphSpace,
-                        line: inlineSkills
-                          ? Math.round(
-                              (style.listLineHeight ?? layout.lineHeight) * 240,
-                            )
+        : id === "projects" && (style.projectTable ?? defaults.projectTable)
+          ? projectTable(resumeEntries(content, id, dateFormat))
+          : (id === "skills"
+              ? resumeSkills(content, style.groupSkills ?? defaults.groupSkills)
+              : resumeEntries(
+                  content,
+                  id,
+                  dateFormat,
+                  style.workProjectTables ?? defaults.workProjectTables,
+                )
+            ).flatMap((entry, index) => {
+              const logo = entry.logo ?? (index === 0 ? draft.logo : undefined);
+              const skills =
+                entry.skills?.map((skill) =>
+                  proficiency !== "none" && skill.level
+                    ? `${skill.name} (${skill.level})`
+                    : skill.name,
+                ) ?? [];
+              const inlineSkills =
+                id === "skills" && skillMode !== "columns" && skills.length > 0;
+              const { left, right, rail, rows } = entryMetadata(
+                entry,
+                style,
+                id === "experience" && layout.timeline,
+              );
+              const leftText = [...left, ...rail]
+                .map((field) => field.text)
+                .join(" | ");
+              const rightText = right.map((field) => field.text).join(" | ");
+              const title = entry.title.trim();
+              const paragraphSpace = {
+                before:
+                  index > 0 ? pointTwips(style.spacing?.blocks) : undefined,
+              };
+              return [
+                ...(title || inlineSkills || leftText || rightText
+                  ? [
+                      new Paragraph({
+                        spacing: {
+                          ...paragraphSpace,
+                          line: inlineSkills
+                            ? Math.round(
+                                (style.listLineHeight ?? layout.lineHeight) *
+                                  240,
+                              )
+                            : undefined,
+                        },
+                        keepNext: Boolean(
+                          entry.subtitle ||
+                          rows.length ||
+                          entry.description?.content?.length,
+                        ),
+                        tabStops: rightText
+                          ? [{ type: TabStopType.RIGHT, position: farRight }]
                           : undefined,
-                      },
-                      keepNext: Boolean(
-                        entry.subtitle ||
-                        rows.length ||
-                        entry.description?.content?.length,
-                      ),
-                      tabStops: rightText
-                        ? [{ type: TabStopType.RIGHT, position: farRight }]
-                        : undefined,
-                      numbering:
-                        inlineSkills && skillMode === "list"
-                          ? { reference: categoryListRef, level: 0 }
-                          : undefined,
-                      children: [
-                        ...(id === "experience" &&
-                        layout.logos !== "none" &&
-                        index === 0 &&
-                        draft.logo
-                          ? [image(draft.logo, 20), new TextRun("  ")]
-                          : []),
-                        ...(title
-                          ? [
-                              new TextRun({
-                                text: title + (inlineSkills ? ": " : ""),
-                                color: accent,
-                                ...typography("primary"),
-                              }),
-                            ]
-                          : []),
-                        ...(inlineSkills
-                          ? [
-                              new TextRun({
-                                text: skills.join(
-                                  skillMode === "bullet" ? " \u2022 " : ", ",
-                                ),
-                                ...typography("body"),
-                              }),
-                            ]
-                          : []),
-                        ...(leftText
-                          ? [
-                              new TextRun({
-                                text: (title ? " | " : "") + leftText,
-                                ...typography("minor"),
-                              }),
-                            ]
-                          : []),
-                        ...(rightText
-                          ? [
-                              new TextRun({
-                                children: [new Tab(), rightText],
-                                ...typography("minor"),
-                              }),
-                            ]
-                          : []),
-                      ],
-                    }),
-                  ]
-                : []),
-              ...(entry.subtitle
-                ? [
+                        numbering:
+                          inlineSkills && skillMode === "list"
+                            ? { reference: categoryListRef, level: 0 }
+                            : undefined,
+                        children: [
+                          ...(id === "experience" &&
+                          layout.logos !== "none" &&
+                          logo
+                            ? [image(logo, 20), new TextRun("  ")]
+                            : []),
+                          ...(title
+                            ? [
+                                new TextRun({
+                                  text: title + (inlineSkills ? ": " : ""),
+                                  color: "26303B",
+                                  ...typography("primary"),
+                                }),
+                              ]
+                            : []),
+                          ...(inlineSkills
+                            ? [
+                                new TextRun({
+                                  text: skills.join(
+                                    skillMode === "bullet" ? " \u2022 " : ", ",
+                                  ),
+                                  ...typography("body"),
+                                }),
+                              ]
+                            : []),
+                          ...(leftText
+                            ? [
+                                new TextRun({
+                                  text: (title ? " | " : "") + leftText,
+                                  ...typography("minor"),
+                                }),
+                              ]
+                            : []),
+                          ...(rightText
+                            ? [
+                                new TextRun({
+                                  children: [new Tab(), rightText],
+                                  ...typography("minor"),
+                                }),
+                              ]
+                            : []),
+                        ],
+                      }),
+                    ]
+                  : []),
+                ...(entry.subtitle
+                  ? [
+                      new Paragraph({
+                        spacing: {
+                          before: pointTwips(style.spacing?.headings),
+                        },
+                        keepNext: true,
+                        children: [
+                          new TextRun({
+                            text: entry.subtitle,
+                            color:
+                              colors.organizations &&
+                              (id === "experience" || id === "education")
+                                ? supportingInk
+                                : undefined,
+                            ...typography("secondary"),
+                          }),
+                        ],
+                      }),
+                    ]
+                  : []),
+                ...rows.map(
+                  (field) =>
                     new Paragraph({
-                      spacing: {
-                        before: pointTwips(style.spacing?.headings),
-                      },
+                      alignment: align[field.alignment],
                       keepNext: true,
                       children: [
                         new TextRun({
-                          text: entry.subtitle,
-                          ...typography("secondary"),
+                          text: field.text,
+                          ...typography("minor"),
                         }),
                       ],
                     }),
-                  ]
-                : []),
-              ...rows.map(
-                (field) =>
-                  new Paragraph({
-                    alignment: align[field.alignment],
-                    keepNext: true,
-                    children: [
-                      new TextRun({ text: field.text, ...typography("minor") }),
-                    ],
-                  }),
-              ),
-              ...(inlineSkills ? [] : skillParagraphs(skills)),
-              ...richParagraphs(
-                entry.description,
-                (layout.header === "center" &&
-                  layout.heading === "spaced" &&
-                  id === "experience") ||
-                  (layout.id === "crest-projects" && id === "projects"),
-              ),
-            ];
-          });
+                ),
+                ...(inlineSkills ? [] : skillParagraphs(skills)),
+                ...richParagraphs(
+                  entry.description,
+                  (layout.header === "center" &&
+                    layout.heading === "spaced" &&
+                    id === "experience") ||
+                    (layout.id === "crest-projects" && id === "projects"),
+                ),
+                ...(id === "experience"
+                  ? projectTable(workProjectEntries(entry.workProjects))
+                  : []),
+              ];
+            });
     return body.length
       ? [
           new Paragraph({
             heading: HeadingLevel.HEADING_1,
             keepNext: true,
+            alignment: ivyLeague ? AlignmentType.CENTER : undefined,
+            border: colors.headingRule
+              ? {
+                  [colors.headingRule]: {
+                    style: BorderStyle.SINGLE,
+                    size: 4,
+                    space: 2,
+                    color: accent,
+                  },
+                }
+              : undefined,
             spacing: {
               before:
                 style.spacing?.sections === undefined
@@ -357,7 +476,7 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
             children: [
               new TextRun({
                 text: sectionNames[id],
-                color: accent,
+                color: colors.headings ? accent : "24292D",
                 ...typography("section"),
               }),
             ],
@@ -386,7 +505,11 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
             alignment,
             keepNext: true,
             children: [
-              new TextRun({ text: name, color: accent, ...typography("name") }),
+              new TextRun({
+                text: name,
+                color: "19222A",
+                ...typography("name"),
+              }),
             ],
           }),
         ]
@@ -400,7 +523,16 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
         ({ text, role }) =>
           new Paragraph({
             alignment,
-            children: [new TextRun({ text, ...typography(role) })],
+            children: [
+              new TextRun({
+                text,
+                color:
+                  colors.role && role === "secondary"
+                    ? supportingInk
+                    : undefined,
+                ...typography(role),
+              }),
+            ],
           }),
       ),
     ...(layout.header === "badge" && details.length

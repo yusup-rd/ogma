@@ -7,7 +7,7 @@ import { AppModule } from "./app.module";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  app.useBodyParser("json", { limit: "420kb" });
+  app.useBodyParser("json", { limit: "2mb" });
   const config = app.get(ConfigService);
   const port = z.coerce
     .number()

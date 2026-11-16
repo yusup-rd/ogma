@@ -2,8 +2,20 @@ import type {
   DesignDefaults,
   DesignOptions,
   PaperSize,
+  ProficiencyIndicator,
 } from "../../../../packages/contracts/resume-content";
 import type { ResumeLayout } from "./layout-catalog";
+
+export function resolveProficiency(
+  style: DesignOptions,
+  defaultIndicator: ProficiencyIndicator,
+): ProficiencyIndicator {
+  const shown = style.showProficiency ?? defaultIndicator !== "none";
+  return shown
+    ? (style.proficiencyIndicator ??
+        (defaultIndicator === "none" ? "dots" : defaultIndicator))
+    : "none";
+}
 
 const papers = {
   a4: { width: 210, height: 297 },
@@ -69,6 +81,154 @@ const listScale: Record<string, number> = {
   contemporary: 0.22,
 };
 const decimal = (value: number) => Math.round(value * 100) / 100;
+const regularPrimary = new Set([
+  "elegant",
+  "crest",
+  "crest-projects",
+  "compact",
+  "high-performer",
+  "imprint",
+  "minimal",
+]);
+const lightTitle = new Set([
+  "contemporary",
+  "crest",
+  "crest-projects",
+  "imprint",
+  "high-performer",
+]);
+
+type SkillDefaults = Pick<
+  DesignDefaults,
+  "skillsLayout" | "groupSkills" | "proficiencyIndicator"
+>;
+const skillDefaults: Record<string, SkillDefaults> = {
+  "double-column": {
+    skillsLayout: "lined",
+    groupSkills: false,
+    proficiencyIndicator: "sticks",
+  },
+  "ivy-league": {
+    skillsLayout: "inline",
+    groupSkills: true,
+    proficiencyIndicator: "none",
+  },
+  elegant: {
+    skillsLayout: "lined",
+    groupSkills: false,
+    proficiencyIndicator: "bar",
+  },
+  crest: {
+    skillsLayout: "bullet",
+    groupSkills: false,
+    proficiencyIndicator: "none",
+  },
+  "single-column": {
+    skillsLayout: "lined",
+    groupSkills: false,
+    proficiencyIndicator: "sticks",
+  },
+  polished: {
+    skillsLayout: "columns",
+    groupSkills: false,
+    proficiencyIndicator: "sticks",
+  },
+  imprint: {
+    skillsLayout: "inline",
+    groupSkills: false,
+    proficiencyIndicator: "none",
+  },
+  timeline: {
+    skillsLayout: "lined",
+    groupSkills: false,
+    proficiencyIndicator: "bar",
+  },
+  creative: {
+    skillsLayout: "lined",
+    groupSkills: false,
+    proficiencyIndicator: "bold-dots",
+  },
+  stylish: {
+    skillsLayout: "lined",
+    groupSkills: false,
+    proficiencyIndicator: "bar",
+  },
+  modern: {
+    skillsLayout: "lined",
+    groupSkills: false,
+    proficiencyIndicator: "bar",
+  },
+  contemporary: {
+    skillsLayout: "lined",
+    groupSkills: true,
+    proficiencyIndicator: "none",
+  },
+  "ivy-league-photo": {
+    skillsLayout: "inline",
+    groupSkills: false,
+    proficiencyIndicator: "none",
+  },
+  "ivy-league-logos": {
+    skillsLayout: "inline",
+    groupSkills: false,
+    proficiencyIndicator: "dots",
+  },
+  "single-column-photo": {
+    skillsLayout: "lined",
+    groupSkills: false,
+    proficiencyIndicator: "none",
+  },
+  "elegant-logos": {
+    skillsLayout: "lined",
+    groupSkills: false,
+    proficiencyIndicator: "none",
+  },
+  "double-column-logos": {
+    skillsLayout: "lined",
+    groupSkills: true,
+    proficiencyIndicator: "sticks",
+  },
+  compact: {
+    skillsLayout: "lined",
+    groupSkills: false,
+    proficiencyIndicator: "none",
+  },
+  "timeline-logos": {
+    skillsLayout: "lined",
+    groupSkills: false,
+    proficiencyIndicator: "none",
+  },
+  classic: {
+    skillsLayout: "bullet",
+    groupSkills: true,
+    proficiencyIndicator: "none",
+  },
+  "high-performer": {
+    skillsLayout: "lined",
+    groupSkills: false,
+    proficiencyIndicator: "dots",
+  },
+  minimal: {
+    skillsLayout: "bullet",
+    groupSkills: true,
+    proficiencyIndicator: "bold-dots",
+  },
+  "crest-projects": {
+    skillsLayout: "bullet",
+    groupSkills: false,
+    proficiencyIndicator: "none",
+  },
+};
+
+const plainContact = new Set([
+  "ivy-league",
+  "ivy-league-photo",
+  "ivy-league-logos",
+  "crest",
+  "crest-projects",
+  "classic",
+  "imprint",
+]);
 
 export function designDefaults(layout: ResumeLayout): DesignDefaults {
   const [name, nameWeight] = nameScale[layout.id] ?? [
@@ -97,11 +257,15 @@ export function designDefaults(layout: ResumeLayout): DesignDefaults {
     dateAlignment: alignment,
     locationAlignment: alignment,
     employmentTypeAlignment: alignment,
-    skillsLayout: layout.showSkillLevels ? "columns" : "bullet",
+    ...skillDefaults[layout.id],
+    showContactIcons: !plainContact.has(layout.id),
+    showSectionIcons: layout.header === "badge",
+    workProjectTables: layout.id === "high-performer",
+    projectTable: false,
     sizes: {
       body,
       primary: decimal(body * 1.17),
-      secondary: body,
+      secondary: decimal(body * (layout.header === "center" ? 1 : 1.08)),
       section: decimal(body * section),
       name: decimal(body * name),
       minor: decimal(body * 0.89),
@@ -109,13 +273,11 @@ export function designDefaults(layout: ResumeLayout): DesignDefaults {
     weights: {
       body: 400,
       primary:
-        layout.heading === "center-rule" ||
-        layout.id === "elegant" ||
-        layout.id === "crest" ||
-        layout.id === "crest-projects"
+        layout.heading === "center-rule" || regularPrimary.has(layout.id)
           ? 400
           : 700,
-      secondary: 400,
+      secondary:
+        layout.header === "center" || lightTitle.has(layout.id) ? 400 : 600,
       section: regularSectionTitles.has(layout.id) ? 400 : 700,
       name: nameWeight,
       minor: 400,

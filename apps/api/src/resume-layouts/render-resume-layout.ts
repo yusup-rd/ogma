@@ -1,7 +1,13 @@
 import { entryMetadata } from "./entry-metadata";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { designDefaults, pageMargins, paperDimensions } from "./design-options";
+import {
+  designDefaults,
+  pageMargins,
+  paperDimensions,
+  resolveProficiency,
+} from "./design-options";
+import { contactSvg, entrySvg, sectionSvg } from "./resume-icons";
 import type {
   RichBlock,
   RichInline,
@@ -16,10 +22,13 @@ import type { LayoutDraft } from "./layout-draft";
 import {
   resumeEntries,
   resumeHeader,
+  resumeSkills,
+  workProjectEntries,
   sectionNames,
   type ResumeEntry,
 } from "./resume-content";
 import { resumeLayoutStyles } from "./resume-layout-styles";
+import { resumeColors } from "./resume-colors";
 
 const entities: Record<string, string> = {
   "&": "&amp;",
@@ -62,20 +71,14 @@ function portrait(src?: string) {
     : '<span class="portrait portrait-placeholder" aria-hidden="true"></span>';
 }
 
-const contactIcons: Record<string, string> = {
-  email: "✉",
-  phone: "✆",
-  address: "⌖",
-  linkedin: "↗",
-  website: "↗",
-  github: "↗",
-};
-
-function contactDetails(details: ReturnType<typeof resumeHeader>["details"]) {
+function contactDetails(
+  details: ReturnType<typeof resumeHeader>["details"],
+  showIcons: boolean,
+) {
   return details
     .map(
       ({ kind, value }) =>
-        `<span><i aria-hidden="true">${contactIcons[kind]}</i><span>${escapeText(value)}</span></span>`,
+        `<span>${showIcons ? `<i class="contact-icon">${contactSvg(kind)}</i>` : ""}<span>${escapeText(value)}</span></span>`,
     )
     .join("");
 }
@@ -85,50 +88,83 @@ const levelStrength = {
   Intermediate: 2,
   Advanced: 3,
   Expert: 4,
+  Native: 5,
 } as const;
+
+function renderSkillMeter(
+  indicator: Exclude<ReturnType<typeof resolveProficiency>, "none">,
+  strength: number,
+) {
+  if (indicator === "bar") {
+    return `<span class="skill-meter indicator-bar" aria-hidden="true"><span style="width:${strength * 20}%"></span></span>`;
+  }
+
+  const sticks = indicator === "sticks";
+  const marks = Array.from({ length: 5 }, (_, index) => {
+    const center = index * 10 + 5;
+    const fill = index < strength ? ' class="filled"' : "";
+    return sticks
+      ? `<rect x="${center - 3}" y="0" width="6" height="30" rx="3"${fill}/>`
+      : `<circle cx="${center}" cy="5" r="${indicator === "dots" ? 3.5 : 3.65}"${fill}/>`;
+  }).join("");
+  return `<svg class="skill-meter skill-meter-marks indicator-${indicator}" viewBox="0 0 50 ${sticks ? 30 : 10}" preserveAspectRatio="none" aria-hidden="true" focusable="false">${marks}</svg>`;
+}
 
 function renderSkills(
   entry: ResumeEntry,
-  layout: ResumeLayout,
+  defaults: ReturnType<typeof designDefaults>,
   style: LayoutDraft["style"],
 ) {
   const skills = entry.skills ?? [];
-  const mode = style.skillsLayout ?? designDefaults(layout).skillsLayout;
+  const mode = style.skillsLayout ?? defaults.skillsLayout;
+  const indicator = resolveProficiency(style, defaults.proficiencyIndicator);
+  const rated = indicator !== "none" && skills.some((skill) => skill.level);
   const anchor = `data-preview-anchor="skills:${escapeText(entry.id)}"`;
   const category = escapeText(entry.title);
+  if (rated || mode === "columns" || mode === "lined") {
+    const heading = category ? `<h3>${category}</h3>` : "";
+    const items = skills
+      .map(({ name, level }) => {
+        if (!level || indicator === "none")
+          return `<li><span>${escapeText(name)}</span></li>`;
+        return `<li><span>${escapeText(name)}</span><span class="skill-level"><span>${escapeText(level)}</span>${renderSkillMeter(indicator, levelStrength[level])}</span></li>`;
+      })
+      .join("");
+    const presentation = mode !== "lined" && rated ? "rated" : mode;
+    return `<article class="entry skill-category-${presentation}" ${anchor}><div class="entry-copy">${heading}<ul class="skill-list" role="list">${items}</ul></div></article>`;
+  }
   const label = category
     ? `<strong class="skill-category-label">${category}:</strong> `
     : "";
-  if (mode === "columns") {
-    const heading = category ? `<h3>${category}</h3>` : "";
-    const items = skills
-      .map((skill) => {
-        const level = layout.showSkillLevels && skill.level;
-        return `<li><span>${escapeText(skill.name)}</span>${
-          level
-            ? `<span class="skill-level"><span class="skill-meter" aria-hidden="true"><span style="width:${levelStrength[level] * 25}%"></span></span>${escapeText(level)}</span>`
-            : ""
-        }</li>`;
-      })
-      .join("");
-    return `<article class="entry skill-category-columns" ${anchor}><div class="entry-copy">${heading}<ul class="skill-list" role="list">${items}</ul></div></article>`;
-  }
-  const values = skills.map((skill) =>
-    escapeText(
-      skill.name +
-        (layout.showSkillLevels && skill.level ? " (" + skill.level + ")" : ""),
-    ),
-  );
-  const items = values.join(
-    mode === "bullet"
-      ? ' <span class="skill-separator" aria-hidden="true">•</span> '
-      : ", ",
-  );
-  return `<article class="entry skill-category-line${mode === "list" ? " skill-category-list" : ""}" ${anchor}${mode === "list" ? ' role="listitem"' : ""}>
+  const items = skills
+    .map((skill) => escapeText(skill.name))
+    .join(
+      mode === "bullet"
+        ? ' <span class="skill-separator" aria-hidden="true">&#8226;</span> '
+        : ", ",
+    );
+  return `<article class="entry skill-category-line${mode === "list" ? " skill-category-list" : ""}" ${anchor}>
     <p>${label}${items}</p></article>`;
 }
 
-const entryIcons = ["✦", "◆", "●", "↗"];
+function renderProjectTable(projects: readonly ResumeEntry[]) {
+  if (!projects.length) return "";
+  const rows = projects
+    .map(
+      (entry) =>
+        `<tr data-preview-anchor="projects:${escapeText(entry.id)}"><th scope="row">${escapeText(entry.title)}<span class="project-context">${[
+          entry.subtitle,
+          entry.date,
+        ]
+          .filter(Boolean)
+          .map((item) => escapeText(item!))
+          .join(
+            "<br>",
+          )}</span></th><td>${entry.description?.content?.map(richBlock).join("") ?? ""}</td></tr>`,
+    )
+    .join("");
+  return `<table class="project-table"><thead><tr><th scope="col">Project name</th><th scope="col">Description</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
 
 function renderEntry(
   id: Exclude<SectionId, "summary">,
@@ -143,7 +179,6 @@ function renderEntry(
   const subtitle = entry.subtitle
     ? `<p class="${isWork ? "employer" : "entry-subtitle"}">${escapeText(entry.subtitle)}</p>`
     : "";
-  if (id === "skills") return renderSkills(entry, layout, draft.style);
   const metadata = entryMetadata(entry, draft.style, timeline);
   const divider = '<span class="entry-separator">|</span>';
   const names = (fields: typeof metadata.left, separator = "") =>
@@ -172,63 +207,95 @@ function renderEntry(
     ? `<div class="rich-text">${entry.description.content.map(richBlock).join("")}</div>`
     : "";
   const anchor = `data-preview-anchor="${id}:${escapeText(entry.id)}"`;
-  const heading = `<div class="entry-heading"><div class="job-heading">
-    <div class="entry-title-line">${title ? `<h3>${title}</h3>` : ""}${left}</div>${right}
-  </div>${subtitle}${rows}</div>`;
+  const headingTitle = title ? `<h3>${title}</h3>` : "";
+  const metadataByEmployer =
+    isWork &&
+    subtitle &&
+    [
+      "high-performer",
+      "double-column",
+      "double-column-logos",
+      "creative",
+      "modern",
+      "stylish",
+      "polished",
+      "elegant",
+      "elegant-logos",
+    ].includes(layout.id);
+  const headingLine = (primary: string) =>
+    `<div class="job-heading"><div class="entry-title-line">${primary}${left}</div>${right}</div>`;
+  const heading = `<div class="entry-heading">${metadataByEmployer ? headingTitle + headingLine(subtitle) : headingLine(headingTitle) + subtitle}${rows}</div>`;
   if (isWork) {
+    const image = entry.logo ?? (index === 0 ? draft.logo : undefined);
     const logo =
       layout.logos === "none"
         ? ""
-        : index === 0 && draft.logo
-          ? `<img class="employer-logo" src="${escapeText(draft.logo)}" alt="">`
-          : `<span class="employer-logo brand-${index % 4}" aria-hidden="true">${escapeText(entry.title.split(" · ").at(-1)?.trim().charAt(0) ?? "")}</span>`;
-    return `<article class="job" ${anchor}><div class="job-copy">${heading}${description}</div>${rail}${logo}</article>`;
+        : image
+          ? `<img class="employer-logo" src="${escapeText(image)}" alt="">`
+          : `<span class="employer-logo brand-${index % 4}" aria-hidden="true">${escapeText((entry.subtitle || entry.title.split(" · ").at(-1) || "").trim().charAt(0))}</span>`;
+    return `<article class="job" ${anchor}><div class="job-copy">${heading}${description}${renderProjectTable(workProjectEntries(entry.workProjects))}</div>${rail}${logo}</article>`;
   }
-  const icon =
-    id === "awards"
-      ? `<i class="entry-icon" aria-hidden="true">${entryIcons[index % entryIcons.length]}</i>`
+  const icon = entry.icon
+    ? `<i class="entry-icon">${entrySvg(entry.icon)}</i>`
+    : id === "awards"
+      ? '<span class="entry-bullet" aria-hidden="true"></span>'
       : "";
   return `<article class="entry" ${anchor}>${icon}<div class="entry-copy">${heading}${description}</div></article>`;
 }
-
-const sectionIcons: Partial<Record<SectionId, string>> = {
-  summary: "♟",
-  experience: "▣",
-  awards: "⚑",
-  skills: "◆",
-  education: "▰",
-  certifications: "▤",
-  projects: "▦",
-  volunteering: "✦",
-  publications: "▧",
-};
 
 function renderSections(
   ids: readonly SectionId[],
   draft: LayoutDraft,
   layout: ResumeLayout,
+  defaults: ReturnType<typeof designDefaults>,
+  skills: { regular: ResumeEntry[]; proficiency: ResumeEntry[] },
 ) {
   return ids
-    .map((id) => {
-      const body =
-        id === "summary"
-          ? draft.content.summary
-              .split(/\r?\n/)
-              .filter((line) => line.trim())
-              .map((line) => `<p>${escapeText(line)}</p>`)
-              .join("")
-          : resumeEntries(draft.content, id, draft.style.dateFormat)
-              .map((entry, index) =>
-                renderEntry(id, entry, index, draft, layout),
-              )
-              .join("");
-      if (!body) return "";
-      const icon = sectionIcons[id]
-        ? `<i class="section-icon" aria-hidden="true">${sectionIcons[id]}</i>`
+    .flatMap((id) => {
+      let body: string;
+      if (id === "summary") {
+        body = draft.content.summary
+          .split(/\r?\n/)
+          .filter((line) => line.trim())
+          .map((line) => `<p>${escapeText(line)}</p>`)
+          .join("");
+      } else if (id === "skills") {
+        body = skills.regular
+          .map((entry) => renderSkills(entry, defaults, draft.style))
+          .join("");
+      } else if (
+        id === "projects" &&
+        (draft.style.projectTable ?? defaults.projectTable)
+      ) {
+        body = renderProjectTable(
+          resumeEntries(draft.content, id, draft.style.dateFormat),
+        );
+      } else {
+        const entries = resumeEntries(
+          draft.content,
+          id,
+          draft.style.dateFormat,
+          draft.style.workProjectTables ?? defaults.workProjectTables,
+        );
+        body = entries
+          .map((entry, index) => renderEntry(id, entry, index, draft, layout))
+          .join("");
+      }
+      const icon =
+        (draft.style.showSectionIcons ?? defaults.showSectionIcons)
+          ? `<i class="section-icon">${sectionSvg(id)}</i>`
+          : "";
+      const section = body
+        ? `<section class="section ${id}" data-preview-anchor="section:${id}"><h2>${icon}${sectionNames[id]}</h2><div class="section-copy">${body}</div></section>`
         : "";
-      const isSkillList =
-        id === "skills" && draft.style.skillsLayout === "list";
-      return `<section class="section ${id}" data-preview-anchor="section:${id}"><h2>${icon}${sectionNames[id]}</h2><div class="section-copy"${isSkillList ? ' role="list"' : ""}>${body}</div></section>`;
+      if (id !== layout.proficiencyAfter) return [section];
+      return [
+        section,
+        ...skills.proficiency.map(
+          (group) =>
+            `<section class="section proficiency" data-preview-anchor="proficiency:${escapeText(group.id)}"><h2>${escapeText(group.title)}</h2><div class="section-copy">${renderSkills({ ...group, title: "" }, defaults, { ...draft.style, skillsLayout: "columns" })}</div></section>`,
+        ),
+      ];
     })
     .join("");
 }
@@ -301,7 +368,7 @@ function formattingRules(
     );
   if (spacing?.blocks !== undefined)
     rules.push(
-      `.resume-page .job {--job-gap:${toPoints(spacing.blocks)}} .resume-page .job + .job,.resume-page .entry + .entry,.resume-page .section-copy > p + p,.resume-page .rich-text > * + * {margin-top:${toPoints(spacing.blocks)} !important} .resume-page :is(.awards,.template-classic .certifications,.template-timeline .certifications) .section-copy,.resume-page.skill-levels:not(.two-columns) .skills .section-copy {row-gap:${toPoints(spacing.blocks)}} .resume-page :is(.awards,.template-classic .certifications,.template-timeline .certifications) .entry + .entry,.resume-page.skill-levels:not(.two-columns) .skills .entry + .entry {margin-top:0 !important}`,
+      `.resume-page .job {--job-gap:${toPoints(spacing.blocks)}} .resume-page .job + .job,.resume-page .entry + .entry,.resume-page .section-copy > p + p,.resume-page .rich-text > p + p {margin-top:${toPoints(spacing.blocks)} !important} .resume-page :is(.awards,.template-classic .certifications,.template-timeline .certifications) .section-copy,.resume-page.skill-levels:not(.two-columns) .skills .section-copy {row-gap:${toPoints(spacing.blocks)}} .resume-page :is(.awards,.template-classic .certifications,.template-timeline .certifications) .entry + .entry,.resume-page.skill-levels:not(.two-columns) .skills .entry + .entry {margin-top:0 !important}`,
     );
   if (spacing?.listItems !== undefined)
     rules.push(
@@ -315,6 +382,7 @@ export function renderResumeLayout(draft: LayoutDraft, layout: ResumeLayout) {
   const paper = paperDimensions(style);
   const margins = pageMargins(style);
   const defaults = designDefaults(layout);
+  const colors = resumeColors(layout, style.accent);
   const effectiveStyle = {
     ...style,
     dateFormat: style.dateFormat ?? defaults.dateFormat,
@@ -325,16 +393,40 @@ export function renderResumeLayout(draft: LayoutDraft, layout: ResumeLayout) {
     weights: { ...defaults.weights, ...style.weights },
     spacing: { ...defaults.spacing, ...style.spacing },
   };
+  const skills: { regular: ResumeEntry[]; proficiency: ResumeEntry[] } = {
+    regular: [],
+    proficiency: [],
+  };
+  const groups = resumeSkills(
+    content,
+    style.groupSkills ?? defaults.groupSkills,
+  );
+  for (const group of groups) {
+    const separate =
+      layout.proficiencyAfter &&
+      group.title.trim() &&
+      resolveProficiency(style, defaults.proficiencyIndicator) !== "none" &&
+      group.skills?.some((skill) => skill.level);
+    (separate ? skills.proficiency : skills.regular).push(group);
+  }
   const toWidth = (mm: number) => `${(mm / paper.width) * 100}cqw`;
   const toPoints = (pt: number) => toWidth((pt * 25.4) / 72);
   const identity = resumeHeader(content);
   const showPhoto = layout.photo !== "none" && style.showPhoto;
   const photo = showPhoto ? portrait(draft.photo) : "";
   const { main, side } = resumeColumns(layout, draft.sectionOrder);
-  const headerInMain = layout.rail === "left" || layout.header === "badge";
+  const headerInMain =
+    layout.rail === "left" ||
+    layout.header === "badge" ||
+    (layout.rail === "right" && layout.photo === "rail");
   const classes = [
     "resume-page",
     "template-" + layout.id,
+    colors.custom ? "custom-accent" : "",
+    colors.role ? "accent-role" : "",
+    colors.organizations ? "accent-organizations" : "",
+    colors.headings ? "accent-section-headings" : "",
+    style.font === layout.font ? "use-template-font" : "",
     "head-" + layout.header,
     "heading-" + layout.heading,
     "rail-" + layout.rail,
@@ -343,14 +435,13 @@ export function renderResumeLayout(draft: LayoutDraft, layout: ResumeLayout) {
     layout.timeline ? "timeline" : "",
     "logos-" + layout.logos,
     side.length ? "two-columns" : "",
-    layout.showSkillLevels ? "skill-levels" : "",
     "skills-layout-" + effectiveStyle.skillsLayout,
   ]
     .filter(Boolean)
     .join(" ");
 
   const contact = identity.details.length
-    ? `<div class="contact">${contactDetails(identity.details)}</div>`
+    ? `<div class="contact">${contactDetails(identity.details, style.showContactIcons ?? defaults.showContactIcons)}</div>`
     : "";
   const header =
     identity.name ||
@@ -377,7 +468,7 @@ export function renderResumeLayout(draft: LayoutDraft, layout: ResumeLayout) {
 <style>
 html { --paper-width:${paper.width}; --paper-height:${paper.height}; }
 .resume-page {
-  --accent:${style.accent}; --paper:${layout.paper}; --side:${layout.sideColor ?? layout.paper};
+  --ink-accent:${colors.accent}; --supporting-ink:${colors.supportingInk}; --table-ink:${colors.tableInk}; --table-paper:${colors.tablePaper}; --paper:${layout.paper}; --preset-side:${layout.sideColor ?? layout.paper};
   --split:${layout.ratio}%;
   --margin-top:${toWidth(margins.top)}; --margin-right:${toWidth(margins.right)};
   --margin-bottom:${toWidth(margins.bottom)}; --margin-left:${toWidth(margins.left)};
@@ -393,7 +484,7 @@ ${formattingRules(effectiveStyle, toPoints, style.spacing?.titleContent !== unde
 ${fontStyles(style.font)}
 </style></head><body><main class="workspace" data-paper-width="${paper.width}" data-paper-height="${paper.height}" data-template-name="${escapeText(layout.name)}"><div class="page"><div class="${classes}">
 ${headerInMain ? "" : header}
-<div class="columns"><div class="column main">${headerInMain ? header : ""}${renderSections(main, { ...draft, style: effectiveStyle }, layout)}</div>
-${side.length ? `<aside class="column side">${layout.photo === "rail" && showPhoto ? `<div class="rail-portrait">${photo}</div>` : ""}${layout.header === "badge" && contact ? `<section class="section contact-section"><h2><i class="section-icon" aria-hidden="true">✉</i>Contact Information</h2>${contact}</section>` : ""}${renderSections(side, { ...draft, style: effectiveStyle }, layout)}</aside>` : ""}
+<div class="columns"><div class="column main">${headerInMain ? header : ""}${renderSections(main, { ...draft, style: effectiveStyle }, layout, defaults, skills)}</div>
+${side.length ? `<aside class="column side">${layout.photo === "rail" && showPhoto ? `<div class="rail-portrait">${photo}</div>` : ""}${layout.header === "badge" && contact ? `<section class="section contact-section"><h2>${(style.showSectionIcons ?? defaults.showSectionIcons) ? `<i class="section-icon">${sectionSvg("contact")}</i>` : ""}Contact Information</h2>${contact}</section>` : ""}${renderSections(side, { ...draft, style: effectiveStyle }, layout, defaults, skills)}</aside>` : ""}
 </div></div></div></main></body></html>`;
 }

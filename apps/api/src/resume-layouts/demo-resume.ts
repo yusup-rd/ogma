@@ -23,7 +23,22 @@ export const sampleContent: DraftContent = {
   experience: [
     {
       id: "work-1",
-      position: "Senior Software Engineer · Northstar Studio",
+      position: "Senior Software Engineer",
+      employer: "Northstar Studio",
+      projects: [
+        {
+          id: "work-project-1",
+          name: "Open Design System",
+          description: {
+            type: "doc",
+            content: [
+              paragraph(
+                "Built accessible components and documented interaction patterns.",
+              ),
+            ],
+          },
+        },
+      ],
       location: "Halifax, Nova Scotia",
       employmentType: "Full-time",
       startDate: "2022-03",
@@ -66,7 +81,22 @@ export const sampleContent: DraftContent = {
     },
     {
       id: "work-2",
-      position: "Software Engineer · Fieldwork",
+      position: "Software Engineer",
+      employer: "Fieldwork",
+      projects: [
+        {
+          id: "work-project-2",
+          name: "Operations Dashboard",
+          description: {
+            type: "doc",
+            content: [
+              paragraph(
+                "Brought sales and inventory reports into a single dashboard.",
+              ),
+            ],
+          },
+        },
+      ],
       location: "Remote",
       employmentType: "Full-time",
       startDate: "2019-06",
@@ -99,6 +129,42 @@ export const sampleContent: DraftContent = {
         ],
       },
     },
+    {
+      id: "work-3",
+      position: "Junior Software Developer",
+      employer: "Harbour Labs",
+      location: "Halifax, Nova Scotia",
+      employmentType: "Full-time",
+      startDate: "2017-05",
+      endDate: "2019-05",
+      current: false,
+      description: {
+        type: "doc",
+        content: [
+          {
+            type: "bulletList",
+            content: [
+              {
+                type: "listItem",
+                content: [
+                  paragraph(
+                    "Built and tested customer-facing features for an online booking platform.",
+                  ),
+                ],
+              },
+              {
+                type: "listItem",
+                content: [
+                  paragraph(
+                    "Automated recurring QA checks and documented release procedures.",
+                  ),
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    },
   ],
   education: [
     {
@@ -123,17 +189,25 @@ export const sampleContent: DraftContent = {
       id: "skills-1",
       category: "Frontend",
       skills: [
-        { id: "skill-1", name: "TypeScript", level: "Advanced" },
-        { id: "skill-2", name: "React", level: "Advanced" },
-        { id: "skill-3", name: "Web accessibility", level: "Intermediate" },
+        { id: "skill-1", name: "TypeScript", level: "" },
+        { id: "skill-2", name: "React", level: "" },
+        { id: "skill-3", name: "Web accessibility", level: "" },
       ],
     },
     {
       id: "skills-2",
       category: "Backend",
       skills: [
-        { id: "skill-4", name: "Node.js", level: "Advanced" },
-        { id: "skill-5", name: "PostgreSQL", level: "Intermediate" },
+        { id: "skill-4", name: "Node.js", level: "" },
+        { id: "skill-5", name: "PostgreSQL", level: "" },
+      ],
+    },
+    {
+      id: "skills-languages",
+      category: "Languages",
+      skills: [
+        { id: "skill-language-1", name: "English", level: "Native" },
+        { id: "skill-language-2", name: "French", level: "Advanced" },
       ],
     },
   ],
@@ -163,16 +237,14 @@ export const sampleContent: DraftContent = {
   projects: [
     {
       id: "project-1",
-      name: "Open Design System",
-      organization: "Northstar Studio",
-      startDate: "2023-03",
-      endDate: "2024-08",
+      name: "Community Event Finder",
+      organization: "",
+      startDate: "",
+      endDate: "",
       description: {
         type: "doc",
         content: [
-          paragraph(
-            "Built accessible components and documented common interaction patterns.",
-          ),
+          paragraph("Built a searchable calendar for local community events."),
         ],
       },
     },

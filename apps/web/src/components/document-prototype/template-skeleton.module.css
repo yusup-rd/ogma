@@ -53,6 +53,27 @@
   border-radius: 100vw;
 }
 
+.skillBars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2cqw 3cqw;
+}
+
+.tableBars {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 1.5cqw;
+  padding: 2cqw;
+  border: 1px solid var(--soft);
+  border-radius: 2cqw;
+}
+
+.tableBars > span {
+  block-size: 2cqw;
+  border-radius: 100vw;
+  background: var(--soft);
+}
+
 .nameBar {
   inline-size: 72%;
   block-size: 6cqw;
@@ -180,6 +201,10 @@
 
 .page[data-rail="right"] .side {
   margin-block-start: 7cqw;
+}
+
+.page[data-rail="right"][data-photo="rail"] .side {
+  margin-block-start: 0;
 }
 
 .page[data-photo="rail"] .side > .photo {

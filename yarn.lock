@@ -2170,6 +2170,8 @@ __metadata:
     "@prisma/client": "npm:7.10.1"
     "@types/node": "npm:^24.0.0"
     "@types/pg": "npm:^8.0.0"
+    "@types/react": "npm:19.0.0"
+    "@types/react-dom": "npm:19.0.0"
     docx: "npm:^9.0.0"
     eslint: "npm:^9.39.0"
     mammoth: "npm:^1.0.0"
@@ -2177,6 +2179,9 @@ __metadata:
     pg: "npm:^8.0.0"
     playwright: "npm:^1.60.0"
     prisma: "npm:7.10.1"
+    react: "npm:19.3.1"
+    react-dom: "npm:19.3.1"
+    react-icons: "npm:5.7.0"
     reflect-metadata: "npm:^0.2.0"
     rxjs: "npm:^7.8.0"
     typescript: "npm:~6.0.0"
@@ -3686,6 +3691,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/react-dom@npm:19.0.0":
+  version: 19.0.0
+  resolution: "@types/react-dom@npm:19.0.0"
+  dependencies:
+    "@types/react": "npm:*"
+  checksum: 10c0/bd480fc4a9c801fc6bbc7d26b37bb815fc382e76b5428511b1bdb2e8048f3dbd2ff9973bafc86b448e0593f9da4c02f7b39d47409e427daeed5a54f045de4596
+  languageName: node
+  linkType: hard
+
 "@types/react-dom@npm:^19.0.0":
   version: 19.3.0
   resolution: "@types/react-dom@npm:19.3.0"
@@ -3701,6 +3715,15 @@ __metadata:
   dependencies:
     csstype: "npm:^3.2.2"
   checksum: 10c0/fbcabf303f935ca9f36ed2dcf81751cf84744098c5a683c8a62a0fa7edd31714b48d5c46b12fd0014f7f2dfe4d9ec6de428a850748eec719a70294e51029551b
+  languageName: node
+  linkType: hard
+
+"@types/react@npm:19.0.0":
+  version: 19.0.0
+  resolution: "@types/react@npm:19.0.0"
+  dependencies:
+    csstype: "npm:^3.0.2"
+  checksum: 10c0/d7753ec27c5fa48f3aab97d7d4e9e33ad62bbff761a421bfc56c7b403fab9e3ed266d47793e44311ca2f0034e8ae428cea4aecbe1c542b418cfe72a520eab931
   languageName: node
   linkType: hard
 
@@ -5016,7 +5039,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"csstype@npm:^3.2.2":
+"csstype@npm:^3.0.2, csstype@npm:^3.2.2":
   version: 3.2.3
   resolution: "csstype@npm:3.2.3"
   checksum: 10c0/cd29c51e70fa822f1cecd8641a1445bed7063697469d35633b516e60fe8c1bde04b08f6c5b6022136bb669b64c63d4173af54864510fbb4ee23281801841a3ce
@@ -8635,7 +8658,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-icons@npm:^5.7.0":
+"react-icons@npm:5.7.0, react-icons@npm:^5.7.0":
   version: 5.7.0
   resolution: "react-icons@npm:5.7.0"
   peerDependencies:

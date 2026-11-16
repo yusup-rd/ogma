@@ -29,6 +29,16 @@ const picture = z
   .string()
   .max(180_000)
   .regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/);
+const entryIcon = z.enum([
+  "award",
+  "graduation",
+  "star",
+  "target",
+  "chart",
+  "book",
+  "heart",
+  "building",
+]);
 
 const paragraph = z.object({
   type: z.literal("paragraph"),
@@ -79,98 +89,157 @@ const description = z.object({
   type: z.literal("doc"),
   content: z.array(richBlock(8)).max(300).optional(),
 });
-const contentSchema = z.object({
-  contact: z.object({
-    firstName: field,
-    lastName: field,
-    pronouns: field,
-    email: field,
-    linkedin: field,
-    address: field,
-    phone: field,
-    website: field,
-    github: field,
-  }),
-  targetTitle: field,
-  summary: z.string().max(8000),
-  experience: z
-    .array(
-      z.object({
-        id,
-        position: field,
-        description,
-        location: field,
-        employmentType: field,
-        ...range,
-        current: z.boolean(),
-      }),
-    )
-    .max(50),
-  education: z
-    .array(
-      z.object({
-        id,
-        university: field,
-        location: field,
-        degree: field,
-        fieldOfStudy: field,
-        gpa: field,
-        ...range,
-        description,
-      }),
-    )
-    .max(50),
-  skills: z
-    .array(
-      z.object({
-        id,
-        category: field,
-        skills: z
-          .array(
-            z.object({
-              id,
-              name: field,
-              level: z.enum([
-                "",
-                "Beginner",
-                "Intermediate",
-                "Advanced",
-                "Expert",
-              ]),
-            }),
-          )
-          .max(50),
-      }),
-    )
-    .max(50),
-  certifications: z
-    .array(z.object({ id, name: field, provider: field, ...range }))
-    .max(50),
-  awards: z
-    .array(z.object({ id, name: field, organization: field, date }))
-    .max(50),
-  projects: z
-    .array(
-      z.object({ id, name: field, organization: field, ...range, description }),
-    )
-    .max(50),
-  volunteering: z
-    .array(
-      z.object({
-        id,
-        organization: field,
-        involvement: field,
-        city: field,
-        state: field,
-        ...range,
-        description,
-      }),
-    )
-    .max(50),
-  publications: z
-    .array(z.object({ id, name: field, publisher: field, date, description }))
-    .max(50),
-}) satisfies z.ZodType<DraftContent>;
+const workProject = z.object({ id, name: field, description });
+const contentSchema = z
+  .object({
+    contact: z.object({
+      firstName: field,
+      lastName: field,
+      pronouns: field,
+      email: field,
+      linkedin: field,
+      address: field,
+      phone: field,
+      website: field,
+      github: field,
+    }),
+    targetTitle: field,
+    summary: z.string().max(8000),
+    experience: z
+      .array(
+        z.object({
+          id,
+          position: field,
+          employer: field.optional(),
+          description,
+          location: field,
+          employmentType: field,
+          ...range,
+          current: z.boolean(),
+          logo: picture.max(20_000).optional(),
+          projects: z.array(workProject).max(50).optional(),
+        }),
+      )
+      .max(50),
+    education: z
+      .array(
+        z.object({
+          id,
+          university: field,
+          location: field,
+          degree: field,
+          fieldOfStudy: field,
+          gpa: field,
+          ...range,
+          description,
+          icon: entryIcon.optional(),
+        }),
+      )
+      .max(50),
+    skills: z
+      .array(
+        z.object({
+          id,
+          category: field,
+          skills: z
+            .array(
+              z.object({
+                id,
+                name: field,
+                level: z.enum([
+                  "",
+                  "Beginner",
+                  "Intermediate",
+                  "Advanced",
+                  "Expert",
+                  "Native",
+                ]),
+              }),
+            )
+            .max(50),
+        }),
+      )
+      .max(50),
+    certifications: z
+      .array(z.object({ id, name: field, provider: field, ...range }))
+      .max(50),
+    awards: z
+      .array(
+        z.object({
+          id,
+          name: field,
+          organization: field,
+          date,
+          icon: entryIcon.optional(),
+        }),
+      )
+      .max(50),
+    projects: z
+      .array(
+        z.object({
+          id,
+          name: field,
+          organization: field,
+          ...range,
+          description,
+          workEntryId: id.optional(),
+        }),
+      )
+      .max(50),
+    volunteering: z
+      .array(
+        z.object({
+          id,
+          organization: field,
+          involvement: field,
+          city: field,
+          state: field,
+          ...range,
+          description,
+        }),
+      )
+      .max(50),
+    publications: z
+      .array(z.object({ id, name: field, publisher: field, date, description }))
+      .max(50),
+  })
+  .transform((content): DraftContent => {
+    const jobs = new Map(content.experience.map((job) => [job.id, job]));
+    const projects = content.projects.flatMap(({ workEntryId, ...project }) => {
+      const job = workEntryId ? jobs.get(workEntryId) : undefined;
+      if (!job) return [project];
+      if (!job.projects?.some(({ id }) => id === project.id)) {
+        const context = [
+          project.organization,
+          project.startDate,
+          project.endDate,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        job.projects = [
+          ...(job.projects ?? []),
+          {
+            id: project.id,
+            name: project.name,
+            description: context
+              ? {
+                  type: "doc",
+                  content: [
+                    {
+                      type: "paragraph",
+                      content: [{ type: "text", text: context }],
+                    },
+                    ...(project.description.content ?? []),
+                  ],
+                }
+              : project.description,
+          },
+        ];
+      }
+      return [];
+    });
+    return { ...content, projects };
+  });
 
 const previousText = z.string().max(1600);
 const previousContentSchema = z
@@ -229,7 +298,18 @@ export const layoutDraftSchema = z.object({
     dateNewLine: z.boolean().optional(),
     locationNewLine: z.boolean().optional(),
     employmentTypeNewLine: z.boolean().optional(),
-    skillsLayout: z.enum(["inline", "list", "bullet", "columns"]).optional(),
+    skillsLayout: z
+      .enum(["inline", "list", "bullet", "columns", "lined"])
+      .optional(),
+    groupSkills: z.boolean().optional(),
+    showProficiency: z.boolean().optional(),
+    proficiencyIndicator: z
+      .enum(["dots", "bold-dots", "sticks", "bar"])
+      .optional(),
+    showContactIcons: z.boolean().optional(),
+    showSectionIcons: z.boolean().optional(),
+    workProjectTables: z.boolean().optional(),
+    projectTable: z.boolean().optional(),
     margins: z
       .object({
         top: marginSize,

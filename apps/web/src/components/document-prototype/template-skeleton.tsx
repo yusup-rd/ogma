@@ -8,6 +8,8 @@ interface TemplateSkeletonProps {
 
 interface SkeletonSectionsProps {
   sections: string[];
+  workTable?: boolean;
+  linedSkills?: boolean;
 }
 
 const sectionBars: Record<string, readonly number[]> = {
@@ -22,19 +24,43 @@ const sectionBars: Record<string, readonly number[]> = {
   publications: [77, 54],
 };
 
-const SkeletonSections = ({ sections }: SkeletonSectionsProps) => {
+const SkeletonSections = ({
+  sections,
+  workTable,
+  linedSkills,
+}: SkeletonSectionsProps) => {
   return (
     <span className={styles.sections}>
       {sections.map((section) => (
         <span key={section} className={styles.section} data-section={section}>
           <span className={styles.sectionTitle} />
-          {(sectionBars[section] ?? sectionBars.summary).map((width) => (
-            <span
-              key={width}
-              className={styles.bodyBar}
-              style={{ width: `${width}%` }}
-            />
-          ))}
+          {section === "skills" && linedSkills ? (
+            <span className={styles.skillBars}>
+              {[42, 32, 28, 48].map((width) => (
+                <span
+                  key={width}
+                  className={styles.bodyBar}
+                  style={{ width: `${width}%` }}
+                />
+              ))}
+            </span>
+          ) : (
+            (sectionBars[section] ?? sectionBars.summary).map((width) => (
+              <span
+                key={width}
+                className={styles.bodyBar}
+                style={{ width: `${width}%` }}
+              />
+            ))
+          )}
+          {section === "experience" && workTable && (
+            <span className={styles.tableBars}>
+              <span />
+              <span />
+              <span />
+              <span />
+            </span>
+          )}
         </span>
       ))}
     </span>
@@ -43,7 +69,9 @@ const SkeletonSections = ({ sections }: SkeletonSectionsProps) => {
 
 const TemplateSkeleton = ({ template }: TemplateSkeletonProps) => {
   const headerInColumn =
-    template.rail === "left" || template.header === "badge";
+    template.rail === "left" ||
+    template.header === "badge" ||
+    (template.rail === "right" && template.photo === "rail");
   const hasColumns = template.side.length > 0;
   const paperStyle = {
     "--template-accent": template.accent,
@@ -82,12 +110,15 @@ const TemplateSkeleton = ({ template }: TemplateSkeletonProps) => {
             {headerInColumn && header}
             <SkeletonSections
               sections={template.main.slice(0, hasColumns ? 3 : 4)}
+              workTable={template.designDefaults.workProjectTables}
+              linedSkills={template.designDefaults.skillsLayout === "lined"}
             />
           </span>
           {hasColumns && (
             <span className={styles.side}>
               {template.photo === "rail" && <span className={styles.photo} />}
               <SkeletonSections
+                linedSkills={template.designDefaults.skillsLayout === "lined"}
                 sections={
                   template.header === "badge"
                     ? ["contact", ...template.side.slice(0, 2)]

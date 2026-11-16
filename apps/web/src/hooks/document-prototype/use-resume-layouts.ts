@@ -22,7 +22,6 @@ export function useResumeLayouts() {
   const [template, setTemplate] = useState<TemplateOption | null>(null);
   const [settings, setSettings] = useState<Record<string, TemplateStyle>>({});
   const [photo, setPhoto] = useState<string>();
-  const [logo, setLogo] = useState<string>();
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
   const [customOrder, setOrder] = useState<EditorSectionId[]>();
   const [preview, setPreview] = useState<{
@@ -74,10 +73,9 @@ export function useResumeLayouts() {
               showPhoto: style.showPhoto && !hidden.has(sectionKey("personal")),
             },
             photo,
-            logo,
           }
         : null,
-    [template, customOrder, content, hidden, style, photo, logo],
+    [template, customOrder, content, hidden, style, photo],
   );
 
   const previewQueue = useRef<{
@@ -167,12 +165,10 @@ export function useResumeLayouts() {
     error,
     order,
     hidden,
-    logo,
     photo,
     setContent,
     setTemplate,
     setPhoto,
-    setLogo,
     setOrder,
     updateStyle,
     toggleVisibility: (key: string) =>

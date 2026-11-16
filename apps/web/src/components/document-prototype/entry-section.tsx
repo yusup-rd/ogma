@@ -54,7 +54,7 @@ const EntrySection = <Entry extends { id: string; description?: RichText }>({
       onSave={update}
       subtitle={`${count} of ${entries.length} entries included`}
     >
-      {(draft, setDraft) => (
+      {(draft, setDraft, updateCurrent) => (
         <>
           {draft.map((entry, index) => {
             const open = expanded.includes(entry.id);
@@ -113,8 +113,8 @@ const EntrySection = <Entry extends { id: string; description?: RichText }>({
                   {open && (
                     <div className="flex flex-col gap-3 border-t border-line p-3">
                       {children(entry, (changes) =>
-                        setDraft(
-                          draft.map((item) =>
+                        updateCurrent((current) =>
+                          current.map((item) =>
                             item.id === entry.id
                               ? { ...item, ...changes }
                               : item,

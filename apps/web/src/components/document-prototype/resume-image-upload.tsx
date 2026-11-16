@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { LuBuilding2, LuImage, LuUpload } from "react-icons/lu";
 
 interface ResumeImageUploadProps {
@@ -21,11 +21,19 @@ async function prepareImage(file: File, kind: ResumeImageUploadProps["kind"]) {
     const context = canvas.getContext("2d");
     if (!context) throw new Error("Couldn’t prepare the image.");
     if (kind === "logo") {
-      const scale = Math.min(1, 176 / Math.max(picture.width, picture.height));
-      canvas.width = Math.max(1, Math.round(picture.width * scale));
-      canvas.height = Math.max(1, Math.round(picture.height * scale));
-      context.drawImage(picture, 0, 0, canvas.width, canvas.height);
-      return canvas.toDataURL("image/png");
+      let size = 128;
+      for (;;) {
+        const scale = Math.min(
+          1,
+          size / Math.max(picture.width, picture.height),
+        );
+        canvas.width = Math.max(1, Math.round(picture.width * scale));
+        canvas.height = Math.max(1, Math.round(picture.height * scale));
+        context.drawImage(picture, 0, 0, canvas.width, canvas.height);
+        const logo = canvas.toDataURL("image/png");
+        if (logo.length <= 20_000) return logo;
+        size = Math.floor(size * 0.75);
+      }
     }
     const crop = Math.min(picture.width, picture.height);
     canvas.width = canvas.height = Math.min(320, crop);
@@ -54,12 +62,14 @@ const ResumeImageUpload = ({
   onChange,
 }: ResumeImageUploadProps) => {
   const input = useRef<HTMLInputElement>(null);
+  const request = useRef<AbortController>(null);
   const id = useId();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const isLogo = kind === "logo";
   const label = isLogo ? "Employer logo" : "Profile photo";
   const Placeholder = isLogo ? LuBuilding2 : LuImage;
+  useEffect(() => () => request.current?.abort(), []);
 
   return (
     <div className="flex flex-col gap-2">
@@ -85,7 +95,7 @@ const ResumeImageUpload = ({
           </p>
           <p id={id} className="mt-0.5 text-xs text-muted">
             {isLogo
-              ? "Appears beside the first work entry."
+              ? "Appears beside this position on templates with logos."
               : "Appears on the first page."}
           </p>
         </div>
@@ -100,18 +110,23 @@ const ResumeImageUpload = ({
               const file = event.currentTarget.files?.[0];
               event.currentTarget.value = "";
               if (!file) return;
+              request.current?.abort();
+              const upload = new AbortController();
+              request.current = upload;
               setError("");
               setBusy(true);
               try {
-                onChange(await prepareImage(file, kind));
+                const image = await prepareImage(file, kind);
+                if (!upload.signal.aborted) onChange(image);
               } catch (error) {
+                if (upload.signal.aborted) return;
                 setError(
                   error instanceof Error
                     ? error.message
                     : "Couldn’t open the image.",
                 );
               } finally {
-                setBusy(false);
+                if (!upload.signal.aborted) setBusy(false);
               }
             }}
           />

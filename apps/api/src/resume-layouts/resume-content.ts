@@ -1,9 +1,11 @@
 import type {
   DateFormat,
   DraftContent,
+  EntryIcon,
   RichBlock,
   RichText,
   Skill,
+  WorkProject,
 } from "../../../../packages/contracts/resume-content";
 import type { SectionId } from "./layout-catalog";
 
@@ -29,6 +31,9 @@ export interface ResumeEntry {
   employmentType?: string;
   description?: RichText;
   skills?: Skill[];
+  icon?: EntryIcon;
+  logo?: string;
+  workProjects?: WorkProject[];
 }
 
 const month = new Intl.DateTimeFormat("en", {
@@ -77,14 +82,14 @@ export function resumeHeader(content: DraftContent) {
     { kind: "linkedin", value: contact.linkedin },
     { kind: "website", value: contact.website },
     { kind: "github", value: contact.github },
-  ].filter((detail) => detail.value.trim());
+  ] as const;
   return {
     name: [contact.firstName.trim(), contact.lastName.trim()]
       .filter(Boolean)
       .join(" "),
     title: targetTitle,
     pronouns: contact.pronouns,
-    details,
+    details: details.filter((detail) => detail.value.trim()),
   };
 }
 
@@ -92,6 +97,7 @@ export function resumeEntries(
   content: DraftContent,
   id: Exclude<SectionId, "summary">,
   format?: DateFormat,
+  showWorkProjects = false,
 ): ResumeEntry[] {
   const dateRange = (start: string, end: string, current = false) =>
     [dateLabel(start, format), current ? "Present" : dateLabel(end, format)]
@@ -103,10 +109,19 @@ export function resumeEntries(
       entries = content.experience.map((job) => ({
         id: job.id,
         title: job.position,
+        subtitle: job.employer,
         employmentType: job.employmentType,
         location: job.location,
         date: dateRange(job.startDate, job.endDate, job.current),
         description: job.description,
+        logo: job.logo,
+        workProjects: showWorkProjects
+          ? job.projects?.filter(
+              (project) =>
+                project.name.trim() ||
+                project.description.content?.some(hasText),
+            )
+          : undefined,
       }));
       break;
     case "education":
@@ -122,6 +137,7 @@ export function resumeEntries(
         location: education.location,
         date: dateRange(education.startDate, education.endDate),
         description: education.description,
+        icon: education.icon,
       }));
       break;
     case "skills":
@@ -145,6 +161,7 @@ export function resumeEntries(
         title: award.name,
         subtitle: award.organization,
         date: dateLabel(award.date, format),
+        icon: award.icon,
       }));
       break;
     case "projects":
@@ -193,6 +210,24 @@ export function resumeEntries(
         entry.employmentType?.trim() ||
         entry.date ||
         entry.skills?.length ||
+        entry.workProjects?.length ||
         entry.description?.content?.some(hasText),
     );
+}
+
+export function resumeSkills(content: DraftContent, showGroups: boolean) {
+  const entries = resumeEntries(content, "skills");
+  if (showGroups) return entries;
+  const skills = entries.flatMap((entry) => entry.skills ?? []);
+  return skills.length ? [{ id: entries[0].id, title: "", skills }] : [];
+}
+
+export function workProjectEntries(
+  projects: readonly WorkProject[] = [],
+): ResumeEntry[] {
+  return projects.map(({ id, name, description }) => ({
+    id,
+    title: name,
+    description,
+  }));
 }

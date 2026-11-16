@@ -138,7 +138,19 @@ const ResumePreview = ({
   const frame = useRef<HTMLIFrameElement>(null);
   const renderedHtml = useRef<string | undefined>(undefined);
   useLayoutEffect(() => {
-    if (html) paintPreview(frame.current, html, zoom, renderedHtml);
+    if (!html) return;
+    const syncDevicePixel = () => {
+      const doc = frame.current?.contentDocument;
+      const ratio = doc?.defaultView?.devicePixelRatio ?? 1;
+      doc?.documentElement.style.setProperty(
+        "--preview-device-pixel",
+        `${1 / ratio}px`,
+      );
+    };
+    syncDevicePixel();
+    paintPreview(frame.current, html, zoom, renderedHtml);
+    window.addEventListener("resize", syncDevicePixel);
+    return () => window.removeEventListener("resize", syncDevicePixel);
   }, [html, zoom]);
   const hasPreview = html !== undefined;
 

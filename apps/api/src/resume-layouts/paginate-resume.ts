@@ -59,6 +59,7 @@ export async function paginateResume(page: Page) {
         node;
         node = walker.nextNode(), index++
       ) {
+        if (node.parentElement?.closest(".project-table thead")) continue;
         const text = node.textContent ?? "";
         let lastBreak = 0;
         for (let offset = 1; offset <= text.length; offset++) {
@@ -108,6 +109,23 @@ export async function paginateResume(page: Page) {
         }
       }
       range.deleteContents();
+      const tableIn = (root: HTMLElement) =>
+        root.matches(".project-table")
+          ? root
+          : root.querySelector(".project-table");
+      const table = tableIn(clone);
+      if (table) {
+        const rows = [...table.querySelectorAll("tbody tr")];
+        rows
+          .filter((row) => !row.textContent.trim())
+          .forEach((row) => row.remove());
+        if (!table.querySelector("tbody tr")) {
+          if (table !== clone) table.remove();
+        } else if (side === "after" && !table.querySelector("thead")) {
+          const heading = tableIn(element)?.querySelector("thead");
+          if (heading) table.prepend(heading.cloneNode(true));
+        }
+      }
       return clone;
     }
 

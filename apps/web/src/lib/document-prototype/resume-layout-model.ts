@@ -27,7 +27,6 @@ export interface TemplateOption {
   margin: number;
   timeline: boolean;
   lineHeight: number;
-  showSkillLevels: boolean;
   designDefaults: DesignDefaults;
 }
 
@@ -47,7 +46,6 @@ export interface ResumeDraft {
   content: DraftContent;
   style: TemplateStyle;
   photo?: string;
-  logo?: string;
 }
 
 export interface TemplateCatalog {

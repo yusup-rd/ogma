@@ -103,7 +103,13 @@ const DocumentWorkspace = () => {
               <div hidden={screen !== "Content"}>
                 <ResumeContentForm
                   content={model.content}
-                  showSkillLevels={Boolean(model.template?.showSkillLevels)}
+                  photo={model.photo}
+                  onPhoto={model.setPhoto}
+                  showWorkProjects={
+                    model.style?.workProjectTables ??
+                    model.template?.designDefaults.workProjectTables ??
+                    false
+                  }
                   onChange={model.setContent}
                   order={model.order}
                   onReorder={model.setOrder}
@@ -138,10 +144,6 @@ const DocumentWorkspace = () => {
                     fonts={model.catalog.fonts}
                     onChange={model.updateStyle}
                     onReset={model.resetStyle}
-                    photo={model.photo}
-                    logo={model.logo}
-                    onPhoto={model.setPhoto}
-                    onLogo={model.setLogo}
                   />
                 </>
               )}

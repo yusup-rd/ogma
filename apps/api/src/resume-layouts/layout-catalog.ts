@@ -59,7 +59,7 @@ export interface ResumeLayout {
   lineHeight: number;
   timeline: boolean;
   achievementColumns: number;
-  showSkillLevels: boolean;
+  proficiencyAfter?: SectionId;
 }
 
 type LayoutOptions = Omit<Partial<ResumeLayout>, "id" | "name">;
@@ -91,7 +91,6 @@ function layout(
     lineHeight: 1.32,
     timeline: false,
     achievementColumns: 1,
-    showSkillLevels: false,
     ...options,
   };
 }
@@ -123,6 +122,7 @@ const crest = {
 export const resumeLayouts = [
   layout("double-column", "Double Column", ["summary", "experience"], {
     side: ["awards", "skills", "education", "certifications"],
+    proficiencyAfter: "certifications",
   }),
   layout(
     "ivy-league",
@@ -140,11 +140,13 @@ export const resumeLayouts = [
   layout("elegant", "Elegant", ["summary", "experience", "skills"], {
     font: "serif",
     rail: "right",
+    photo: "rail",
     heading: "hairline",
     sideColor: "#203E56",
     accent: "#168BD6",
     ratio: 65,
     side: ["awards", "education", "certifications"],
+    proficiencyAfter: "awards",
   }),
   layout("crest", "Crest", ["summary", "experience", "education", "skills"], {
     ...crest,
@@ -155,12 +157,12 @@ export const resumeLayouts = [
     ["summary", "awards", "experience", "education", "skills"],
     {
       achievementColumns: 2,
+      proficiencyAfter: "education",
       sectionGap: 5.4,
       lineHeight: 1.37,
     },
   ),
   layout("polished", "Polished", ["summary", "experience"], {
-    showSkillLevels: true,
     rail: "left",
     heading: "hairline",
     photo: "rail",
@@ -170,6 +172,7 @@ export const resumeLayouts = [
     accent: "#249592",
     margin: 11,
     side: ["awards", "education", "skills", "certifications"],
+    proficiencyAfter: "experience",
   }),
   layout("imprint", "Imprint", ["summary", "awards", "experience"], {
     font: "serif",
@@ -192,11 +195,11 @@ export const resumeLayouts = [
       "education",
     ],
     {
-      showSkillLevels: true,
       heading: "plain",
       timeline: true,
       accent: "#405B72",
       achievementColumns: 2,
+      proficiencyAfter: "education",
     },
   ),
   layout("creative", "Creative", ["summary", "experience"], {
@@ -207,22 +210,23 @@ export const resumeLayouts = [
     accent: "#283662",
     ratio: 62,
     side: ["awards", "skills", "education", "certifications"],
+    proficiencyAfter: "certifications",
   }),
   layout("stylish", "Stylish", ["summary", "experience", "education"], {
-    showSkillLevels: true,
     rail: "left-column",
     ratio: 34,
     heading: "hairline",
     accent: "#27547B",
     side: ["awards", "skills", "certifications"],
+    proficiencyAfter: "education",
   }),
   layout("modern", "Modern", ["summary", "experience"], {
-    showSkillLevels: true,
     photo: "right",
     heading: "hairline",
     accent: "#1A4C87",
     ratio: 60,
     side: ["skills", "awards", "education", "certifications"],
+    proficiencyAfter: "certifications",
   }),
   layout(
     "contemporary",
@@ -274,6 +278,7 @@ export const resumeLayouts = [
       ...ivyLeague,
       logos: "left",
       accent: "#325A9E",
+      proficiencyAfter: "awards",
     },
   ),
   layout(
@@ -305,10 +310,12 @@ export const resumeLayouts = [
       accent: "#225492",
       ratio: 56,
       side: ["awards", "skills", "education"],
+      proficiencyAfter: "education",
     },
   ),
   layout("compact", "Compact", ["experience"], {
     heading: "plain",
+    photo: "right",
     sectionGap: 3,
     margin: 12,
     ratio: 58,
@@ -320,7 +327,6 @@ export const resumeLayouts = [
     "Timeline with Logos",
     ["summary", "experience", "education", "skills", "awards", "projects"],
     {
-      showSkillLevels: true,
       heading: "plain",
       timeline: true,
       logos: "right",
@@ -351,6 +357,7 @@ export const resumeLayouts = [
     accent: "#369AAF",
     heading: "hairline",
     side: ["summary", "awards", "education", "certifications"],
+    proficiencyAfter: "skills",
   }),
   layout("minimal", "Minimal", ["summary", "experience", "education"], {
     ratio: 59,
@@ -359,6 +366,7 @@ export const resumeLayouts = [
     margin: 13,
     sectionGap: 6,
     side: ["awards", "skills", "projects"],
+    proficiencyAfter: "education",
   }),
   layout(
     "crest-projects",

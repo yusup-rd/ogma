@@ -1,12 +1,11 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import * as Select from "@radix-ui/react-select";
 import { useState, type ReactNode } from "react";
-import { LuCheck, LuChevronDown } from "react-icons/lu";
+import { LuCheck } from "react-icons/lu";
 import type {
   TemplateOption,
   TemplateStyle,
 } from "@/lib/document-prototype/resume-layout-model";
-import { ResumeImageUpload } from "./resume-image-upload";
+import { SelectSetting } from "./select-setting";
 
 interface TemplateDesignFormProps {
   template: TemplateOption;
@@ -14,10 +13,6 @@ interface TemplateDesignFormProps {
   fonts: { value: string; label: string }[];
   onChange: (changes: Partial<TemplateStyle>) => void;
   onReset: () => void;
-  photo?: string;
-  logo?: string;
-  onPhoto: (value?: string) => void;
-  onLogo: (value?: string) => void;
   gallery: ReactNode;
 }
 
@@ -72,7 +67,35 @@ const skillOptions = [
   ["list", "Comma separated list"],
   ["bullet", "Bullet separated"],
   ["columns", "Columns"],
+  ["lined", "Underlined items"],
 ] as const;
+
+const proficiencyOptions = [
+  ["dots", "Dots"],
+  ["bold-dots", "Large dots"],
+  ["sticks", "Rounded sticks"],
+  ["bar", "Progress bar"],
+] as const;
+
+interface ToggleSettingProps {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}
+
+const ToggleSetting = ({ label, checked, onChange }: ToggleSettingProps) => {
+  return (
+    <label className="col-span-2 flex min-h-9 cursor-pointer items-center gap-2 text-sm">
+      <input
+        type="checkbox"
+        className="size-4 shrink-0 accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        checked={checked}
+        onChange={(event) => onChange(event.currentTarget.checked)}
+      />
+      {label}
+    </label>
+  );
+};
 
 interface NumberSettingProps {
   className?: string;
@@ -154,88 +177,6 @@ const NumberSetting = ({
   );
 };
 
-const DefaultTag = () => {
-  return (
-    <span className="min-w-0 truncate rounded-sm bg-canvas px-1.5 py-0.5 text-[10px] font-medium text-muted">
-      Default
-    </span>
-  );
-};
-
-interface SelectSettingProps<Value extends string | number> {
-  label: string;
-  accessibleLabel?: string;
-  value: Value;
-  defaultValue: Value;
-  options: readonly (readonly [Value, string])[];
-  onChange: (value: Value) => void;
-}
-
-const SelectSetting = <Value extends string | number>({
-  label,
-  accessibleLabel,
-  value,
-  defaultValue,
-  options,
-  onChange,
-}: SelectSettingProps<Value>) => {
-  return (
-    <div className="flex min-w-0 flex-col gap-1 text-xs font-semibold">
-      <span>{label}</span>
-      <Select.Root
-        value={String(value)}
-        onValueChange={(next) => {
-          const option = options.find(([id]) => String(id) === next);
-          if (option) onChange(option[0]);
-        }}
-      >
-        <Select.Trigger
-          aria-label={accessibleLabel ?? label}
-          className={`${fieldClass} flex items-center justify-between gap-1 text-left data-[state=open]:border-accent/60`}
-        >
-          <span className="min-w-0 flex-1 truncate">
-            <Select.Value />
-          </span>
-          {value === defaultValue && <DefaultTag />}
-          <LuChevronDown
-            aria-hidden="true"
-            className="size-4 shrink-0 text-muted"
-          />
-        </Select.Trigger>
-        <Select.Portal>
-          <Select.Content
-            position="popper"
-            sideOffset={5}
-            className="z-40 max-h-[var(--radix-select-content-available-height)] max-w-[calc(100dvw-1.25rem)] min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-xl border border-line bg-paper p-1 shadow-lg"
-          >
-            <Select.Viewport className="max-h-[var(--radix-select-content-available-height)]">
-              {options.map(([id, title]) => (
-                <Select.Item
-                  key={id}
-                  value={String(id)}
-                  className="flex min-h-9 cursor-default items-center justify-between gap-3 rounded-lg px-2.5 text-sm outline-none data-highlighted:bg-accent-soft data-highlighted:text-accent"
-                >
-                  <Select.ItemText className="min-w-0 truncate">
-                    {title}
-                  </Select.ItemText>
-                  <span className="flex max-w-[45%] min-w-0 items-center gap-1.5">
-                    {id === defaultValue && <DefaultTag />}
-                    <span className="size-4 shrink-0">
-                      <Select.ItemIndicator>
-                        <LuCheck aria-hidden="true" className="size-4" />
-                      </Select.ItemIndicator>
-                    </span>
-                  </span>
-                </Select.Item>
-              ))}
-            </Select.Viewport>
-          </Select.Content>
-        </Select.Portal>
-      </Select.Root>
-    </div>
-  );
-};
-
 const metadataControls = [
   { label: "Date", alignment: "dateAlignment", newLine: "dateNewLine" },
   {
@@ -269,16 +210,18 @@ const TemplateDesignForm = ({
   fonts,
   onChange,
   onReset,
-  photo,
-  logo,
-  onPhoto,
-  onLogo,
   gallery,
 }: TemplateDesignFormProps) => {
   const [tab, setTab] = useState<"Classic Settings" | "Advanced">(
     "Classic Settings",
   );
   const defaults = template.designDefaults;
+  const defaultIndicator =
+    defaults.proficiencyIndicator === "none"
+      ? undefined
+      : defaults.proficiencyIndicator;
+  const showProficiency =
+    style.showProficiency ?? defaultIndicator !== undefined;
   const isCustom = !palettes.some(
     ({ color }) => color.toLowerCase() === style.accent.toLowerCase(),
   );
@@ -432,13 +375,6 @@ const TemplateDesignForm = ({
               options={headerOptions}
               onChange={(headerAlignment) => onChange({ headerAlignment })}
             />
-            <SelectSetting
-              label="Skills layout"
-              value={style.skillsLayout ?? defaults.skillsLayout}
-              defaultValue={defaults.skillsLayout}
-              options={skillOptions}
-              onChange={(skillsLayout) => onChange({ skillsLayout })}
-            />
             {metadataControls.map(({ label, alignment, newLine }) => (
               <div
                 key={alignment}
@@ -465,6 +401,73 @@ const TemplateDesignForm = ({
                 </label>
               </div>
             ))}
+          </SettingsGroup>
+          <SettingsGroup title="Skills">
+            <div className="col-span-2">
+              <SelectSetting
+                label="Skills layout"
+                value={style.skillsLayout ?? defaults.skillsLayout}
+                defaultValue={defaults.skillsLayout}
+                options={skillOptions}
+                onChange={(skillsLayout) => onChange({ skillsLayout })}
+              />
+            </div>
+            <ToggleSetting
+              label="Show skill group names"
+              checked={style.groupSkills ?? defaults.groupSkills}
+              onChange={(groupSkills) => onChange({ groupSkills })}
+            />
+            <ToggleSetting
+              label="Show proficiency"
+              checked={showProficiency}
+              onChange={(showProficiency) => onChange({ showProficiency })}
+            />
+            {showProficiency && (
+              <div className="col-span-2">
+                <SelectSetting
+                  label="Proficiency indicator"
+                  value={
+                    style.proficiencyIndicator ?? defaultIndicator ?? "dots"
+                  }
+                  defaultValue={defaultIndicator}
+                  options={proficiencyOptions}
+                  onChange={(proficiencyIndicator) =>
+                    onChange({ proficiencyIndicator })
+                  }
+                />
+              </div>
+            )}
+          </SettingsGroup>
+          <SettingsGroup title="Visual details">
+            <ToggleSetting
+              label="Include contact icons"
+              checked={style.showContactIcons ?? defaults.showContactIcons}
+              onChange={(showContactIcons) => onChange({ showContactIcons })}
+            />
+            <ToggleSetting
+              label="Show section heading icons"
+              checked={style.showSectionIcons ?? defaults.showSectionIcons}
+              onChange={(showSectionIcons) => onChange({ showSectionIcons })}
+            />
+            {template.photo !== "none" && (
+              <ToggleSetting
+                label="Show profile photo"
+                checked={style.showPhoto}
+                onChange={(showPhoto) => onChange({ showPhoto })}
+              />
+            )}
+          </SettingsGroup>
+          <SettingsGroup title="Projects">
+            <ToggleSetting
+              label="Show job project tables"
+              checked={style.workProjectTables ?? defaults.workProjectTables}
+              onChange={(workProjectTables) => onChange({ workProjectTables })}
+            />
+            <ToggleSetting
+              label="Show standalone projects in a table"
+              checked={style.projectTable ?? defaults.projectTable}
+              onChange={(projectTable) => onChange({ projectTable })}
+            />
           </SettingsGroup>
           <SettingsGroup title="Page setup">
             <div className="col-span-2">
@@ -494,31 +497,6 @@ const TemplateDesignForm = ({
               />
             ))}
           </SettingsGroup>
-          {template.photo !== "none" && (
-            <div className="flex flex-col gap-2">
-              <label className="flex min-h-9 items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="size-4 accent-accent"
-                  checked={style.showPhoto}
-                  onChange={(event) =>
-                    onChange({ showPhoto: event.currentTarget.checked })
-                  }
-                />
-                Show profile photo
-              </label>
-              {style.showPhoto && (
-                <ResumeImageUpload
-                  kind="photo"
-                  value={photo}
-                  onChange={onPhoto}
-                />
-              )}
-            </div>
-          )}
-          {template.logos !== "none" && (
-            <ResumeImageUpload kind="logo" value={logo} onChange={onLogo} />
-          )}
         </>
       ) : (
         <>

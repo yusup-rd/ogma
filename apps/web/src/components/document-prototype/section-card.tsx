@@ -46,7 +46,11 @@ interface SectionCardProps<Value> extends VisibilityProps {
   value: Value;
   onSave: (value: Value) => void;
   subtitle?: string;
-  children: (value: Value, update: (value: Value) => void) => ReactNode;
+  children: (
+    value: Value,
+    update: (value: Value) => void,
+    updateCurrent: (resolve: (value: Value) => Value) => void,
+  ) => ReactNode;
 }
 
 const SectionCard = <Value,>({
@@ -121,7 +125,9 @@ const SectionCard = <Value,>({
         {open && (
           <div className="flex flex-col gap-4 border-t border-line p-3">
             <div key={revision} className="flex flex-col gap-3">
-              {children(draft ?? value, setDraft)}
+              {children(draft ?? value, setDraft, (resolve) =>
+                setDraft((current) => resolve(current ?? value)),
+              )}
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               {draft !== undefined && (
