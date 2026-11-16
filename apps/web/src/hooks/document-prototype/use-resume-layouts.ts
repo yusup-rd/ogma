@@ -164,7 +164,15 @@ export function useResumeLayouts(initialDocument: ResumeDocument) {
       setDocument((current) =>
         current.layoutId === selected.id
           ? current
-          : { ...current, layoutId: selected.id },
+          : {
+              ...current,
+              layoutId: selected.id,
+              settings: Object.fromEntries(
+                Object.entries(current.settings).filter(([id]) =>
+                  catalog?.layouts.some((layout) => layout.id === id),
+                ),
+              ),
+            },
       ),
     setPhoto: (photo: string | undefined) =>
       setDocument((current) => ({ ...current, photo })),

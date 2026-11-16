@@ -16,7 +16,12 @@ const ResumePage = async ({ params }: ResumePageProps) => {
   if (response.status === 404) notFound();
   if (!response.ok) throw new Error("Resume unavailable");
   const resume = savedResumeSchema.parse(await response.json());
-  return <DocumentWorkspace key={resume.id} resume={resume} />;
+  return (
+    <DocumentWorkspace
+      key={`${resume.id}:${resume.draftRevision}`}
+      resume={resume}
+    />
+  );
 };
 
 export default ResumePage;

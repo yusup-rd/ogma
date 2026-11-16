@@ -32,6 +32,13 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
   const autosave = useResumeAutosave(resume, savedTitle, model.document);
   const [screen, setScreen] = useState<"Content" | "Design">("Content");
   const [mobileView, setMobileView] = useState<"Edit" | "Preview">("Edit");
+  const gallery = model.catalog && (
+    <TemplateGallery
+      templates={model.catalog.layouts}
+      active={model.document.layoutId}
+      onSelect={model.setTemplate}
+    />
+  );
 
   return (
     <main className="flex min-h-dvh flex-col bg-canvas text-ink lg:h-dvh">
@@ -180,6 +187,20 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
                 Loading templates…
               </p>
             )}
+            {model.catalog && !model.template && screen === "Content" && (
+              <div className="flex items-center gap-3 rounded-lg border border-line bg-canvas p-3">
+                <p role="status" className="text-sm text-muted">
+                  This resume’s template is unavailable.
+                </p>
+                <button
+                  type="button"
+                  className="text-sm font-semibold text-accent underline"
+                  onClick={() => setScreen("Design")}
+                >
+                  Choose a template
+                </button>
+              </div>
+            )}
             {model.content && (
               <div hidden={screen !== "Content"}>
                 <ResumeContentForm
@@ -206,35 +227,30 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
                 />
               </div>
             )}
-            {screen === "Design" &&
-              model.catalog &&
-              model.template &&
-              model.style && (
-                <>
-                  <div className="flex flex-col gap-1">
-                    <h2 className="text-2xl font-semibold tracking-tight">
-                      Design
-                    </h2>
-                    <p className="text-sm text-muted">
-                      Each template keeps its own style settings.
-                    </p>
-                  </div>
+            {screen === "Design" && model.catalog && (
+              <>
+                <div className="flex flex-col gap-1">
+                  <h2 className="text-2xl font-semibold tracking-tight">
+                    Design
+                  </h2>
+                  <p className="text-sm text-muted">
+                    Each template keeps its own style settings.
+                  </p>
+                </div>
+                {model.template && model.style ? (
                   <TemplateDesignForm
-                    gallery={
-                      <TemplateGallery
-                        templates={model.catalog.layouts}
-                        active={model.template.id}
-                        onSelect={model.setTemplate}
-                      />
-                    }
+                    gallery={gallery}
                     template={model.template}
                     style={model.style}
                     fonts={model.catalog.fonts}
                     onChange={model.updateStyle}
                     onReset={model.resetStyle}
                   />
-                </>
-              )}
+                ) : (
+                  gallery
+                )}
+              </>
+            )}
           </div>
         </section>
 

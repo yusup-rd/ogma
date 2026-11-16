@@ -50,8 +50,7 @@ const TemplateGallery = ({
   const available = templates.filter(
     (template) => template.id !== active && matches(template, filter),
   );
-  if (!selected) return null;
-  const visible = [selected, ...available];
+  const visible = selected ? [selected, ...available] : available;
   const close = () => {
     setExpanded(false);
     setFilter("All");
@@ -67,7 +66,7 @@ const TemplateGallery = ({
         <h3 id="gallery-heading" className="text-base font-semibold">
           Templates
         </h3>
-        {expanded && (
+        {expanded && selected && (
           <button
             type="button"
             onClick={close}
@@ -78,7 +77,7 @@ const TemplateGallery = ({
           </button>
         )}
       </div>
-      {expanded ? (
+      {expanded || !selected ? (
         <>
           <div className="flex flex-wrap gap-1.5" aria-label="Filter templates">
             {filters.map((value) => (
