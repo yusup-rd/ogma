@@ -38,3 +38,7 @@ Teal documents separate resume-analysis and job-match scores. A real ATS parser 
 5. **Simple job tools.** Add manual job records, optional Job Match and CV tailoring, tailored cover letter drafts, and a sent-checkpoint link. Verify that the letter uses the selected CV and job description and that later edits preserve the historical application record.
 
 The core release is complete when you can import an existing CV, reuse its content in two independently styled CVs, preview and export both formats, act on the structure score, and reopen the same drafts on another device. See [ARCHITECTURE.md](ARCHITECTURE.md) for the technical design and [AGENTS.md](AGENTS.md) for repository conventions.
+
+## Future authentication
+
+- The current private release uses Google sign-in for the owner account. In a later milestone, integrate Clerk for email and password sign-in, password reset, and email one-time passwords (OTP). Link the existing Google identity to the same Ogma owner record so the owner keeps access to their saved resumes when switching sign-in methods.
