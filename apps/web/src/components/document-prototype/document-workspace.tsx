@@ -32,6 +32,16 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
   const autosave = useResumeAutosave(resume, savedTitle, model.document);
   const [screen, setScreen] = useState<"Content" | "Design">("Content");
   const [mobileView, setMobileView] = useState<"Edit" | "Preview">("Edit");
+  const [leaving, setLeaving] = useState(false);
+  const backToResumes = async () => {
+    setLeaving(true);
+    const savedRevision = await autosave.flush();
+    if (savedRevision === null) {
+      setLeaving(false);
+      return;
+    }
+    window.location.assign(new URL("/", window.location.origin));
+  };
   const gallery = model.catalog && (
     <TemplateGallery
       templates={model.catalog.layouts}
@@ -53,11 +63,9 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
         <button
           type="button"
           aria-label="Back to resumes"
-          onClick={async () => {
-            if ((await autosave.flush()) !== null)
-              window.location.assign(new URL("/", window.location.origin));
-          }}
-          className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-1.5 text-xs font-semibold hover:bg-canvas sm:px-2"
+          disabled={leaving}
+          onClick={() => void backToResumes()}
+          className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-1.5 text-xs font-semibold enabled:hover:bg-canvas disabled:opacity-60 sm:px-2"
         >
           <LuChevronLeft aria-hidden="true" className="size-4" />
           <span className="hidden sm:inline">Resumes</span>
@@ -68,6 +76,7 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
             aria-label="Resume name"
             className="w-full rounded-sm text-sm font-semibold focus-visible:outline-2 focus-visible:outline-accent sm:text-base"
             value={title}
+            disabled={leaving}
             placeholder="Untitled resume"
             maxLength={120}
             onBlur={() => setTitle(savedTitle)}
@@ -156,7 +165,10 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
         </div>
       )}
 
-      <div className="min-h-0 flex-1 lg:grid lg:grid-cols-[minmax(21rem,34.3%)_minmax(0,1fr)]">
+      <div
+        inert={leaving}
+        className="min-h-0 flex-1 lg:grid lg:grid-cols-[minmax(21rem,34.3%)_minmax(0,1fr)]"
+      >
         <section
           aria-label="Resume controls"
           className={`${mobileView === "Edit" ? "flex" : "hidden"} min-h-0 flex-col bg-paper lg:flex lg:overflow-auto lg:border-r lg:border-line`}

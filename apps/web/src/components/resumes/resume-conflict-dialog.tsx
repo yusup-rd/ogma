@@ -28,6 +28,7 @@ const ResumeConflictDialog = ({
       await onSaveCopy();
     } catch {
       setError("Couldn’t save a separate resume. Your edits are still here.");
+    } finally {
       setBusy(false);
     }
   };
