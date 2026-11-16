@@ -170,9 +170,16 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
       </header>
       <ResumeConflictDialog
         open={autosave.conflictOpen}
-        onOpenChange={autosave.setConflictOpen}
+        onOpenChange={(open) => {
+          autosave.setConflictOpen(open);
+          if (!open && hasSectionDrafts) {
+            setScreen("Content");
+            setMobileView("Edit");
+          }
+        }}
         onReload={autosave.reloadFromServer}
         onSaveCopy={autosave.saveCopy}
+        hasSectionDrafts={hasSectionDrafts}
       />
 
       <div

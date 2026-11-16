@@ -131,6 +131,7 @@ export function useResumeAutosave(
 
   const saveCopy = async () => {
     const state = queue.current;
+    if (state.hasSectionDrafts) return false;
     const previous = state.copy;
     const attempt =
       previous && matches(previous.snapshot, state.latest)
@@ -143,10 +144,13 @@ export function useResumeAutosave(
       document,
       title: `${title.slice(0, 113)} (copy)`,
     });
+    if (state.hasSectionDrafts || !matches(attempt.snapshot, state.latest))
+      return false;
     state.allowNavigation = true;
     window.location.assign(
       new URL(`/resumes/${saved.id}`, window.location.origin),
     );
+    return true;
   };
 
   const reportConflict = () => {

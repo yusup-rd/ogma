@@ -8,7 +8,8 @@ interface ResumeConflictDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onReload: () => void;
-  onSaveCopy: () => Promise<void>;
+  onSaveCopy: () => Promise<boolean>;
+  hasSectionDrafts: boolean;
 }
 
 const ResumeConflictDialog = ({
@@ -16,6 +17,7 @@ const ResumeConflictDialog = ({
   onOpenChange,
   onReload,
   onSaveCopy,
+  hasSectionDrafts,
 }: ResumeConflictDialogProps) => {
   const keepEditing = useRef<HTMLButtonElement>(null);
   const [busy, setBusy] = useState(false);
@@ -25,7 +27,10 @@ const ResumeConflictDialog = ({
     setBusy(true);
     setError("");
     try {
-      await onSaveCopy();
+      if (!(await onSaveCopy()))
+        setError(
+          "Your edits changed. Resolve any unsaved sections and try again.",
+        );
     } catch {
       setError("Couldn’t save a separate resume. Your edits are still here.");
     } finally {
@@ -53,7 +58,9 @@ const ResumeConflictDialog = ({
             This resume changed elsewhere
           </Dialog.Title>
           <Dialog.Description className="text-sm text-muted">
-            Reload the saved version or keep your edits in a separate resume.
+            {hasSectionDrafts
+              ? "Choose Keep editing, then use Save or Cancel in each edited section before making a copy."
+              : "Reload the saved version or keep your edits in a separate resume."}
           </Dialog.Description>
           <button
             type="button"
@@ -77,7 +84,7 @@ const ResumeConflictDialog = ({
           </button>
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || hasSectionDrafts}
             onClick={() => void saveCopy()}
             className="flex items-center gap-3 rounded-lg border border-accent/25 bg-accent-soft p-3 text-left hover:border-accent disabled:opacity-60"
           >
