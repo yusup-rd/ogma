@@ -1,3 +1,5 @@
+import type { DesignOptions } from "../../../../packages/contracts/resume-content";
+
 export const sectionIds = [
   "summary",
   "experience",
@@ -16,6 +18,11 @@ export const fontChoices = {
     label: "Inter",
     css: '"Ogma Inter", Arial, sans-serif',
     word: "Inter",
+  },
+  poppins: {
+    label: "Poppins",
+    css: '"Ogma Poppins", Arial, sans-serif',
+    word: "Poppins",
   },
   sans: { label: "Arial", css: "Arial, sans-serif", word: "Arial" },
   humanist: {
@@ -56,6 +63,7 @@ export interface ResumeLayout {
   bodySize: number;
   sectionGap: number;
   margin: number;
+  margins?: DesignOptions["margins"];
   lineHeight: number;
   timeline: boolean;
   achievementColumns: number;
@@ -375,6 +383,22 @@ export const resumeLayouts = [
     {
       ...crest,
       sectionGap: 9.6,
+    },
+  ),
+  layout(
+    "essential",
+    "Essential",
+    ["summary", "experience", "education", "projects", "skills"],
+    {
+      header: "center",
+      heading: "plain",
+      font: "poppins",
+      accent: "#00786C",
+      bodySize: 10,
+      margin: 11.29,
+      margins: { top: 6.35, bottom: 6.35 },
+      sectionGap: 6.35,
+      lineHeight: 1.2,
     },
   ),
 ] as const;

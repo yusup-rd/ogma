@@ -11,6 +11,7 @@ const resumeFontSchema = z.enum([
   "serif",
   "editorial",
   "inter",
+  "poppins",
 ]);
 
 const resumeStyleSchema = z.object({
@@ -24,6 +25,7 @@ const resumeStyleSchema = z.object({
   paperSize: z.enum(["a4", "letter"]).optional(),
   listLineHeight: z.number().min(0.9).max(2.5).optional(),
   dateFormat: z.enum(["numeric", "year", "short", "long"]).optional(),
+  dateSeparator: z.enum(["dash", "hyphen"]).optional(),
   headerAlignment: z.enum(["left", "center", "right"]).optional(),
   dateAlignment: z.enum(["left", "right"]).optional(),
   locationAlignment: z.enum(["left", "right"]).optional(),

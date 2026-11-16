@@ -155,6 +155,7 @@ export interface DesignOptions {
   paperSize?: PaperSize;
   listLineHeight?: number;
   dateFormat?: DateFormat;
+  dateSeparator?: "dash" | "hyphen";
   headerAlignment?: HeaderAlignment;
   dateAlignment?: SideAlignment;
   locationAlignment?: SideAlignment;
@@ -178,6 +179,7 @@ export interface DesignOptions {
 
 export interface DesignDefaults {
   dateFormat: DateFormat;
+  dateSeparator: NonNullable<DesignOptions["dateSeparator"]>;
   headerAlignment: HeaderAlignment;
   dateAlignment: SideAlignment;
   locationAlignment: SideAlignment;

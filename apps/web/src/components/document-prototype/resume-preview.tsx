@@ -220,7 +220,7 @@ const ResumePreview = ({
         <iframe
           ref={frame}
           className="min-h-0 w-full flex-1 border-0"
-          sandbox="allow-same-origin"
+          sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
           srcDoc={previewShell}
           title="Resume preview"
           onLoad={() => {

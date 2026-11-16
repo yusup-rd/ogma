@@ -26,12 +26,15 @@ export function paperDimensions(options: DesignOptions) {
   return papers[options.paperSize ?? "a4"];
 }
 
-export function pageMargins(options: DesignOptions & { margin: number }) {
+export function pageMargins(
+  options: DesignOptions & { margin: number },
+  layout: ResumeLayout,
+) {
   return {
-    top: options.margins?.top ?? options.margin,
-    right: options.margins?.right ?? options.margin,
-    bottom: options.margins?.bottom ?? options.margin,
-    left: options.margins?.left ?? options.margin,
+    top: options.margins?.top ?? layout.margins?.top ?? options.margin,
+    right: options.margins?.right ?? layout.margins?.right ?? options.margin,
+    bottom: options.margins?.bottom ?? layout.margins?.bottom ?? options.margin,
+    left: options.margins?.left ?? layout.margins?.left ?? options.margin,
   };
 }
 
@@ -231,6 +234,46 @@ const plainContact = new Set([
 ]);
 
 export function designDefaults(layout: ResumeLayout): DesignDefaults {
+  if (layout.id === "essential") {
+    return {
+      dateFormat: "numeric",
+      dateSeparator: "hyphen",
+      headerAlignment: "center",
+      dateAlignment: "right",
+      locationAlignment: "right",
+      employmentTypeAlignment: "left",
+      skillsLayout: "inline",
+      groupSkills: true,
+      proficiencyIndicator: "none",
+      showContactIcons: false,
+      showSectionIcons: false,
+      workProjectTables: false,
+      projectTable: false,
+      sizes: {
+        body: 10,
+        primary: 11,
+        secondary: 11,
+        section: 10,
+        name: 18,
+        minor: 10,
+      },
+      weights: {
+        body: 300,
+        primary: 600,
+        secondary: 600,
+        section: 200,
+        name: 600,
+        minor: 300,
+      },
+      spacing: {
+        sections: 18,
+        titleContent: 8,
+        headings: 0,
+        blocks: 5,
+        listItems: 2,
+      },
+    };
+  }
   const [name, nameWeight] = nameScale[layout.id] ?? [
     layout.header === "center" ? 1.95 : 2.56,
     700,
@@ -253,6 +296,7 @@ export function designDefaults(layout: ResumeLayout): DesignDefaults {
   const alignment = layout.timeline ? "left" : "right";
   return {
     dateFormat: "short",
+    dateSeparator: "dash",
     headerAlignment: layout.header === "center" ? "center" : "left",
     dateAlignment: alignment,
     locationAlignment: alignment,

@@ -40,10 +40,16 @@ export function resumeColors(layout: ResumeLayout, chosenAccent: string) {
     supportingInk,
     tablePaper,
     tableInk: readableInk(supportingInk, tablePaper),
-    role: layout.id !== "classic" && layout.id !== "minimal",
+    role: !["classic", "minimal", "essential"].includes(layout.id),
     organizations:
       !editorial &&
-      !["ivy-league", "classic", "minimal", "contemporary"].includes(layout.id),
+      ![
+        "ivy-league",
+        "classic",
+        "minimal",
+        "contemporary",
+        "essential",
+      ].includes(layout.id),
     headings: plainHeadings,
     headingRule: editorial
       ? "top"

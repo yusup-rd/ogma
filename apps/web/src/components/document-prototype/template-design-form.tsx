@@ -54,6 +54,10 @@ const dateOptions = [
   ["short", "Short month (Jan YYYY)"],
   ["long", "Long month (January YYYY)"],
 ] as const;
+const dateSeparators = [
+  ["dash", "En dash (–)"],
+  ["hyphen", "Hyphen (-)"],
+] as const;
 const alignmentOptions = [
   ["left", "Left"],
   ["right", "Right"],
@@ -358,13 +362,20 @@ const TemplateDesignForm = ({
                 </label>
               </div>
             </div>
-            <div className="col-span-2">
+            <div className="col-span-2 grid gap-3 sm:grid-cols-2">
               <SelectSetting
                 label="Date format"
                 value={style.dateFormat ?? defaults.dateFormat}
                 defaultValue={defaults.dateFormat}
                 options={dateOptions}
                 onChange={(dateFormat) => onChange({ dateFormat })}
+              />
+              <SelectSetting
+                label="Date range separator"
+                value={style.dateSeparator ?? defaults.dateSeparator}
+                defaultValue={defaults.dateSeparator}
+                options={dateSeparators}
+                onChange={(dateSeparator) => onChange({ dateSeparator })}
               />
             </div>
           </SettingsGroup>
@@ -488,7 +499,7 @@ const TemplateDesignForm = ({
                 key={edge}
                 label={edge.charAt(0).toUpperCase() + edge.slice(1) + " margin"}
                 value={style.margins?.[edge]}
-                fallback={template.margin}
+                fallback={template.margins?.[edge] ?? template.margin}
                 min={5}
                 max={45}
                 unit="mm"

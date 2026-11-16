@@ -20,6 +20,7 @@ import {
   LuPhone,
   LuStar,
   LuTarget,
+  LuUser,
   LuWrench,
 } from "react-icons/lu";
 import type { EntryIcon } from "../../../../packages/contracts/resume-content";
@@ -72,3 +73,4 @@ export const contactSvg = (kind: keyof typeof contactIcons) =>
 export const sectionSvg = (kind: keyof typeof sectionIcons) =>
   toSvg(sectionIcons[kind]);
 export const entrySvg = (kind: EntryIcon) => toSvg(entryIcons[kind]);
+export const portraitPlaceholderSvg = toSvg(LuUser);

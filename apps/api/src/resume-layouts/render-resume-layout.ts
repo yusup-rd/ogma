@@ -1,4 +1,4 @@
-import { entryMetadata } from "./entry-metadata";
+import { entryMetadata, splitEssentialMetadata } from "./entry-metadata";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
@@ -7,7 +7,12 @@ import {
   paperDimensions,
   resolveProficiency,
 } from "./design-options";
-import { contactSvg, entrySvg, sectionSvg } from "./resume-icons";
+import {
+  contactSvg,
+  entrySvg,
+  portraitPlaceholderSvg,
+  sectionSvg,
+} from "./resume-icons";
 import type {
   RichBlock,
   RichInline,
@@ -24,23 +29,17 @@ import {
   resumeHeader,
   resumeSkills,
   workProjectEntries,
-  sectionNames,
+  sectionName,
   type ResumeEntry,
 } from "./resume-content";
 import { resumeLayoutStyles } from "./resume-layout-styles";
 import { resumeColors } from "./resume-colors";
-
-const entities: Record<string, string> = {
-  "&": "&amp;",
-  "<": "&lt;",
-  ">": "&gt;",
-  '"': "&quot;",
-  "'": "&#39;",
-};
-
-function escapeText(text: string) {
-  return text.replace(/[&<>"']/g, (character) => entities[character]);
-}
+import {
+  contactHref,
+  escapeText,
+  renderLinkedText,
+  renderLink,
+} from "./resume-links";
 
 const markElements = { bold: "strong", italic: "em", underline: "u" } as const;
 
@@ -49,7 +48,7 @@ function richInline(node: RichInline) {
   return (node.marks ?? []).reduce((text, mark) => {
     const tag = markElements[mark.type];
     return `<${tag}>${text}</${tag}>`;
-  }, escapeText(node.text));
+  }, renderLinkedText(node.text));
 }
 
 function richBlock(node: RichBlock): string {
@@ -68,17 +67,22 @@ function richBlock(node: RichBlock): string {
 function portrait(src?: string) {
   return src
     ? `<img class="portrait" src="${escapeText(src)}" alt="">`
-    : '<span class="portrait portrait-placeholder" aria-hidden="true"></span>';
+    : `<span class="portrait portrait-placeholder" aria-hidden="true">${portraitPlaceholderSvg}</span>`;
 }
 
 function contactDetails(
   details: ReturnType<typeof resumeHeader>["details"],
   showIcons: boolean,
+  essential: boolean,
 ) {
+  if (essential && !showIcons)
+    return details
+      .map(({ kind, value }) => renderLink(value, contactHref(kind, value)))
+      .join(' <span aria-hidden="true">•</span> ');
   return details
     .map(
       ({ kind, value }) =>
-        `<span>${showIcons ? `<i class="contact-icon">${contactSvg(kind)}</i>` : ""}<span>${escapeText(value)}</span></span>`,
+        `<span>${showIcons ? `<i class="contact-icon">${contactSvg(kind)}</i>` : ""}<span>${renderLink(value, contactHref(kind, value))}</span></span>`,
     )
     .join("");
 }
@@ -152,12 +156,12 @@ function renderProjectTable(projects: readonly ResumeEntry[]) {
   const rows = projects
     .map(
       (entry) =>
-        `<tr data-preview-anchor="projects:${escapeText(entry.id)}"><th scope="row">${escapeText(entry.title)}<span class="project-context">${[
+        `<tr data-preview-anchor="projects:${escapeText(entry.id)}"><th scope="row">${renderLinkedText(entry.title)}<span class="project-context">${[
           entry.subtitle,
           entry.date,
         ]
           .filter(Boolean)
-          .map((item) => escapeText(item!))
+          .map((item) => renderLinkedText(item!))
           .join(
             "<br>",
           )}</span></th><td>${entry.description?.content?.map(richBlock).join("") ?? ""}</td></tr>`,
@@ -175,12 +179,17 @@ function renderEntry(
 ) {
   const isWork = id === "experience";
   const timeline = isWork && layout.timeline;
-  const title = escapeText(entry.title);
-  const subtitle = entry.subtitle
-    ? `<p class="${isWork ? "employer" : "entry-subtitle"}">${escapeText(entry.subtitle)}</p>`
+  const essential = layout.id === "essential";
+  const organizationFirst = essential && isWork && Boolean(entry.subtitle);
+  const title = renderLinkedText(
+    organizationFirst ? entry.subtitle! : entry.title,
+  );
+  const secondary = organizationFirst ? entry.title : entry.subtitle;
+  const subtitle = secondary
+    ? `<p class="${isWork ? "employer" : essential ? "essential-entry-subtitle" : "entry-subtitle"}">${renderLinkedText(secondary)}</p>`
     : "";
-  const metadata = entryMetadata(entry, draft.style, timeline);
-  const divider = '<span class="entry-separator">|</span>';
+  const metadata = entryMetadata(entry, draft.style, timeline, essential);
+  const divider = `<span class="entry-separator" aria-hidden="true">${essential ? "•" : "|"}</span>`;
   const names = (fields: typeof metadata.left, separator = "") =>
     fields
       .map(
@@ -188,12 +197,6 @@ function renderEntry(
           `<span class="entry-${kind}">${escapeText(text)}</span>`,
       )
       .join(separator);
-  const left = metadata.left.length
-    ? `<span class="dates entry-left-metadata">${title ? divider : ""}${names(metadata.left, divider)}</span>`
-    : "";
-  const right = metadata.right.length
-    ? `<div class="dates entry-right-metadata">${names(metadata.right, divider)}</div>`
-    : "";
   const rail = timeline
     ? `<div class="dates entry-timeline-metadata">${names(metadata.rail)}</div>`
     : "";
@@ -222,9 +225,25 @@ function renderEntry(
       "elegant",
       "elegant-logos",
     ].includes(layout.id);
-  const headingLine = (primary: string) =>
-    `<div class="job-heading"><div class="entry-title-line">${primary}${left}</div>${right}</div>`;
-  const heading = `<div class="entry-heading">${metadataByEmployer ? headingTitle + headingLine(subtitle) : headingLine(headingTitle) + subtitle}${rows}</div>`;
+  const headingLine = (
+    primary: string,
+    left = metadata.left,
+    right = metadata.right,
+  ) => {
+    if (!primary && !left.length && !right.length) return "";
+    return `<div class="job-heading"><div class="entry-title-line">${primary}${left.length ? `<span class="dates entry-left-metadata">${primary ? divider : ""}${names(left, divider)}</span>` : ""}</div>${right.length ? `<div class="dates entry-right-metadata">${names(right, divider)}</div>` : ""}</div>`;
+  };
+  let lines = metadataByEmployer
+    ? headingTitle + headingLine(subtitle)
+    : headingLine(headingTitle) + subtitle;
+  if (essential && (isWork || id === "education")) {
+    const { left, right, secondaryLeft, secondaryRight } =
+      splitEssentialMetadata(metadata, id === "education");
+    lines =
+      headingLine(headingTitle, left, right) +
+      headingLine(subtitle, secondaryLeft, secondaryRight);
+  }
+  const heading = `<div class="entry-heading">${lines}${rows}</div>`;
   if (isWork) {
     const image = entry.logo ?? (index === 0 ? draft.logo : undefined);
     const logo =
@@ -257,7 +276,7 @@ function renderSections(
         body = draft.content.summary
           .split(/\r?\n/)
           .filter((line) => line.trim())
-          .map((line) => `<p>${escapeText(line)}</p>`)
+          .map((line) => `<p>${renderLinkedText(line)}</p>`)
           .join("");
       } else if (id === "skills") {
         body = skills.regular
@@ -268,7 +287,13 @@ function renderSections(
         (draft.style.projectTable ?? defaults.projectTable)
       ) {
         body = renderProjectTable(
-          resumeEntries(draft.content, id, draft.style.dateFormat),
+          resumeEntries(
+            draft.content,
+            id,
+            draft.style.dateFormat,
+            false,
+            draft.style.dateSeparator,
+          ),
         );
       } else {
         const entries = resumeEntries(
@@ -276,6 +301,7 @@ function renderSections(
           id,
           draft.style.dateFormat,
           draft.style.workProjectTables ?? defaults.workProjectTables,
+          draft.style.dateSeparator,
         );
         body = entries
           .map((entry, index) => renderEntry(id, entry, index, draft, layout))
@@ -285,9 +311,14 @@ function renderSections(
         (draft.style.showSectionIcons ?? defaults.showSectionIcons)
           ? `<i class="section-icon">${sectionSvg(id)}</i>`
           : "";
-      const section = body
-        ? `<section class="section ${id}" data-preview-anchor="section:${id}"><h2>${icon}${sectionNames[id]}</h2><div class="section-copy">${body}</div></section>`
-        : "";
+      const summaryTitle =
+        layout.id === "essential" && id === "summary"
+          ? draft.content.targetTitle.trim()
+          : "";
+      const section =
+        body || summaryTitle
+          ? `<section class="section ${id}" data-preview-anchor="section:${id}"><h2${summaryTitle ? ' class="summary-title"' : ""}>${icon}${escapeText(summaryTitle || sectionName(id, layout))}</h2><div class="section-copy">${body || "<div></div>"}</div></section>`
+          : "";
       if (id !== layout.proficiencyAfter) return [section];
       return [
         section,
@@ -300,14 +331,34 @@ function renderSections(
     .join("");
 }
 
-let interSource: string | undefined;
+const fontSources = new Map<string, string>();
+const bundledFaces = {
+  inter: [["Ogma Inter", "inter-variable", "100 900", "normal"]],
+  poppins: [
+    ["Ogma Poppins", "poppins-extra-light", "200", "normal"],
+    ["Ogma Poppins", "poppins-light", "300", "normal"],
+    ["Ogma Poppins", "poppins-light-italic", "300", "italic"],
+    ["Ogma Poppins", "poppins-regular", "400", "normal"],
+    ["Ogma Poppins", "poppins-italic", "400", "italic"],
+    ["Ogma Poppins", "poppins-semibold", "600", "normal"],
+    ["Ogma Poppins", "poppins-bold", "700", "normal"],
+  ],
+};
 
 function fontStyles(font: LayoutDraft["style"]["font"]) {
-  if (font !== "inter") return "";
-  interSource ??= readFileSync(
-    resolve(__dirname, "../../../web/src/app/fonts/inter-variable.woff2"),
-  ).toString("base64");
-  return `@font-face{font-family:"Ogma Inter";src:url(data:font/woff2;base64,${interSource}) format("woff2");font-weight:100 900;}`;
+  if (font !== "inter" && font !== "poppins") return "";
+  const cached = fontSources.get(font);
+  if (cached) return cached;
+  const css = bundledFaces[font]
+    .map(([family, filename, weight, style]) => {
+      const source = readFileSync(
+        resolve(__dirname, `../../../web/src/app/fonts/${filename}.woff2`),
+      ).toString("base64");
+      return `@font-face{font-family:"${family}";src:url(data:font/woff2;base64,${source}) format("woff2");font-weight:${weight};font-style:${style};}`;
+    })
+    .join("\n");
+  fontSources.set(font, css);
+  return css;
 }
 
 const roleSelectors = {
@@ -325,6 +376,7 @@ function formattingRules(
   style: LayoutDraft["style"],
   toPoints: (value: number) => string,
   titleContentOverride: boolean,
+  secondaryOverride?: { size?: number; weight?: number },
 ) {
   const alignment = style.headerAlignment;
   const rules = Object.entries(roleSelectors).flatMap(([key, selector]) => {
@@ -338,6 +390,12 @@ function formattingRules(
         ];
   });
 
+  if (secondaryOverride) {
+    const { size, weight } = secondaryOverride;
+    rules.push(
+      `.template-essential .essential-entry-subtitle{font-size:${toPoints(size ?? style.bodySize)};font-weight:${weight ?? style.weights?.body ?? 300}}`,
+    );
+  }
   if (alignment) {
     const justify =
       alignment === "center"
@@ -384,13 +442,18 @@ export function renderResumeLayout(
 ) {
   const { content, style } = draft;
   const paper = paperDimensions(style);
-  const margins = pageMargins(style);
+  const margins = pageMargins(style, layout);
   const defaults = designDefaults(layout);
   const colors = resumeColors(layout, style.accent);
   const effectiveStyle = {
     ...style,
     dateFormat: style.dateFormat ?? defaults.dateFormat,
+    dateSeparator: style.dateSeparator ?? defaults.dateSeparator,
     headerAlignment: style.headerAlignment ?? defaults.headerAlignment,
+    dateAlignment: style.dateAlignment ?? defaults.dateAlignment,
+    locationAlignment: style.locationAlignment ?? defaults.locationAlignment,
+    employmentTypeAlignment:
+      style.employmentTypeAlignment ?? defaults.employmentTypeAlignment,
     skillsLayout: style.skillsLayout ?? defaults.skillsLayout,
     listLineHeight: style.listLineHeight ?? layout.lineHeight,
     sizes: { ...defaults.sizes, ...style.sizes },
@@ -415,7 +478,7 @@ export function renderResumeLayout(
   }
   const toWidth = (mm: number) => `${(mm / paper.width) * 100}cqw`;
   const toPoints = (pt: number) => toWidth((pt * 25.4) / 72);
-  const identity = resumeHeader(content);
+  const identity = resumeHeader(content, layout);
   const showPhoto = layout.photo !== "none" && style.showPhoto;
   const photo = showPhoto ? portrait(draft.photo) : "";
   const { main, side } = resumeColumns(layout, draft.sectionOrder);
@@ -444,13 +507,15 @@ export function renderResumeLayout(
     .filter(Boolean)
     .join(" ");
 
+  const essential = layout.id === "essential";
+  const contactIcons = style.showContactIcons ?? defaults.showContactIcons;
   const contact = identity.details.length
-    ? `<div class="contact">${contactDetails(identity.details, style.showContactIcons ?? defaults.showContactIcons)}</div>`
+    ? `<div class="contact${essential && !contactIcons ? " contact-inline" : ""}">${contactDetails(identity.details, contactIcons, essential)}</div>`
     : "";
   const header =
     identity.name ||
     identity.pronouns.trim() ||
-    identity.title.trim() ||
+    (!essential && identity.title.trim()) ||
     (contact && layout.header !== "badge") ||
     (showPhoto && layout.photo !== "rail")
       ? `<header>
@@ -458,7 +523,7 @@ export function renderResumeLayout(
     <div class="identity">
       ${identity.name ? `<h1>${escapeText(identity.name)}</h1>` : ""}
       ${identity.pronouns.trim() ? `<p class="pronouns">${escapeText(identity.pronouns)}</p>` : ""}
-      ${identity.title.trim() ? `<p class="role">${escapeText(identity.title)}</p>` : ""}
+      ${!essential && identity.title.trim() ? `<p class="role">${escapeText(identity.title)}</p>` : ""}
     </div>
     ${layout.header === "badge" ? "" : contact}
   </header>`
@@ -481,11 +546,12 @@ html { --paper-width:${paper.width}; --paper-height:${paper.height}; }
   --body:${toPoints(style.bodySize)};
   --leading:${style.lineHeight}; --font:${fontChoices[style.font].css};
   --ach-columns:${layout.achievementColumns};
+  ${essential ? `--reference-point:${toPoints(1)}; --essential-summary-size:${toPoints(effectiveStyle.sizes.primary)}; --essential-summary-weight:${effectiveStyle.weights.primary}; --essential-work-gap:${toPoints(style.spacing?.blocks ?? 3.5)}; --essential-skill-gap:${toPoints(style.spacing?.blocks ?? 8)}; --essential-project-paragraph-gap:${toPoints(style.spacing?.blocks ?? 1.5)}; --essential-project-subtitle-gap:${toPoints(style.spacing?.headings ?? 1.5)};` : ""}
 }
 @page { size:${paper.width}mm ${paper.height}mm; margin:0 }
 
 ${resumeLayoutStyles}
-${formattingRules(effectiveStyle, toPoints, style.spacing?.titleContent !== undefined)}
+${formattingRules(effectiveStyle, toPoints, style.spacing?.titleContent !== undefined, essential ? { size: style.sizes?.secondary, weight: style.weights?.secondary } : undefined)}
 ${fontStyles(style.font)}
 ${
   thumbnail
