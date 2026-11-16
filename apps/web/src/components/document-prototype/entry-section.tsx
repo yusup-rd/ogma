@@ -10,12 +10,12 @@ import {
 import {
   SectionCard,
   VisibilityCheckbox,
-  type VisibilityProps,
+  type SectionControls,
 } from "./section-card";
 
 interface EntrySectionProps<
   Entry extends { id: string; description?: RichText },
-> extends VisibilityProps {
+> extends SectionControls {
   section: EditorSectionId;
   singular: string;
   entries: Entry[];
@@ -38,6 +38,7 @@ const EntrySection = <Entry extends { id: string; description?: RichText }>({
   children,
   hidden,
   onToggle,
+  onDraftChange,
 }: EntrySectionProps<Entry>) => {
   const [expanded, setExpanded] = useState<string[]>([]);
   const id = useId();
@@ -50,6 +51,7 @@ const EntrySection = <Entry extends { id: string; description?: RichText }>({
       section={section}
       hidden={hidden}
       onToggle={onToggle}
+      onDraftChange={onDraftChange}
       value={entries}
       onSave={update}
       subtitle={`${count} of ${entries.length} entries included`}

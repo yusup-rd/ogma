@@ -3,13 +3,14 @@
 import { LuChevronLeft, LuFileText, LuPalette } from "react-icons/lu";
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { SavedResume } from "@ogma/contracts/resume-workspace";
 import { SignOutDialog } from "@/components/owner-auth/sign-out-dialog";
 import { ResumeConflictDialog } from "@/components/resumes/resume-conflict-dialog";
 import { CheckpointHistory } from "@/components/resumes/checkpoint-history";
 import { useResumeLayouts } from "@/hooks/document-prototype/use-resume-layouts";
 import { useResumeAutosave } from "@/hooks/resumes/use-resume-autosave";
+import type { EditorSectionId } from "@/lib/document-prototype/content-presentation";
 import { ExportDialog } from "./export-dialog";
 import { ResumeContentForm } from "./resume-content-form";
 import { ResumePreview } from "./resume-preview";
@@ -29,11 +30,39 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
   const model = useResumeLayouts(resume.document);
   const [title, setTitle] = useState(resume.title);
   const savedTitle = title.trim() || "Untitled resume";
-  const autosave = useResumeAutosave(resume, savedTitle, model.document);
+  const [sectionDrafts, setSectionDrafts] = useState(
+    () => new Set<EditorSectionId>(),
+  );
+  const onDraftChange = useCallback(
+    (section: EditorSectionId, hasDraft: boolean) => {
+      setSectionDrafts((current) => {
+        if (current.has(section) === hasDraft) return current;
+        const next = new Set(current);
+        if (hasDraft) next.add(section);
+        else next.delete(section);
+        return next;
+      });
+    },
+    [],
+  );
+  const hasSectionDrafts = sectionDrafts.size > 0;
+  const autosave = useResumeAutosave(
+    resume,
+    savedTitle,
+    model.document,
+    hasSectionDrafts,
+  );
   const [screen, setScreen] = useState<"Content" | "Design">("Content");
   const [mobileView, setMobileView] = useState<"Edit" | "Preview">("Edit");
   const [leaving, setLeaving] = useState(false);
+  const draftNotice = useRef<HTMLParagraphElement>(null);
   const backToResumes = async () => {
+    if (hasSectionDrafts) {
+      setScreen("Content");
+      setMobileView("Edit");
+      requestAnimationFrame(() => draftNotice.current?.focus());
+      return;
+    }
     setLeaving(true);
     const savedRevision = await autosave.flush();
     if (savedRevision === null) {
@@ -85,7 +114,9 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
           <div className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted">
             <p role="status">
               {autosave.phase === "saved"
-                ? "Saved"
+                ? hasSectionDrafts
+                  ? "Unsaved section edits"
+                  : "Saved"
                 : autosave.phase === "saving"
                   ? "Saving…"
                   : autosave.phase === "conflict"
@@ -124,7 +155,18 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
           beforeExport={autosave.flush}
           onConflict={autosave.reportConflict}
         />
-        <SignOutDialog beforeSignOut={autosave.flush} />
+        <SignOutDialog
+          beforeSignOut={() => {
+            if (hasSectionDrafts) {
+              setScreen("Content");
+              setMobileView("Edit");
+              throw new Error(
+                "Choose Save or Cancel in each edited section before signing out.",
+              );
+            }
+            return autosave.flush();
+          }}
+        />
       </header>
       <ResumeConflictDialog
         open={autosave.conflictOpen}
@@ -194,6 +236,16 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
           </div>
 
           <div className="flex flex-col gap-5 px-5 py-6">
+            {hasSectionDrafts && screen === "Content" && (
+              <p
+                ref={draftNotice}
+                tabIndex={-1}
+                className="rounded-lg border border-line bg-canvas p-3 text-sm text-muted"
+              >
+                Choose Save or Cancel in each edited section before leaving the
+                editor.
+              </p>
+            )}
             {!model.catalog && !model.error && (
               <p role="status" className="text-sm text-muted">
                 Loading templates…
@@ -236,6 +288,7 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
                   onReorder={model.setOrder}
                   hidden={model.hidden}
                   onToggle={model.toggleVisibility}
+                  onDraftChange={onDraftChange}
                 />
               </div>
             )}

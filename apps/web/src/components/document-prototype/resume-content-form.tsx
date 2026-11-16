@@ -21,7 +21,7 @@ import {
 import {
   SectionCard,
   VisibilityCheckbox,
-  type VisibilityProps,
+  type SectionControls,
 } from "./section-card";
 import dynamic from "next/dynamic";
 import type {
@@ -38,7 +38,7 @@ const RichTextField = dynamic(() =>
   import("./rich-text-field").then((module) => module.RichTextField),
 );
 
-interface ResumeContentFormProps extends VisibilityProps {
+interface ResumeContentFormProps extends SectionControls {
   order: EditorSectionId[];
   onReorder: (order: EditorSectionId[]) => void;
   content: DraftContent;
@@ -285,6 +285,7 @@ const ResumeContentForm = ({
   onReorder,
   hidden,
   onToggle,
+  onDraftChange,
 }: ResumeContentFormProps) => {
   const field = <Key extends keyof DraftContent>(
     key: Key,
@@ -297,14 +298,14 @@ const ResumeContentForm = ({
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
-  const visibility = { hidden, onToggle };
+  const controls = { hidden, onToggle, onDraftChange };
   const sections = {
     personal: (
       <SectionCard<PersonalDetailsDraft>
         section="personal"
         initialOpen={initialPersonalDetailsOpen}
         subtitle="Name, title and contact information"
-        {...visibility}
+        {...controls}
         value={{
           contact: content.contact,
           targetTitle: content.targetTitle,
@@ -380,7 +381,7 @@ const ResumeContentForm = ({
     summary: (
       <SectionCard
         section="summary"
-        {...visibility}
+        {...controls}
         value={content.summary}
         onSave={(value) => field("summary", value)}
       >
@@ -408,7 +409,7 @@ const ResumeContentForm = ({
     experience: (
       <EntrySection<DraftContent["experience"][number]>
         section="experience"
-        {...visibility}
+        {...controls}
         singular="position"
         entries={content.experience}
         update={(entries) => field("experience", entries)}
@@ -491,7 +492,7 @@ const ResumeContentForm = ({
     education: (
       <EntrySection<DraftContent["education"][number]>
         section="education"
-        {...visibility}
+        {...controls}
         singular="education entry"
         entries={content.education}
         update={(entries) => field("education", entries)}
@@ -563,7 +564,7 @@ const ResumeContentForm = ({
     skills: (
       <EntrySection<DraftContent["skills"][number]>
         section="skills"
-        {...visibility}
+        {...controls}
         singular="category"
         entries={content.skills}
         update={(entries) => field("skills", entries)}
@@ -655,7 +656,7 @@ const ResumeContentForm = ({
     certifications: (
       <EntrySection
         section="certifications"
-        {...visibility}
+        {...controls}
         singular="certification"
         entries={content.certifications}
         update={(entries) => field("certifications", entries)}
@@ -689,7 +690,7 @@ const ResumeContentForm = ({
     awards: (
       <EntrySection<DraftContent["awards"][number]>
         section="awards"
-        {...visibility}
+        {...controls}
         singular="award or scholarship"
         entries={content.awards}
         update={(entries) => field("awards", entries)}
@@ -738,7 +739,7 @@ const ResumeContentForm = ({
     projects: (
       <EntrySection<DraftContent["projects"][number]>
         section="projects"
-        {...visibility}
+        {...controls}
         singular="project"
         entries={content.projects}
         update={(entries) => field("projects", entries)}
@@ -779,7 +780,7 @@ const ResumeContentForm = ({
     volunteering: (
       <EntrySection
         section="volunteering"
-        {...visibility}
+        {...controls}
         singular="volunteer or leadership role"
         entries={content.volunteering}
         update={(entries) => field("volunteering", entries)}
@@ -836,7 +837,7 @@ const ResumeContentForm = ({
     publications: (
       <EntrySection
         section="publications"
-        {...visibility}
+        {...controls}
         singular="publication"
         entries={content.publications}
         update={(entries) => field("publications", entries)}

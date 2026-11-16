@@ -31,6 +31,7 @@ export function useResumeAutosave(
   initial: SavedResume,
   title: string,
   draft: ResumeDocument,
+  hasSectionDrafts: boolean,
 ) {
   const [phase, setPhase] = useState<"saved" | "saving" | "error" | "conflict">(
     "saved",
@@ -47,6 +48,7 @@ export function useResumeAutosave(
     request: undefined as Promise<boolean> | undefined,
     conflict: false,
     allowNavigation: false,
+    hasSectionDrafts,
     copy: undefined as { id: string; snapshot: DraftSnapshot } | undefined,
   });
 
@@ -99,17 +101,20 @@ export function useResumeAutosave(
   useLayoutEffect(() => {
     const state = queue.current;
     state.latest = { title, document: draft };
+    state.hasSectionDrafts = hasSectionDrafts;
     if (matches(state.latest, state.saved) || state.conflict) return;
     const timer = window.setTimeout(() => void flush(), 600);
     return () => window.clearTimeout(timer);
-  }, [title, draft, flush]);
+  }, [title, draft, flush, hasSectionDrafts]);
 
   useEffect(() => {
     const state = queue.current;
     const guard = (event: BeforeUnloadEvent) => {
       if (
         state.allowNavigation ||
-        (!state.request && matches(state.latest, state.saved))
+        (!state.hasSectionDrafts &&
+          !state.request &&
+          matches(state.latest, state.saved))
       )
         return;
       event.preventDefault();

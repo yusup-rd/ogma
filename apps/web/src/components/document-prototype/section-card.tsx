@@ -1,6 +1,6 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useId, useState, type ReactNode } from "react";
+import { useId, useLayoutEffect, useState, type ReactNode } from "react";
 import { LuCheck, LuChevronRight, LuGripVertical } from "react-icons/lu";
 import {
   sectionKey,
@@ -8,9 +8,10 @@ import {
   type EditorSectionId,
 } from "@/lib/document-prototype/content-presentation";
 
-export interface VisibilityProps {
+export interface SectionControls {
   hidden: ReadonlySet<string>;
   onToggle: (key: string) => void;
+  onDraftChange: (section: EditorSectionId, hasDraft: boolean) => void;
 }
 
 interface VisibilityCheckboxProps {
@@ -41,7 +42,7 @@ const VisibilityCheckbox = ({
   );
 };
 
-interface SectionCardProps<Value> extends VisibilityProps {
+interface SectionCardProps<Value> extends SectionControls {
   section: EditorSectionId;
   value: Value;
   onSave: (value: Value) => void;
@@ -62,6 +63,7 @@ const SectionCard = <Value,>({
   initialOpen = false,
   hidden,
   onToggle,
+  onDraftChange,
   children,
 }: SectionCardProps<Value>) => {
   const [open, setOpen] = useState(initialOpen);
@@ -70,6 +72,12 @@ const SectionCard = <Value,>({
     revision: number;
     resetCount: number;
   }>({ revision: 0, resetCount: 0 });
+  const hasDraft = draft !== undefined;
+  useLayoutEffect(() => {
+    if (!hasDraft) return;
+    onDraftChange(section, true);
+    return () => onDraftChange(section, false);
+  }, [hasDraft, onDraftChange, section]);
   const updateDraft = (resolve: (current: Value) => Value) => {
     setDraftState((current) =>
       current.revision === revision
@@ -131,6 +139,9 @@ const SectionCard = <Value,>({
           <span className="flex min-w-0 flex-col gap-0.5">
             <span className="text-sm font-semibold">{title}</span>
             {subtitle && <span className="text-xs text-muted">{subtitle}</span>}
+            {hasDraft && (
+              <span className="text-xs text-accent">Unsaved changes</span>
+            )}
           </span>
           <LuChevronRight
             aria-hidden="true"
@@ -149,11 +160,6 @@ const SectionCard = <Value,>({
               )}
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
-              {draft !== undefined && (
-                <span role="status" className="mr-auto text-xs text-muted">
-                  Unsaved changes
-                </span>
-              )}
               <button
                 type="button"
                 disabled={draft === undefined}

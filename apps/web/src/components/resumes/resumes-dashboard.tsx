@@ -226,10 +226,11 @@ const ResumesDashboard = ({
                 )}
               </p>
               <div className="mt-4 flex flex-wrap gap-2.5 md:mt-7">
-                <Link href={`/resumes/${latest.id}`} className={primary}>
+                {/* Full page navigation lets the editor guard browser Back. */}
+                <a href={`/resumes/${latest.id}`} className={primary}>
                   <LuChevronRight aria-hidden="true" className="size-4" />
                   Continue editing
-                </Link>
+                </a>
                 <button
                   type="button"
                   disabled={busy}
@@ -302,12 +303,12 @@ const ResumesDashboard = ({
                           {row.title}
                         </span>
                       ) : (
-                        <Link
+                        <a
                           href={`/resumes/${row.id}`}
                           className="block text-sm font-semibold break-words hover:text-accent hover:underline"
                         >
                           {row.title}
-                        </Link>
+                        </a>
                       )}
                       <p className="mt-1 text-xs text-muted">
                         {formatResumeDetails(
