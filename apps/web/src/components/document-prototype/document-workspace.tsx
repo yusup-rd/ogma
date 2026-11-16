@@ -4,6 +4,7 @@ import { LuFileText, LuPalette } from "react-icons/lu";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useState } from "react";
+import { SignOutDialog } from "@/components/owner-auth/sign-out-dialog";
 import { useResumeLayouts } from "@/hooks/document-prototype/use-resume-layouts";
 import { ExportDialog } from "./export-dialog";
 import { ResumeContentForm } from "./resume-content-form";
@@ -34,6 +35,7 @@ const DocumentWorkspace = () => {
           </p>
         </div>
         <ExportDialog draft={model.exportDraft} />
+        <SignOutDialog />
       </header>
 
       <div

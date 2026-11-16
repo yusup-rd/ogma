@@ -9,14 +9,37 @@ datasource db {
 }
 
 model Owner {
-  id              String   @id @default(uuid()) @db.Uuid
-  identityIssuer  String   @map("identity_issuer")
-  identitySubject String   @map("identity_subject")
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  id              String         @id @default(uuid()) @db.Uuid
+  identityIssuer  String         @map("identity_issuer")
+  identitySubject String         @map("identity_subject")
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   resumes         Resume[]
+  sessions        OwnerSession[]
 
   @@unique([identityIssuer, identitySubject])
   @@map("owners")
+}
+
+model OwnerSession {
+  tokenHash String   @id @map("token_hash")
+  ownerId   String   @map("owner_id") @db.Uuid
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  owner     Owner    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([ownerId])
+  @@map("owner_sessions")
+}
+
+model SignInAttempt {
+  tokenHash    String   @id @map("token_hash")
+  state        String
+  nonce        String
+  codeVerifier String   @map("code_verifier")
+  expiresAt    DateTime @map("expires_at") @db.Timestamptz(3)
+
+  @@index([expiresAt])
+  @@map("sign_in_attempts")
 }
 
 model Resume {
