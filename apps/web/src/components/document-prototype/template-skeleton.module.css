@@ -229,6 +229,22 @@
   gap: 3cqw;
 }
 
+.page[data-compact="true"] {
+  gap: 6cqw;
+}
+
+.page[data-compact="true"] .sections {
+  gap: 6cqw;
+}
+
+.page[data-compact="true"][data-photo="top"] .sections {
+  gap: 5cqw;
+}
+
+.page[data-compact="true"][data-photo="top"] .section {
+  gap: 2cqw;
+}
+
 .sectionTitle {
   inline-size: 42%;
   block-size: 3.8cqw;
