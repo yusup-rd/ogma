@@ -108,12 +108,12 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
       style.headerAlignment ?? (layout.header === "center" ? "center" : "left")
     ];
   const defaults = designDefaults(layout);
-  function typography(role: TextRole) {
-    const weight = style.weights?.[role] ?? defaults.weights[role];
+  function typography(sizeRole: TextRole, weightRole = sizeRole) {
+    const weight = style.weights?.[weightRole] ?? defaults.weights[weightRole];
     const size =
-      role === "body"
+      sizeRole === "body"
         ? style.bodySize
-        : (style.sizes?.[role] ?? defaults.sizes[role]);
+        : (style.sizes?.[sizeRole] ?? defaults.sizes[sizeRole]);
     const namedWeight =
       style.font === "inter" || style.font === "poppins"
         ? (
@@ -423,13 +423,15 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
               const rightTabs = [
                 { type: TabStopType.RIGHT, position: entryWidth },
               ];
-              const secondaryRole =
-                essential &&
-                id !== "experience" &&
-                !style.sizes?.secondary &&
-                !style.weights?.secondary
+              const subtitleUsesBody = essential && id !== "experience";
+              const subtitleTypography = typography(
+                subtitleUsesBody && style.sizes?.secondary === undefined
                   ? "body"
-                  : "secondary";
+                  : "secondary",
+                subtitleUsesBody && style.weights?.secondary === undefined
+                  ? "body"
+                  : "secondary",
+              );
               const metadataRole =
                 essential && id === "experience" ? "primary" : "minor";
               const paragraphSpace = {
@@ -538,7 +540,7 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                                     (id === "experience" || id === "education")
                                       ? supportingInk
                                       : undefined,
-                                  ...typography(secondaryRole),
+                                  ...subtitleTypography,
                                 }),
                               ]
                             : []),

@@ -125,7 +125,7 @@ const resumeDocumentSchema = z.object({
   content: draftContentSchema,
   settings: z
     .record(z.string().min(1).max(100), resumeStyleSchema)
-    .refine((settings) => Object.keys(settings).length <= 23),
+    .refine((settings) => Object.keys(settings).length <= 24),
   hidden: z.array(z.string().min(1).max(500)).max(20_000),
   photo: picture.optional(),
 });

@@ -426,20 +426,18 @@ const TemplateDesignForm = ({
                   options={alignmentOptions}
                   onChange={(value) => onChange({ [alignment]: value })}
                 />
-                {!workDefaults && (
-                  <label className="flex min-h-10 items-center gap-2 text-xs font-semibold text-muted">
-                    <input
-                      type="checkbox"
-                      aria-label={label + " on a new line"}
-                      checked={style[newLine] ?? false}
-                      onChange={(event) =>
-                        onChange({ [newLine]: event.currentTarget.checked })
-                      }
-                      className="size-4 rounded accent-accent"
-                    />
-                    New line
-                  </label>
-                )}
+                <label className="flex min-h-10 items-center gap-2 text-xs font-semibold text-muted">
+                  <input
+                    type="checkbox"
+                    aria-label={label + " on a new line"}
+                    checked={style[newLine] ?? false}
+                    onChange={(event) =>
+                      onChange({ [newLine]: event.currentTarget.checked })
+                    }
+                    className="size-4 rounded accent-accent"
+                  />
+                  New line
+                </label>
               </div>
             ))}
           </SettingsGroup>
