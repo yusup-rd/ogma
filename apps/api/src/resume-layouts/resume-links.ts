@@ -46,7 +46,7 @@ export function renderLink(label: string, href?: string) {
 // Bare domains are recognized after a Link: label, so terms like Node.js stay plain text.
 export function renderLinkedText(text: string) {
   const links =
-    /\b(?:https?:\/\/|www\.)[^\s<>"']+|(?<=\bLink:[ \t]{0,8})[\w-]+(?:\.[\w-]+)+(?:\/[^\s<>"']*)?/gi;
+    /\b(?:https?:\/\/|www\.)[^\s<>"']+|(?<=\bLink:[ \t]{0,8})[\w-]+(?:\.[\w-]+)+(?:[/?#][^\s<>"']*)?/gi;
   let start = 0;
   let html = "";
   for (const match of text.matchAll(links)) {
