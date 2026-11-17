@@ -12,7 +12,8 @@ export function escapeText(text: string) {
 }
 
 function webHref(text: string) {
-  const url = URL.parse(text.includes("://") ? text : `https://${text}`);
+  const hasScheme = /^[a-z][\da-z+.-]*:\/\//i.test(text);
+  const url = URL.parse(hasScheme ? text : `https://${text}`);
   if (
     !url ||
     !["http:", "https:"].includes(url.protocol) ||
