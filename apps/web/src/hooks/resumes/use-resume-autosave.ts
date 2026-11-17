@@ -76,7 +76,7 @@ export function useResumeAutosave(
           state.revision = result.draftRevision;
           state.saved = snapshot;
           setAcknowledged(snapshot);
-          setPhase("saved");
+          if (!state.conflict) setPhase("saved");
           return true;
         })
         .catch((error: unknown) => {
@@ -87,7 +87,7 @@ export function useResumeAutosave(
             state.conflict = true;
             setPhase("conflict");
             setConflictOpen(true);
-          } else {
+          } else if (!state.conflict) {
             setPhase("error");
           }
           return false;
