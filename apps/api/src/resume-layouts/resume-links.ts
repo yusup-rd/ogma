@@ -12,8 +12,15 @@ export function escapeText(text: string) {
 }
 
 function webHref(text: string) {
-  const hasScheme = /^[a-z][\da-z+.-]*:\/\//i.test(text);
-  const url = URL.parse(hasScheme ? text : `https://${text}`);
+  const protocol = /^[a-z][\da-z+.-]*:/i.exec(text)?.[0];
+  const hasWebProtocol = protocol !== undefined && /^https?:$/i.test(protocol);
+  if (
+    protocol &&
+    !hasWebProtocol &&
+    !/^\d+(?:[/?#]|$)/.test(text.slice(protocol.length))
+  )
+    return;
+  const url = URL.parse(hasWebProtocol ? text : `https://${text}`);
   if (
     !url ||
     !["http:", "https:"].includes(url.protocol) ||
