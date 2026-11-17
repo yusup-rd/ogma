@@ -62,6 +62,16 @@ const alignmentOptions = [
   ["left", "Left"],
   ["right", "Right"],
 ] as const;
+const workHeadingOptions = [
+  ["position-first", "Role first"],
+  ["employer-first", "Employer first"],
+] as const;
+const workPlacementOptions = [
+  ["first", "First heading row"],
+  ["second", "Second heading row"],
+  ["below", "Below both headings"],
+  ["rail", "Timeline rail"],
+] as const;
 const headerOptions = [
   ["left", "Left"],
   ["center", "Center"],
@@ -183,16 +193,26 @@ const NumberSetting = ({
 };
 
 const metadataControls = [
-  { label: "Date", alignment: "dateAlignment", newLine: "dateNewLine" },
+  {
+    label: "Date",
+    field: "date",
+    alignment: "dateAlignment",
+    newLine: "dateNewLine",
+    placement: "workDatePlacement",
+  },
   {
     label: "Location",
+    field: "location",
     alignment: "locationAlignment",
     newLine: "locationNewLine",
+    placement: "workLocationPlacement",
   },
   {
     label: "Employment type",
+    field: "employmentType",
     alignment: "employmentTypeAlignment",
     newLine: "employmentTypeNewLine",
+    placement: "workEmploymentTypePlacement",
   },
 ] as const;
 
@@ -221,6 +241,7 @@ const TemplateDesignForm = ({
     "Classic Settings",
   );
   const defaults = template.designDefaults;
+  const workDefaults = defaults.workExperience;
   const defaultIndicator =
     defaults.proficiencyIndicator === "none"
       ? undefined
@@ -387,33 +408,129 @@ const TemplateDesignForm = ({
               options={headerOptions}
               onChange={(headerAlignment) => onChange({ headerAlignment })}
             />
-            {metadataControls.map(({ label, alignment, newLine }) => (
+            {metadataControls.map(({ label, field, alignment, newLine }) => (
               <div
                 key={alignment}
                 className="col-span-2 grid grid-cols-2 items-end gap-3"
               >
                 <SelectSetting
                   label={label + " alignment"}
-                  value={style[alignment] ?? defaults[alignment]}
-                  defaultValue={defaults[alignment]}
+                  value={
+                    style[alignment] ??
+                    workDefaults?.[field].alignment ??
+                    defaults[alignment]
+                  }
+                  defaultValue={
+                    workDefaults?.[field].alignment ?? defaults[alignment]
+                  }
                   options={alignmentOptions}
                   onChange={(value) => onChange({ [alignment]: value })}
                 />
-                <label className="flex min-h-10 items-center gap-2 text-xs font-semibold text-muted">
-                  <input
-                    type="checkbox"
-                    aria-label={label + " on a new line"}
-                    checked={style[newLine] ?? false}
-                    onChange={(event) =>
-                      onChange({ [newLine]: event.currentTarget.checked })
-                    }
-                    className="size-4 rounded accent-accent"
-                  />
-                  New line
-                </label>
+                {!workDefaults && (
+                  <label className="flex min-h-10 items-center gap-2 text-xs font-semibold text-muted">
+                    <input
+                      type="checkbox"
+                      aria-label={label + " on a new line"}
+                      checked={style[newLine] ?? false}
+                      onChange={(event) =>
+                        onChange({ [newLine]: event.currentTarget.checked })
+                      }
+                      className="size-4 rounded accent-accent"
+                    />
+                    New line
+                  </label>
+                )}
               </div>
             ))}
           </SettingsGroup>
+          {workDefaults && (
+            <SettingsGroup title="Work experience">
+              <SelectSetting
+                label="Heading order"
+                value={style.workHeadingOrder ?? workDefaults.order}
+                defaultValue={workDefaults.order}
+                options={workHeadingOptions}
+                onChange={(workHeadingOrder) =>
+                  onChange({
+                    workHeadingOrder:
+                      workHeadingOrder === workDefaults.order
+                        ? undefined
+                        : workHeadingOrder,
+                  })
+                }
+              />
+              <SelectSetting
+                label="Work date format"
+                value={
+                  style.workDateFormat ??
+                  style.dateFormat ??
+                  workDefaults.dateFormat
+                }
+                defaultValue={workDefaults.dateFormat}
+                options={dateOptions}
+                onChange={(workDateFormat) => onChange({ workDateFormat })}
+              />
+              <SelectSetting
+                label="Work date range separator"
+                value={
+                  style.workDateSeparator ??
+                  style.dateSeparator ??
+                  workDefaults.dateSeparator
+                }
+                defaultValue={workDefaults.dateSeparator}
+                options={dateSeparators}
+                onChange={(workDateSeparator) =>
+                  onChange({ workDateSeparator })
+                }
+              />
+              {metadataControls.map(
+                ({ label, field, alignment, placement, newLine }) => {
+                  const position = workDefaults[field];
+                  const defaultPlacement = position.placement;
+                  const inheritedPlacement = style[newLine]
+                    ? "own-line"
+                    : defaultPlacement === "rail" &&
+                        style[alignment] === "right"
+                      ? "first"
+                      : defaultPlacement;
+                  return (
+                    <SelectSetting
+                      key={placement}
+                      label={label + " placement"}
+                      value={style[placement] ?? inheritedPlacement}
+                      defaultValue={defaultPlacement}
+                      options={
+                        [
+                          ...workPlacementOptions.filter(
+                            ([row]) => row !== "rail" || template.timeline,
+                          ),
+                          ["own-line", "On its own line"],
+                        ] as const
+                      }
+                      onChange={(value) =>
+                        onChange({
+                          [placement]:
+                            value === inheritedPlacement ? undefined : value,
+                        })
+                      }
+                    />
+                  );
+                },
+              )}
+              <ToggleSetting
+                label="Date and location icons"
+                checked={style.showWorkMetadataIcons ?? workDefaults.icons}
+                onChange={(showWorkMetadataIcons) =>
+                  onChange({
+                    showWorkMetadataIcons:
+                      showWorkMetadataIcons === workDefaults.icons
+                        ? undefined
+                        : showWorkMetadataIcons,
+                  })
+                }
+              />
+            </SettingsGroup>
+          )}
           <SettingsGroup title="Skills">
             <div className="col-span-2">
               <SelectSetting

@@ -1,4 +1,8 @@
-import { entryMetadata, splitEssentialMetadata } from "./entry-metadata";
+import {
+  entryMetadata,
+  splitEssentialMetadata,
+  workEntryHeading,
+} from "./entry-metadata";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
@@ -12,6 +16,7 @@ import {
   entrySvg,
   portraitPlaceholderSvg,
   sectionSvg,
+  workMetadataSvg,
 } from "./resume-icons";
 import type {
   RichBlock,
@@ -176,31 +181,53 @@ function renderEntry(
   index: number,
   draft: LayoutDraft,
   layout: ResumeLayout,
+  defaults: ReturnType<typeof designDefaults>,
 ) {
   const isWork = id === "experience";
   const timeline = isWork && layout.timeline;
   const essential = layout.id === "essential";
-  const organizationFirst = essential && isWork && Boolean(entry.subtitle);
+  const work =
+    isWork && defaults.workExperience
+      ? workEntryHeading(entry, draft.style, defaults.workExperience, timeline)
+      : undefined;
+  const organizationFirst =
+    work?.employerFirst ?? (essential && isWork && Boolean(entry.subtitle));
   const title = renderLinkedText(
     organizationFirst ? entry.subtitle! : entry.title,
   );
   const secondary = organizationFirst ? entry.title : entry.subtitle;
   const subtitle = secondary
-    ? `<p class="${isWork ? "employer" : essential ? "essential-entry-subtitle" : "entry-subtitle"}">${renderLinkedText(secondary)}</p>`
+    ? `<p class="${isWork ? (work?.employerFirst ? "employer work-position" : "employer") : essential ? "essential-entry-subtitle" : "entry-subtitle"}">${renderLinkedText(secondary)}</p>`
     : "";
-  const metadata = entryMetadata(entry, draft.style, timeline, essential);
+  const metadata = entryMetadata(
+    entry,
+    {
+      ...draft.style,
+      dateAlignment: draft.style.dateAlignment ?? defaults.dateAlignment,
+      locationAlignment:
+        draft.style.locationAlignment ?? defaults.locationAlignment,
+      employmentTypeAlignment:
+        draft.style.employmentTypeAlignment ?? defaults.employmentTypeAlignment,
+    },
+    timeline,
+    essential,
+  );
   const divider = `<span class="entry-separator" aria-hidden="true">${essential ? "•" : "|"}</span>`;
   const names = (fields: typeof metadata.left, separator = "") =>
     fields
-      .map(
-        ({ kind, text }) =>
-          `<span class="entry-${kind}">${escapeText(text)}</span>`,
-      )
+      .map(({ kind, text, alignment }) => {
+        const icon =
+          work?.showIcons && (kind === "date" || kind === "location")
+            ? workMetadataSvg(kind)
+            : "";
+        return `<span class="entry-${kind} metadata-${alignment}">${icon}${escapeText(text)}</span>`;
+      })
       .join(separator);
-  const rail = timeline
-    ? `<div class="dates entry-timeline-metadata">${names(metadata.rail)}</div>`
+  const railFields = work?.lines.rail ?? metadata.rail;
+  const rail = railFields.length
+    ? `<div class="dates entry-timeline-metadata">${names(railFields)}</div>`
     : "";
-  const rows = metadata.rows
+  const rows = (work?.rows ?? metadata.rows)
     .map(
       (field) =>
         `<div class="dates entry-metadata-row metadata-${field.alignment}">${names([field])}</div>`,
@@ -210,33 +237,38 @@ function renderEntry(
     ? `<div class="rich-text">${entry.description.content.map(richBlock).join("")}</div>`
     : "";
   const anchor = `data-preview-anchor="${id}:${escapeText(entry.id)}"`;
-  const headingTitle = title ? `<h3>${title}</h3>` : "";
-  const metadataByEmployer =
-    isWork &&
-    subtitle &&
-    [
-      "high-performer",
-      "double-column",
-      "double-column-logos",
-      "creative",
-      "modern",
-      "stylish",
-      "polished",
-      "elegant",
-      "elegant-logos",
-    ].includes(layout.id);
+  const headingTitle = title
+    ? `<h3${work?.employerFirst ? ' class="work-organization"' : ""}>${title}</h3>`
+    : "";
   const headingLine = (
     primary: string,
     left = metadata.left,
     right = metadata.right,
+    join = divider,
+    prefix = join,
   ) => {
     if (!primary && !left.length && !right.length) return "";
-    return `<div class="job-heading"><div class="entry-title-line">${primary}${left.length ? `<span class="dates entry-left-metadata">${primary ? divider : ""}${names(left, divider)}</span>` : ""}</div>${right.length ? `<div class="dates entry-right-metadata">${names(right, divider)}</div>` : ""}</div>`;
+    return `<div class="job-heading"><div class="entry-title-line">${primary}${left.length ? `<span class="dates entry-left-metadata">${primary ? prefix : ""}${names(left, join)}</span>` : ""}</div>${right.length ? `<div class="dates entry-right-metadata">${names(right, join)}</div>` : ""}</div>`;
   };
-  let lines = metadataByEmployer
-    ? headingTitle + headingLine(subtitle)
-    : headingLine(headingTitle) + subtitle;
-  if (essential && (isWork || id === "education")) {
+  let lines = headingLine(headingTitle) + subtitle;
+  if (work) {
+    const workLine = (
+      heading: string,
+      fields: typeof metadata.left,
+      dash = false,
+    ) =>
+      headingLine(
+        heading,
+        fields.filter((field) => field.alignment === "left"),
+        fields.filter((field) => field.alignment === "right"),
+        "",
+        dash ? '<span class="entry-separator" aria-hidden="true">—</span>' : "",
+      );
+    lines =
+      workLine(headingTitle, work.lines.first) +
+      workLine(subtitle, work.lines.second, work.employerSeparator === "dash") +
+      workLine("", work.lines.below);
+  } else if (essential && (isWork || id === "education")) {
     const { left, right, secondaryLeft, secondaryRight } =
       splitEssentialMetadata(metadata, id === "education");
     lines =
@@ -252,7 +284,7 @@ function renderEntry(
         : image
           ? `<img class="employer-logo" src="${escapeText(image)}" alt="">`
           : `<span class="employer-logo brand-${index % 4}" aria-hidden="true">${escapeText((entry.subtitle || entry.title.split(" · ").at(-1) || "").trim().charAt(0))}</span>`;
-    return `<article class="job" ${anchor}><div class="job-copy">${heading}${description}${renderProjectTable(workProjectEntries(entry.workProjects))}</div>${rail}${logo}</article>`;
+    return `<article class="job${work ? " work-experience" : ""}" ${anchor}><div class="job-copy">${heading}${description}${renderProjectTable(workProjectEntries(entry.workProjects))}</div>${rail}${logo}</article>`;
   }
   const icon = entry.icon
     ? `<i class="entry-icon">${entrySvg(entry.icon)}</i>`
@@ -290,21 +322,30 @@ function renderSections(
           resumeEntries(
             draft.content,
             id,
-            draft.style.dateFormat,
+            draft.style.dateFormat ?? defaults.dateFormat,
             false,
-            draft.style.dateSeparator,
+            draft.style.dateSeparator ?? defaults.dateSeparator,
           ),
         );
       } else {
+        const work = id === "experience" ? defaults.workExperience : undefined;
         const entries = resumeEntries(
           draft.content,
           id,
-          draft.style.dateFormat,
+          (work && draft.style.workDateFormat) ??
+            draft.style.dateFormat ??
+            work?.dateFormat ??
+            defaults.dateFormat,
           draft.style.workProjectTables ?? defaults.workProjectTables,
-          draft.style.dateSeparator,
+          (work && draft.style.workDateSeparator) ??
+            draft.style.dateSeparator ??
+            work?.dateSeparator ??
+            defaults.dateSeparator,
         );
         body = entries
-          .map((entry, index) => renderEntry(id, entry, index, draft, layout))
+          .map((entry, index) =>
+            renderEntry(id, entry, index, draft, layout, defaults),
+          )
           .join("");
       }
       const icon =
@@ -447,13 +488,7 @@ export function renderResumeLayout(
   const colors = resumeColors(layout, style.accent);
   const effectiveStyle = {
     ...style,
-    dateFormat: style.dateFormat ?? defaults.dateFormat,
-    dateSeparator: style.dateSeparator ?? defaults.dateSeparator,
     headerAlignment: style.headerAlignment ?? defaults.headerAlignment,
-    dateAlignment: style.dateAlignment ?? defaults.dateAlignment,
-    locationAlignment: style.locationAlignment ?? defaults.locationAlignment,
-    employmentTypeAlignment:
-      style.employmentTypeAlignment ?? defaults.employmentTypeAlignment,
     skillsLayout: style.skillsLayout ?? defaults.skillsLayout,
     listLineHeight: style.listLineHeight ?? layout.lineHeight,
     sizes: { ...defaults.sizes, ...style.sizes },

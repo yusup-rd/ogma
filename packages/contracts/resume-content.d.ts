@@ -143,6 +143,23 @@ export type PaperSize = "a4" | "letter";
 export type DateFormat = "numeric" | "year" | "short" | "long";
 export type HeaderAlignment = "left" | "center" | "right";
 export type SideAlignment = "left" | "right";
+export type WorkHeadingOrder = "position-first" | "employer-first";
+export type WorkMetadataPlacement =
+  "first" | "second" | "below" | "rail" | "own-line";
+export interface WorkMetadataPosition {
+  placement: Exclude<WorkMetadataPlacement, "own-line">;
+  alignment: SideAlignment;
+}
+export interface WorkExperienceDefaults {
+  dateFormat: DateFormat;
+  dateSeparator: "dash" | "hyphen";
+  order: WorkHeadingOrder;
+  date: WorkMetadataPosition;
+  location: WorkMetadataPosition;
+  employmentType: WorkMetadataPosition;
+  icons: boolean;
+  employerSeparator: "space" | "dash";
+}
 export type SkillsLayout = "inline" | "list" | "bullet" | "columns" | "lined";
 export type TextRole =
   "body" | "primary" | "secondary" | "section" | "name" | "minor";
@@ -163,6 +180,13 @@ export interface DesignOptions {
   dateNewLine?: boolean;
   locationNewLine?: boolean;
   employmentTypeNewLine?: boolean;
+  workHeadingOrder?: WorkHeadingOrder;
+  workDateFormat?: DateFormat;
+  workDateSeparator?: WorkExperienceDefaults["dateSeparator"];
+  workDatePlacement?: WorkMetadataPlacement;
+  workLocationPlacement?: WorkMetadataPlacement;
+  workEmploymentTypePlacement?: WorkMetadataPlacement;
+  showWorkMetadataIcons?: boolean;
   skillsLayout?: SkillsLayout;
   groupSkills?: boolean;
   showProficiency?: boolean;
@@ -178,6 +202,7 @@ export interface DesignOptions {
 }
 
 export interface DesignDefaults {
+  workExperience?: WorkExperienceDefaults;
   dateFormat: DateFormat;
   dateSeparator: NonNullable<DesignOptions["dateSeparator"]>;
   headerAlignment: HeaderAlignment;

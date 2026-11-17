@@ -6,6 +6,7 @@ import {
   LuBookOpen,
   LuBriefcaseBusiness,
   LuBuilding2,
+  LuCalendarDays,
   LuChartNoAxesColumnIncreasing,
   LuFileText,
   LuFolderKanban,
@@ -73,4 +74,6 @@ export const contactSvg = (kind: keyof typeof contactIcons) =>
 export const sectionSvg = (kind: keyof typeof sectionIcons) =>
   toSvg(sectionIcons[kind]);
 export const entrySvg = (kind: EntryIcon) => toSvg(entryIcons[kind]);
+export const workMetadataSvg = (kind: "date" | "location") =>
+  toSvg(kind === "date" ? LuCalendarDays : LuMapPin);
 export const portraitPlaceholderSvg = toSvg(LuUser);

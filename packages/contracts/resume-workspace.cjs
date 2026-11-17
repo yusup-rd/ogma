@@ -5,6 +5,13 @@ const marginSize = z.number().min(5).max(45);
 const textSize = z.number().min(5).max(60);
 const pointGap = z.number().min(0).max(60);
 const textWeight = z.literal([200, 300, 400, 600, 700]);
+const workMetadataPlacement = z.enum([
+  "first",
+  "second",
+  "below",
+  "rail",
+  "own-line",
+]);
 const resumeFontSchema = z.enum([
   "sans",
   "humanist",
@@ -33,6 +40,13 @@ const resumeStyleSchema = z.object({
   dateNewLine: z.boolean().optional(),
   locationNewLine: z.boolean().optional(),
   employmentTypeNewLine: z.boolean().optional(),
+  workHeadingOrder: z.enum(["position-first", "employer-first"]).optional(),
+  workDateFormat: z.enum(["numeric", "year", "short", "long"]).optional(),
+  workDateSeparator: z.enum(["dash", "hyphen"]).optional(),
+  workDatePlacement: workMetadataPlacement.optional(),
+  workLocationPlacement: workMetadataPlacement.optional(),
+  workEmploymentTypePlacement: workMetadataPlacement.optional(),
+  showWorkMetadataIcons: z.boolean().optional(),
   skillsLayout: z
     .enum(["inline", "list", "bullet", "columns", "lined"])
     .optional(),

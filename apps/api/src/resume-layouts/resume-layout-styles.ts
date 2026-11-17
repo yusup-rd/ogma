@@ -116,7 +116,8 @@ a { color:inherit; text-decoration:none; }
 .timeline.logos-none .job { grid-template-columns:minmax(0,14%) minmax(0,1fr); }
 .timeline .job + .job { margin-top:var(--job-gap); }
 .timeline .job > .dates { grid-column:1; grid-row:1; flex-direction:column; gap:.35em; }
-.timeline .job > .dates > span:first-child { font-weight:700; color:var(--title-color); }
+.timeline .job > .dates > .entry-date { font-weight:700; color:var(--title-color); }
+.timeline .job > .dates > .metadata-right { align-self:flex-end; text-align:right; }
 .timeline .job-copy { position:relative; grid-column:2; grid-row:1; align-self:stretch; padding-left:1em; }
 .timeline .job-copy::before,.timeline .job:not(:last-child) .job-copy::after {
   content:""; position:absolute; inset-inline-start:0; top:var(--marker-offset);
@@ -289,6 +290,14 @@ a { color:inherit; text-decoration:none; }
 .entry-separator {color:color-mix(in srgb,var(--meta) 70%,var(--paper)); flex:none;}
 .resume-page .entry-metadata-row{display:block; text-align:left;}
 .resume-page .entry-metadata-row.metadata-right{text-align:right;}
+.work-experience .dates :is(.entry-date,.entry-location) > svg {
+  inline-size:1em;
+  block-size:1em;
+  margin-inline-end:.28em;
+  vertical-align:-.12em;
+}
+.work-experience .entry-timeline-metadata { margin-block-start:.08em; }
+.accent-organizations .job .work-position { color:var(--title-color); }
 .skill-category-line {--list-marker:"\u2022";}
 .heading-spaced.head-center .skill-category-line {--list-marker:"\u2014";}
 .resume-page .skills .skill-category-list {position:relative; padding-inline-start:1.8em;}
@@ -372,7 +381,7 @@ a { color:inherit; text-decoration:none; }
 .project-context:empty { display:none; }
 .project-table td p+p { margin-top:.35em; }
 
-.accent-role .role,.accent-organizations :is(.employer,.education .entry-subtitle) { color:var(--voice); }
+.accent-role .role,.accent-organizations :is(.employer:not(.work-position),.work-organization,.education .entry-subtitle) { color:var(--voice); }
 .accent-section-headings { --heading-color:var(--ink-accent); }
 .head-badge.accent-role .role { color:#25313a; }
 .custom-accent:is(.head-banner,.rail-left,.rail-right) { --side:color-mix(in srgb,var(--ink-accent) 65%,#19212b); }

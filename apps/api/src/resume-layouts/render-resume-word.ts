@@ -1,4 +1,8 @@
-import { entryMetadata, splitEssentialMetadata } from "./entry-metadata";
+import {
+  entryMetadata,
+  splitEssentialMetadata,
+  workEntryHeading,
+} from "./entry-metadata";
 import {
   AlignmentType,
   BorderStyle,
@@ -115,13 +119,12 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
             {
               200: "ExtraLight",
               300: "Light",
-              600: "SemiBold",
             } as Record<number, string>
           )[weight]
         : undefined;
     return {
       size: Math.round(size * 2),
-      bold: !namedWeight && weight >= 600,
+      bold: weight >= 600,
       font:
         fontChoices[style.font].word + (namedWeight ? ` ${namedWeight}` : ""),
     };
@@ -321,9 +324,17 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
               : resumeEntries(
                   content,
                   id,
-                  dateFormat,
+                  id === "experience" && defaults.workExperience
+                    ? (style.workDateFormat ??
+                        style.dateFormat ??
+                        defaults.workExperience.dateFormat)
+                    : dateFormat,
                   style.workProjectTables ?? defaults.workProjectTables,
-                  dateSeparator,
+                  id === "experience" && defaults.workExperience
+                    ? (style.workDateSeparator ??
+                        style.dateSeparator ??
+                        defaults.workExperience.dateSeparator)
+                    : dateSeparator,
                 )
             ).flatMap((entry, index) => {
               const logo = entry.logo ?? (index === 0 ? draft.logo : undefined);
@@ -335,6 +346,15 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                 ) ?? [];
               const inlineSkills =
                 id === "skills" && skillMode !== "columns" && skills.length > 0;
+              const work =
+                id === "experience" && defaults.workExperience
+                  ? workEntryHeading(
+                      entry,
+                      style,
+                      defaults.workExperience,
+                      layout.timeline,
+                    )
+                  : undefined;
               const metadata = entryMetadata(
                 entry,
                 metadataStyle,
@@ -345,28 +365,54 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                 essential && (id === "experience" || id === "education")
                   ? splitEssentialMetadata(metadata, id === "education")
                   : undefined;
-              const leftText = [
-                ...(split?.left ?? metadata.left),
-                ...metadata.rail,
-              ]
-                .map((field) => field.text)
-                .join(separator);
-              const rightText = (split?.right ?? metadata.right)
-                .map((field) => field.text)
-                .join(separator);
+              const inlineSeparator = work ? "   " : separator;
+              const headingMetadata = (fields: typeof metadata.left) => ({
+                left: fields
+                  .filter((field) => field.alignment === "left")
+                  .map((field) => field.text)
+                  .join(inlineSeparator),
+                right: fields
+                  .filter((field) => field.alignment === "right")
+                  .map((field) => field.text)
+                  .join(inlineSeparator),
+              });
+              const fieldText = (fields: typeof metadata.left) =>
+                fields.map((field) => field.text).join(separator);
+              const first = work
+                ? headingMetadata(work.lines.first)
+                : {
+                    left: fieldText([
+                      ...(split?.left ?? metadata.left),
+                      ...metadata.rail,
+                    ]),
+                    right: fieldText(split?.right ?? metadata.right),
+                  };
+              const second = work
+                ? headingMetadata(work.lines.second)
+                : {
+                    left: fieldText(split?.secondaryLeft ?? []),
+                    right: fieldText(split?.secondaryRight ?? []),
+                  };
+              const { left: leftText, right: rightText } = first;
+              const { left: secondaryLeft, right: secondaryRight } = second;
               const organizationFirst =
-                essential && id === "experience" && Boolean(entry.subtitle);
+                work?.employerFirst ??
+                (essential && id === "experience" && Boolean(entry.subtitle));
               const title = (
                 organizationFirst ? entry.subtitle! : entry.title
               ).trim();
               const subtitle = organizationFirst ? entry.title : entry.subtitle;
-              const secondaryLeft = split?.secondaryLeft
-                .map((field) => field.text)
-                .join(separator);
-              const secondaryRight = split?.secondaryRight
-                .map((field) => field.text)
-                .join(separator);
-              const { rows } = metadata;
+              const rows = work?.rows ?? metadata.rows;
+              const below = headingMetadata(work?.lines.below ?? []);
+              const rail = work?.lines.rail ?? [];
+              const railWidth = Math.round(farRight * 0.17);
+              const rightLogo = work && layout.logos === "right" && logo;
+              const logoWidth = rightLogo ? 360 : 0;
+              const entryWidth =
+                farRight - (rail.length ? railWidth + 160 : 0) - logoWidth;
+              const rightTabs = [
+                { type: TabStopType.RIGHT, position: entryWidth },
+              ];
               const secondaryRole =
                 essential &&
                 id !== "experience" &&
@@ -385,7 +431,7 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                       )
                     : undefined,
               };
-              return [
+              const entryParagraphs = [
                 ...(title || inlineSkills || leftText || rightText
                   ? [
                       new Paragraph({
@@ -402,19 +448,19 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                           subtitle ||
                           secondaryLeft ||
                           secondaryRight ||
+                          below.left ||
+                          below.right ||
                           rows.length ||
                           entry.description?.content?.length,
                         ),
-                        tabStops: rightText
-                          ? [{ type: TabStopType.RIGHT, position: farRight }]
-                          : undefined,
+                        tabStops: rightText ? rightTabs : undefined,
                         numbering:
                           inlineSkills && skillMode === "list"
                             ? { reference: categoryListRef, level: 0 }
                             : undefined,
                         children: [
                           ...(id === "experience" &&
-                          layout.logos !== "none" &&
+                          layout.logos === "left" &&
                           logo
                             ? [image(logo, 20), new TextRun("  ")]
                             : []),
@@ -422,7 +468,12 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                             ? [
                                 new TextRun({
                                   text: title + (inlineSkills ? ": " : ""),
-                                  color: essential ? "000000" : "26303B",
+                                  color: essential
+                                    ? "000000"
+                                    : work?.employerFirst &&
+                                        colors.organizations
+                                      ? supportingInk
+                                      : "26303B",
                                   ...typography("primary"),
                                 }),
                               ]
@@ -440,7 +491,8 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                           ...(leftText
                             ? [
                                 new TextRun({
-                                  text: (title ? separator : "") + leftText,
+                                  text:
+                                    (title ? inlineSeparator : "") + leftText,
                                   ...typography(metadataRole),
                                 }),
                               ]
@@ -464,15 +516,14 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                           before: pointTwips(style.spacing?.headings),
                         },
                         keepNext: true,
-                        tabStops: secondaryRight
-                          ? [{ type: TabStopType.RIGHT, position: farRight }]
-                          : undefined,
+                        tabStops: secondaryRight ? rightTabs : undefined,
                         children: [
                           ...(subtitle
                             ? [
                                 new TextRun({
                                   text: subtitle,
                                   color:
+                                    !work?.employerFirst &&
                                     colors.organizations &&
                                     (id === "experience" || id === "education")
                                       ? supportingInk
@@ -485,7 +536,11 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                             ? [
                                 new TextRun({
                                   text:
-                                    (subtitle ? separator : "") + secondaryLeft,
+                                    (subtitle
+                                      ? work?.employerSeparator === "dash"
+                                        ? " — "
+                                        : inlineSeparator
+                                      : "") + secondaryLeft,
                                   ...typography(metadataRole),
                                 }),
                               ]
@@ -495,6 +550,28 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                                 new TextRun({
                                   children: [new Tab(), secondaryRight],
                                   ...typography(metadataRole),
+                                }),
+                              ]
+                            : []),
+                        ],
+                      }),
+                    ]
+                  : []),
+                ...(below.left || below.right
+                  ? [
+                      new Paragraph({
+                        keepNext: true,
+                        tabStops: below.right ? rightTabs : undefined,
+                        children: [
+                          new TextRun({
+                            text: below.left,
+                            ...typography("minor"),
+                          }),
+                          ...(below.right
+                            ? [
+                                new TextRun({
+                                  children: [new Tab(), below.right],
+                                  ...typography("minor"),
                                 }),
                               ]
                             : []),
@@ -526,6 +603,70 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                 ...(id === "experience"
                   ? projectTable(workProjectEntries(entry.workProjects))
                   : []),
+              ];
+              if (!rail.length && !rightLogo) return entryParagraphs;
+              const railCell = new TableCell({
+                width: { size: railWidth, type: WidthType.DXA },
+                borders: {
+                  right: { style: BorderStyle.SINGLE, color: accent, size: 4 },
+                },
+                children: rail.map(
+                  (field) =>
+                    new Paragraph({
+                      alignment: align[field.alignment],
+                      children: [
+                        new TextRun({
+                          text: field.text,
+                          ...typography("minor"),
+                          ...(field.kind === "date" ? { bold: true } : {}),
+                        }),
+                      ],
+                    }),
+                ),
+              });
+              return [
+                new Table({
+                  width: { size: farRight, type: WidthType.DXA },
+                  borders: {
+                    top: { style: BorderStyle.NONE },
+                    bottom: { style: BorderStyle.NONE },
+                    left: { style: BorderStyle.NONE },
+                    right: { style: BorderStyle.NONE },
+                    insideHorizontal: { style: BorderStyle.NONE },
+                    insideVertical: { style: BorderStyle.NONE },
+                  },
+                  rows: [
+                    new TableRow({
+                      children: [
+                        ...(rail.length ? [railCell] : []),
+                        new TableCell({
+                          width: {
+                            size:
+                              farRight -
+                              (rail.length ? railWidth : 0) -
+                              (rightLogo ? logoWidth : 0),
+                            type: WidthType.DXA,
+                          },
+                          margins: { left: rail.length ? 160 : 0, right: 0 },
+                          children: entryParagraphs,
+                        }),
+                        ...(rightLogo
+                          ? [
+                              new TableCell({
+                                width: { size: logoWidth, type: WidthType.DXA },
+                                children: [
+                                  new Paragraph({
+                                    alignment: AlignmentType.RIGHT,
+                                    children: [image(rightLogo, 20)],
+                                  }),
+                                ],
+                              }),
+                            ]
+                          : []),
+                      ],
+                    }),
+                  ],
+                }),
               ];
             });
     const summaryTitle = essential && id === "summary" ? title.trim() : "";

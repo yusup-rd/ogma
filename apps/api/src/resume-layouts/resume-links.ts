@@ -24,6 +24,7 @@ function webHref(text: string) {
   if (
     !url ||
     !["http:", "https:"].includes(url.protocol) ||
+    (!url.hostname.includes(".") && !url.hostname.startsWith("[")) ||
     url.username ||
     url.password
   )

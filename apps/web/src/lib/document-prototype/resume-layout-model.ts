@@ -59,6 +59,10 @@ const section = z.enum([
   "publications",
 ]);
 const side = z.enum(["left", "right"]);
+const workPosition = z.object({
+  placement: z.enum(["first", "second", "below", "rail"]),
+  alignment: side,
+});
 const weight = z.literal([200, 300, 400, 600, 700]);
 const textRoles = z.enum([
   "body",
@@ -77,6 +81,18 @@ const spacingRoles = z.enum([
 ]);
 const color = z.string().regex(/^#[a-f\d]{6}$/i);
 const designDefaults = z.object({
+  workExperience: z
+    .object({
+      order: z.enum(["position-first", "employer-first"]),
+      dateFormat: z.enum(["numeric", "year", "short", "long"]),
+      dateSeparator: z.enum(["dash", "hyphen"]),
+      date: workPosition,
+      location: workPosition,
+      employmentType: workPosition,
+      icons: z.boolean(),
+      employerSeparator: z.enum(["space", "dash"]),
+    })
+    .optional(),
   dateFormat: z.enum(["numeric", "year", "short", "long"]),
   dateSeparator: z.enum(["dash", "hyphen"]),
   headerAlignment: z.enum(["left", "center", "right"]),

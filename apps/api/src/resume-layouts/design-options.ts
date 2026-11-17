@@ -5,6 +5,7 @@ import type {
   ProficiencyIndicator,
 } from "../../../../packages/contracts/resume-content";
 import type { ResumeLayout } from "./layout-catalog";
+import { experienceDesigns } from "./work-experience-design";
 
 export function resolveProficiency(
   style: DesignOptions,
@@ -297,6 +298,7 @@ export function designDefaults(layout: ResumeLayout): DesignDefaults {
   return {
     dateFormat: "short",
     dateSeparator: "dash",
+    workExperience: experienceDesigns[layout.id],
     headerAlignment: layout.header === "center" ? "center" : "left",
     dateAlignment: alignment,
     locationAlignment: alignment,
