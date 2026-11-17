@@ -2,6 +2,7 @@ import {
   entryMetadata,
   splitEssentialMetadata,
   workEntryHeading,
+  workMetadataSeparator,
 } from "./entry-metadata";
 import {
   AlignmentType,
@@ -366,16 +367,25 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                   ? splitEssentialMetadata(metadata, id === "education")
                   : undefined;
               const inlineSeparator = work ? "   " : separator;
-              const headingMetadata = (fields: typeof metadata.left) => ({
-                left: fields
-                  .filter((field) => field.alignment === "left")
-                  .map((field) => field.text)
-                  .join(inlineSeparator),
-                right: fields
-                  .filter((field) => field.alignment === "right")
-                  .map((field) => field.text)
-                  .join(inlineSeparator),
-              });
+              const headingMetadata = (fields: typeof metadata.left) => {
+                const textOnSide = (side: "left" | "right") =>
+                  fields
+                    .filter((field) => field.alignment === side)
+                    .map((field, index, matching) => {
+                      const marker = workMetadataSeparator(
+                        matching[index - 1],
+                        field,
+                      );
+                      const prefix = marker
+                        ? ` ${marker}\u00a0`
+                        : index
+                          ? inlineSeparator
+                          : "";
+                      return prefix + field.text;
+                    })
+                    .join("");
+                return { left: textOnSide("left"), right: textOnSide("right") };
+              };
               const fieldText = (fields: typeof metadata.left) =>
                 fields.map((field) => field.text).join(separator);
               const first = work

@@ -2,6 +2,7 @@ import {
   entryMetadata,
   splitEssentialMetadata,
   workEntryHeading,
+  workMetadataSeparator,
 } from "./entry-metadata";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -213,14 +214,24 @@ function renderEntry(
     essential,
   );
   const divider = `<span class="entry-separator" aria-hidden="true">${essential ? "•" : "|"}</span>`;
-  const names = (fields: typeof metadata.left, separator = "") =>
+  const names = (
+    fields: typeof metadata.left,
+    separator = "",
+    inline = false,
+  ) =>
     fields
-      .map(({ kind, text, alignment }) => {
+      .map((field, index) => {
+        const { kind, text, alignment } = field;
         const icon =
           work?.showIcons && (kind === "date" || kind === "location")
             ? workMetadataSvg(kind)
             : "";
-        return `<span class="entry-${kind} metadata-${alignment}">${icon}${escapeText(text)}</span>`;
+        const marker =
+          work && inline ? workMetadataSeparator(fields[index - 1], field) : "";
+        const prefix = marker
+          ? `<span class="entry-separator" aria-hidden="true">${marker}</span>&nbsp;`
+          : "";
+        return `<span class="entry-${kind} metadata-${alignment}">${prefix}${icon}${escapeText(text)}</span>`;
       })
       .join(separator);
   const railFields = work?.lines.rail ?? metadata.rail;
@@ -248,7 +259,7 @@ function renderEntry(
     prefix = join,
   ) => {
     if (!primary && !left.length && !right.length) return "";
-    return `<div class="job-heading"><div class="entry-title-line">${primary}${left.length ? `<span class="dates entry-left-metadata">${primary ? prefix : ""}${names(left, join)}</span>` : ""}</div>${right.length ? `<div class="dates entry-right-metadata">${names(right, join)}</div>` : ""}</div>`;
+    return `<div class="job-heading"><div class="entry-title-line">${primary}${left.length ? `<span class="dates entry-left-metadata">${primary ? prefix : ""}${names(left, join, true)}</span>` : ""}</div>${right.length ? `<div class="dates entry-right-metadata">${names(right, join, true)}</div>` : ""}</div>`;
   };
   let lines = headingLine(headingTitle) + subtitle;
   if (work) {

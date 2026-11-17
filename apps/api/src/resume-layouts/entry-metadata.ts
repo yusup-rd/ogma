@@ -14,6 +14,15 @@ interface MetadataField {
   newLine?: boolean;
 }
 
+export function workMetadataSeparator(
+  previous: MetadataField | undefined,
+  current: MetadataField,
+) {
+  return previous?.kind === "location" && current.kind === "employment-type"
+    ? "•"
+    : "";
+}
+
 export function workEntryHeading(
   entry: ResumeEntry,
   style: DesignOptions,
