@@ -5,12 +5,20 @@ const marginSize = z.number().min(5).max(45);
 const textSize = z.number().min(5).max(60);
 const pointGap = z.number().min(0).max(60);
 const textWeight = z.literal([200, 300, 400, 600, 700]);
+const workMetadataPlacement = z.enum([
+  "first",
+  "second",
+  "below",
+  "rail",
+  "own-line",
+]);
 const resumeFontSchema = z.enum([
   "sans",
   "humanist",
   "serif",
   "editorial",
   "inter",
+  "poppins",
 ]);
 
 const resumeStyleSchema = z.object({
@@ -24,6 +32,7 @@ const resumeStyleSchema = z.object({
   paperSize: z.enum(["a4", "letter"]).optional(),
   listLineHeight: z.number().min(0.9).max(2.5).optional(),
   dateFormat: z.enum(["numeric", "year", "short", "long"]).optional(),
+  dateSeparator: z.enum(["dash", "hyphen"]).optional(),
   headerAlignment: z.enum(["left", "center", "right"]).optional(),
   dateAlignment: z.enum(["left", "right"]).optional(),
   locationAlignment: z.enum(["left", "right"]).optional(),
@@ -31,6 +40,13 @@ const resumeStyleSchema = z.object({
   dateNewLine: z.boolean().optional(),
   locationNewLine: z.boolean().optional(),
   employmentTypeNewLine: z.boolean().optional(),
+  workHeadingOrder: z.enum(["position-first", "employer-first"]).optional(),
+  workDateFormat: z.enum(["numeric", "year", "short", "long"]).optional(),
+  workDateSeparator: z.enum(["dash", "hyphen"]).optional(),
+  workDatePlacement: workMetadataPlacement.optional(),
+  workLocationPlacement: workMetadataPlacement.optional(),
+  workEmploymentTypePlacement: workMetadataPlacement.optional(),
+  showWorkMetadataIcons: z.boolean().optional(),
   skillsLayout: z
     .enum(["inline", "list", "bullet", "columns", "lined"])
     .optional(),
@@ -109,7 +125,7 @@ const resumeDocumentSchema = z.object({
   content: draftContentSchema,
   settings: z
     .record(z.string().min(1).max(100), resumeStyleSchema)
-    .refine((settings) => Object.keys(settings).length <= 23),
+    .refine((settings) => Object.keys(settings).length <= 24),
   hidden: z.array(z.string().min(1).max(500)).max(20_000),
   photo: picture.optional(),
 });

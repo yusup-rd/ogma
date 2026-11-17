@@ -1,8 +1,14 @@
-import { entryMetadata } from "./entry-metadata";
+import {
+  entryMetadata,
+  splitEssentialMetadata,
+  workEntryHeading,
+  workMetadataSeparator,
+} from "./entry-metadata";
 import {
   AlignmentType,
   BorderStyle,
   Document,
+  ExternalHyperlink,
   HeadingLevel,
   ImageRun,
   LevelFormat,
@@ -40,10 +46,11 @@ import {
   resumeEntries,
   resumeHeader,
   resumeSkills,
-  sectionNames,
+  sectionName,
   workProjectEntries,
   type ResumeEntry,
 } from "./resume-content";
+import { contactHref } from "./resume-links";
 
 // cspell:ignore IHDR
 function image(dataUri: string, size: number) {
@@ -80,13 +87,14 @@ function runs(paragraph: RichParagraph) {
 
 export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
   const { content, style } = draft;
-  const { name, title, pronouns, details } = resumeHeader(content);
+  const { name, title, pronouns, details } = resumeHeader(content, layout);
+  const essential = layout.id === "essential";
   const ivyLeague = layout.heading === "center-rule";
   const colors = resumeColors(layout, style.accent);
   const accent = colors.accent.slice(1);
   const supportingInk = colors.supportingInk.slice(1);
   const paper = paperDimensions(style);
-  const margins = pageMargins(style);
+  const margins = pageMargins(style, layout);
   const mmTwips = (mm: number) => Math.round((mm * 1440) / 25.4);
   const pointTwips = (points: number | undefined) =>
     points === undefined ? undefined : Math.round(points * 20);
@@ -100,26 +108,26 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
       style.headerAlignment ?? (layout.header === "center" ? "center" : "left")
     ];
   const defaults = designDefaults(layout);
-  function typography(role: TextRole) {
-    const weight = style.weights?.[role] ?? defaults.weights[role];
+  function typography(sizeRole: TextRole, weightRole = sizeRole) {
+    const weight = style.weights?.[weightRole] ?? defaults.weights[weightRole];
     const size =
-      role === "body"
+      sizeRole === "body"
         ? style.bodySize
-        : (style.sizes?.[role] ?? defaults.sizes[role]);
-    const interWeight =
-      style.font === "inter"
+        : (style.sizes?.[sizeRole] ?? defaults.sizes[sizeRole]);
+    const namedWeight =
+      style.font === "inter" || style.font === "poppins"
         ? (
             {
-              200: "Inter ExtraLight",
-              300: "Inter Light",
-              600: "Inter SemiBold",
+              200: "ExtraLight",
+              300: "Light",
             } as Record<number, string>
           )[weight]
         : undefined;
     return {
       size: Math.round(size * 2),
-      bold: !interWeight && weight >= 600,
-      font: interWeight ?? fontChoices[style.font].word,
+      bold: weight >= 600,
+      font:
+        fontChoices[style.font].word + (namedWeight ? ` ${namedWeight}` : ""),
     };
   }
   const { main, side } = resumeColumns(layout, draft.sectionOrder);
@@ -127,6 +135,15 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
 
   const skillMode = style.skillsLayout ?? defaults.skillsLayout;
   const dateFormat = style.dateFormat ?? defaults.dateFormat;
+  const dateSeparator = style.dateSeparator ?? defaults.dateSeparator;
+  const separator = essential ? " • " : " | ";
+  const metadataStyle = {
+    ...style,
+    dateAlignment: style.dateAlignment ?? defaults.dateAlignment,
+    locationAlignment: style.locationAlignment ?? defaults.locationAlignment,
+    employmentTypeAlignment:
+      style.employmentTypeAlignment ?? defaults.employmentTypeAlignment,
+  };
   const proficiency = resolveProficiency(style, defaults.proficiencyIndicator);
   const farRight = mmTwips(paper.width - margins.left - margins.right);
   const categoryListRef = "skill-category-list";
@@ -300,14 +317,25 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
             .filter((line) => line.trim())
             .map((text) => new Paragraph(text))
         : id === "projects" && (style.projectTable ?? defaults.projectTable)
-          ? projectTable(resumeEntries(content, id, dateFormat))
+          ? projectTable(
+              resumeEntries(content, id, dateFormat, false, dateSeparator),
+            )
           : (id === "skills"
               ? resumeSkills(content, style.groupSkills ?? defaults.groupSkills)
               : resumeEntries(
                   content,
                   id,
-                  dateFormat,
+                  id === "experience" && defaults.workExperience
+                    ? (style.workDateFormat ??
+                        style.dateFormat ??
+                        defaults.workExperience.dateFormat)
+                    : dateFormat,
                   style.workProjectTables ?? defaults.workProjectTables,
+                  id === "experience" && defaults.workExperience
+                    ? (style.workDateSeparator ??
+                        style.dateSeparator ??
+                        defaults.workExperience.dateSeparator)
+                    : dateSeparator,
                 )
             ).flatMap((entry, index) => {
               const logo = entry.logo ?? (index === 0 ? draft.logo : undefined);
@@ -319,21 +347,103 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                 ) ?? [];
               const inlineSkills =
                 id === "skills" && skillMode !== "columns" && skills.length > 0;
-              const { left, right, rail, rows } = entryMetadata(
+              const work =
+                id === "experience" && defaults.workExperience
+                  ? workEntryHeading(
+                      entry,
+                      style,
+                      defaults.workExperience,
+                      layout.timeline,
+                    )
+                  : undefined;
+              const metadata = entryMetadata(
                 entry,
-                style,
+                metadataStyle,
                 id === "experience" && layout.timeline,
+                essential,
               );
-              const leftText = [...left, ...rail]
-                .map((field) => field.text)
-                .join(" | ");
-              const rightText = right.map((field) => field.text).join(" | ");
-              const title = entry.title.trim();
+              const split =
+                essential && (id === "experience" || id === "education")
+                  ? splitEssentialMetadata(metadata, id === "education")
+                  : undefined;
+              const inlineSeparator = work ? "   " : separator;
+              const headingMetadata = (fields: typeof metadata.left) => {
+                const textOnSide = (side: "left" | "right") =>
+                  fields
+                    .filter((field) => field.alignment === side)
+                    .map((field, index, matching) => {
+                      const marker = workMetadataSeparator(
+                        matching[index - 1],
+                        field,
+                      );
+                      const prefix = marker
+                        ? ` ${marker}\u00a0`
+                        : index
+                          ? inlineSeparator
+                          : "";
+                      return prefix + field.text;
+                    })
+                    .join("");
+                return { left: textOnSide("left"), right: textOnSide("right") };
+              };
+              const fieldText = (fields: typeof metadata.left) =>
+                fields.map((field) => field.text).join(separator);
+              const first = work
+                ? headingMetadata(work.lines.first)
+                : {
+                    left: fieldText([
+                      ...(split?.left ?? metadata.left),
+                      ...metadata.rail,
+                    ]),
+                    right: fieldText(split?.right ?? metadata.right),
+                  };
+              const second = work
+                ? headingMetadata(work.lines.second)
+                : {
+                    left: fieldText(split?.secondaryLeft ?? []),
+                    right: fieldText(split?.secondaryRight ?? []),
+                  };
+              const { left: leftText, right: rightText } = first;
+              const { left: secondaryLeft, right: secondaryRight } = second;
+              const organizationFirst =
+                work?.employerFirst ??
+                (essential && id === "experience" && Boolean(entry.subtitle));
+              const title = (
+                organizationFirst ? entry.subtitle! : entry.title
+              ).trim();
+              const subtitle = organizationFirst ? entry.title : entry.subtitle;
+              const rows = work?.rows ?? metadata.rows;
+              const below = headingMetadata(work?.lines.below ?? []);
+              const rail = work?.lines.rail ?? [];
+              const railWidth = Math.round(farRight * 0.17);
+              const rightLogo = work && layout.logos === "right" && logo;
+              const logoWidth = rightLogo ? 360 : 0;
+              const entryWidth =
+                farRight - (rail.length ? railWidth + 160 : 0) - logoWidth;
+              const rightTabs = [
+                { type: TabStopType.RIGHT, position: entryWidth },
+              ];
+              const subtitleUsesBody = essential && id !== "experience";
+              const subtitleTypography = typography(
+                subtitleUsesBody && style.sizes?.secondary === undefined
+                  ? "body"
+                  : "secondary",
+                subtitleUsesBody && style.weights?.secondary === undefined
+                  ? "body"
+                  : "secondary",
+              );
+              const metadataRole =
+                essential && id === "experience" ? "primary" : "minor";
               const paragraphSpace = {
                 before:
-                  index > 0 ? pointTwips(style.spacing?.blocks) : undefined,
+                  index > 0
+                    ? pointTwips(
+                        style.spacing?.blocks ??
+                          (essential ? defaults.spacing.blocks : undefined),
+                      )
+                    : undefined,
               };
-              return [
+              const entryParagraphs = [
                 ...(title || inlineSkills || leftText || rightText
                   ? [
                       new Paragraph({
@@ -347,20 +457,22 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                             : undefined,
                         },
                         keepNext: Boolean(
-                          entry.subtitle ||
+                          subtitle ||
+                          secondaryLeft ||
+                          secondaryRight ||
+                          below.left ||
+                          below.right ||
                           rows.length ||
                           entry.description?.content?.length,
                         ),
-                        tabStops: rightText
-                          ? [{ type: TabStopType.RIGHT, position: farRight }]
-                          : undefined,
+                        tabStops: rightText ? rightTabs : undefined,
                         numbering:
                           inlineSkills && skillMode === "list"
                             ? { reference: categoryListRef, level: 0 }
                             : undefined,
                         children: [
                           ...(id === "experience" &&
-                          layout.logos !== "none" &&
+                          layout.logos === "left" &&
                           logo
                             ? [image(logo, 20), new TextRun("  ")]
                             : []),
@@ -368,7 +480,12 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                             ? [
                                 new TextRun({
                                   text: title + (inlineSkills ? ": " : ""),
-                                  color: "26303B",
+                                  color: essential
+                                    ? "000000"
+                                    : work?.employerFirst &&
+                                        colors.organizations
+                                      ? supportingInk
+                                      : "26303B",
                                   ...typography("primary"),
                                 }),
                               ]
@@ -386,8 +503,9 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                           ...(leftText
                             ? [
                                 new TextRun({
-                                  text: (title ? " | " : "") + leftText,
-                                  ...typography("minor"),
+                                  text:
+                                    (title ? inlineSeparator : "") + leftText,
+                                  ...typography(metadataRole),
                                 }),
                               ]
                             : []),
@@ -395,7 +513,7 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                             ? [
                                 new TextRun({
                                   children: [new Tab(), rightText],
-                                  ...typography("minor"),
+                                  ...typography(metadataRole),
                                 }),
                               ]
                             : []),
@@ -403,23 +521,72 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                       }),
                     ]
                   : []),
-                ...(entry.subtitle
+                ...(subtitle || secondaryLeft || secondaryRight
                   ? [
                       new Paragraph({
                         spacing: {
                           before: pointTwips(style.spacing?.headings),
                         },
                         keepNext: true,
+                        tabStops: secondaryRight ? rightTabs : undefined,
+                        children: [
+                          ...(subtitle
+                            ? [
+                                new TextRun({
+                                  text: subtitle,
+                                  color:
+                                    !work?.employerFirst &&
+                                    colors.organizations &&
+                                    (id === "experience" || id === "education")
+                                      ? supportingInk
+                                      : undefined,
+                                  ...subtitleTypography,
+                                }),
+                              ]
+                            : []),
+                          ...(secondaryLeft
+                            ? [
+                                new TextRun({
+                                  text:
+                                    (subtitle
+                                      ? work?.employerSeparator === "dash"
+                                        ? " — "
+                                        : inlineSeparator
+                                      : "") + secondaryLeft,
+                                  ...typography(metadataRole),
+                                }),
+                              ]
+                            : []),
+                          ...(secondaryRight
+                            ? [
+                                new TextRun({
+                                  children: [new Tab(), secondaryRight],
+                                  ...typography(metadataRole),
+                                }),
+                              ]
+                            : []),
+                        ],
+                      }),
+                    ]
+                  : []),
+                ...(below.left || below.right
+                  ? [
+                      new Paragraph({
+                        keepNext: true,
+                        tabStops: below.right ? rightTabs : undefined,
                         children: [
                           new TextRun({
-                            text: entry.subtitle,
-                            color:
-                              colors.organizations &&
-                              (id === "experience" || id === "education")
-                                ? supportingInk
-                                : undefined,
-                            ...typography("secondary"),
+                            text: below.left,
+                            ...typography("minor"),
                           }),
+                          ...(below.right
+                            ? [
+                                new TextRun({
+                                  children: [new Tab(), below.right],
+                                  ...typography("minor"),
+                                }),
+                              ]
+                            : []),
                         ],
                       }),
                     ]
@@ -449,8 +616,73 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                   ? projectTable(workProjectEntries(entry.workProjects))
                   : []),
               ];
+              if (!rail.length && !rightLogo) return entryParagraphs;
+              const railCell = new TableCell({
+                width: { size: railWidth, type: WidthType.DXA },
+                borders: {
+                  right: { style: BorderStyle.SINGLE, color: accent, size: 4 },
+                },
+                children: rail.map(
+                  (field) =>
+                    new Paragraph({
+                      alignment: align[field.alignment],
+                      children: [
+                        new TextRun({
+                          text: field.text,
+                          ...typography("minor"),
+                          ...(field.kind === "date" ? { bold: true } : {}),
+                        }),
+                      ],
+                    }),
+                ),
+              });
+              return [
+                new Table({
+                  width: { size: farRight, type: WidthType.DXA },
+                  borders: {
+                    top: { style: BorderStyle.NONE },
+                    bottom: { style: BorderStyle.NONE },
+                    left: { style: BorderStyle.NONE },
+                    right: { style: BorderStyle.NONE },
+                    insideHorizontal: { style: BorderStyle.NONE },
+                    insideVertical: { style: BorderStyle.NONE },
+                  },
+                  rows: [
+                    new TableRow({
+                      children: [
+                        ...(rail.length ? [railCell] : []),
+                        new TableCell({
+                          width: {
+                            size:
+                              farRight -
+                              (rail.length ? railWidth : 0) -
+                              (rightLogo ? logoWidth : 0),
+                            type: WidthType.DXA,
+                          },
+                          margins: { left: rail.length ? 160 : 0, right: 0 },
+                          children: entryParagraphs,
+                        }),
+                        ...(rightLogo
+                          ? [
+                              new TableCell({
+                                width: { size: logoWidth, type: WidthType.DXA },
+                                children: [
+                                  new Paragraph({
+                                    alignment: AlignmentType.RIGHT,
+                                    children: [image(rightLogo, 20)],
+                                  }),
+                                ],
+                              }),
+                            ]
+                          : []),
+                      ],
+                    }),
+                  ],
+                }),
+              ];
             });
-    return body.length
+    const summaryTitle = essential && id === "summary" ? title.trim() : "";
+    return body.length || summaryTitle
       ? [
           new Paragraph({
             heading: HeadingLevel.HEADING_1,
@@ -471,13 +703,26 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                 style.spacing?.sections === undefined
                   ? mmTwips(style.sectionGap)
                   : pointTwips(style.spacing.sections),
-              after: pointTwips(style.spacing?.titleContent),
+              after: pointTwips(
+                style.spacing?.titleContent ??
+                  (essential
+                    ? defaults.spacing.titleContent + (summaryTitle ? 11 : 0)
+                    : undefined),
+              ),
             },
             children: [
               new TextRun({
-                text: sectionNames[id],
-                color: colors.headings ? accent : "24292D",
-                ...typography("section"),
+                text:
+                  summaryTitle ||
+                  (essential
+                    ? sectionName(id, layout).toUpperCase()
+                    : sectionName(id, layout)),
+                color: summaryTitle
+                  ? "000000"
+                  : colors.headings
+                    ? accent
+                    : "24292D",
+                ...typography(summaryTitle ? "primary" : "section"),
               }),
             ],
           }),
@@ -507,7 +752,7 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
             children: [
               new TextRun({
                 text: name,
-                color: "19222A",
+                color: essential ? accent : "19222A",
                 ...typography("name"),
               }),
             ],
@@ -516,7 +761,7 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
       : []),
     ...[
       { text: pronouns, role: "minor" as const },
-      { text: title, role: "secondary" as const },
+      { text: essential ? "" : title, role: "secondary" as const },
     ]
       .filter(({ text }) => text.trim())
       .map(
@@ -554,12 +799,23 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
       ? [
           new Paragraph({
             alignment,
-            children: [
-              new TextRun({
-                text: details.map((detail) => detail.value).join(" · "),
-                ...typography("minor"),
-              }),
-            ],
+            children: details.flatMap(({ kind, value }, index) => {
+              const href = contactHref(kind, value);
+              const text = new TextRun({ text: value, ...typography("minor") });
+              return [
+                ...(index
+                  ? [
+                      new TextRun({
+                        text: essential ? separator : " · ",
+                        ...typography("minor"),
+                      }),
+                    ]
+                  : []),
+                href
+                  ? new ExternalHyperlink({ link: href, children: [text] })
+                  : text,
+              ];
+            }),
           }),
         ]
       : []),

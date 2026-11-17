@@ -6,7 +6,7 @@ import type {
 } from "./resume-content";
 
 export interface WorkspaceStyle extends DesignOptions {
-  font: "sans" | "humanist" | "serif" | "editorial" | "inter";
+  font: "sans" | "humanist" | "serif" | "editorial" | "inter" | "poppins";
   accent: string;
   bodySize: number;
   sectionGap: number;

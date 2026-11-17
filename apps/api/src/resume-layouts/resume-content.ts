@@ -1,5 +1,6 @@
 import type {
   DateFormat,
+  DesignOptions,
   DraftContent,
   EntryIcon,
   RichBlock,
@@ -7,9 +8,9 @@ import type {
   Skill,
   WorkProject,
 } from "../../../../packages/contracts/resume-content";
-import type { SectionId } from "./layout-catalog";
+import type { ResumeLayout, SectionId } from "./layout-catalog";
 
-export const sectionNames: Record<SectionId, string> = {
+const sectionNames: Record<SectionId, string> = {
   summary: "Professional Summary",
   experience: "Work Experience",
   education: "Education",
@@ -21,11 +22,18 @@ export const sectionNames: Record<SectionId, string> = {
   publications: "Publications",
 };
 
+export function sectionName(id: SectionId, layout: ResumeLayout) {
+  return layout.id === "essential" && id === "skills"
+    ? "Skills"
+    : sectionNames[id];
+}
+
 export interface ResumeEntry {
   id: string;
   title: string;
   subtitle?: string;
   metadata?: string[];
+  gpa?: string;
   date?: string;
   location?: string;
   employmentType?: string;
@@ -73,7 +81,7 @@ function hasText(block: RichBlock): boolean {
     : block.content.some((item) => item.content.some(hasText));
 }
 
-export function resumeHeader(content: DraftContent) {
+export function resumeHeader(content: DraftContent, layout: ResumeLayout) {
   const { contact, targetTitle } = content;
   const details = [
     { kind: "email", value: contact.email },
@@ -89,7 +97,10 @@ export function resumeHeader(content: DraftContent) {
       .join(" "),
     title: targetTitle,
     pronouns: contact.pronouns,
-    details: details.filter((detail) => detail.value.trim()),
+    details: (layout.id === "essential"
+      ? [details[2], details[1], details[0], details[3], details[5], details[4]]
+      : details
+    ).filter((detail) => detail.value.trim()),
   };
 }
 
@@ -98,11 +109,12 @@ export function resumeEntries(
   id: Exclude<SectionId, "summary">,
   format?: DateFormat,
   showWorkProjects = false,
+  separator?: DesignOptions["dateSeparator"],
 ): ResumeEntry[] {
   const dateRange = (start: string, end: string, current = false) =>
     [dateLabel(start, format), current ? "Present" : dateLabel(end, format)]
       .filter(Boolean)
-      .join(" \u2013 ");
+      .join(separator === "hyphen" ? " - " : " \u2013 ");
   let entries: ResumeEntry[];
   switch (id) {
     case "experience":
@@ -129,11 +141,8 @@ export function resumeEntries(
         id: education.id,
         title: education.degree,
         subtitle: education.university,
-        metadata: [
-          education.fieldOfStudy,
-
-          education.gpa.trim() ? "GPA " + education.gpa : "",
-        ],
+        metadata: [education.fieldOfStudy],
+        gpa: education.gpa.trim(),
         location: education.location,
         date: dateRange(education.startDate, education.endDate),
         description: education.description,
@@ -206,6 +215,7 @@ export function resumeEntries(
         entry.title.trim() ||
         entry.subtitle?.trim() ||
         entry.metadata?.length ||
+        entry.gpa ||
         entry.location?.trim() ||
         entry.employmentType?.trim() ||
         entry.date ||

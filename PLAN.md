@@ -4,11 +4,17 @@ Ogma is a private, single-owner resume builder. The name comes from Ogma, a figu
 
 ## Core workflow
 
-1. Start with a blank CV, an existing PDF or DOCX, or a duplicate of a saved CV.
+1. Start with a blank CV, import an existing PDF or DOCX, or duplicate a saved CV. When the Library is empty, offer to add reusable content before starting a blank CV.
 2. Build a master library of personal details, experience, education, projects, skills, certifications, languages, links, and reusable bullets. Review imported content before adding it to the library or creating a CV.
 3. Build a CV by ticking the sections, entries, and bullets to include. Rename and reorder sections, add custom sections, and tailor selected content inside that CV. Offer explicit review and sync when selected library content changes. Save named checkpoints and restore one as a new draft revision.
 4. Choose a template and tune the design in a live A4 preview. Save settings independently for each CV so a dense two-page CV can use different typography and spacing from a one-page CV. Template defaults work immediately, with reset available at the field, section, and CV level as applicable.
 5. Run **Resume Check** on demand, fix prioritized findings, then export a selectable-text PDF or editable Word DOCX.
+
+### Starting a resume with an empty Library
+
+- When the user clicks **New resume** and the Library is empty, show a modal before creating a draft. Explain that one saved detail, such as their name, a skill, or a job, can be reused. **Go to Library** is the primary action. **Start blank** creates a draft and opens the editor immediately. Dismissing the modal returns them to the dashboard.
+- Once the user saves their first piece of content through this flow, show a **Continue to new resume** action in the Library so they can resume the task. When the Library already has content, **New resume** opens the editor directly.
+- Apply this check to **New resume**. Opening existing resumes, duplicating them, and importing a PDF or DOCX each follow their own flow. An import can supply the first Library content after the user reviews and saves it.
 
 ## Editor and design
 
@@ -16,6 +22,7 @@ Ogma is a private, single-owner resume builder. The name comes from Ogma, a figu
 - Keep the English interface light only. Use Inter for UI typography, a warm canvas, white paper, dark ink, and a restrained deep purple accent. Keep CV color palettes and fonts independent of the app chrome. Use a tinted or subtly translucent sticky toolbar only where it overlaps scrolling content, with an opaque fallback.
 - Group editing into **Content**, **Design**, and **Resume Check**. Put common controls first, with advanced spacing behind an explicit disclosure. Show saving, saved, and retry states near the CV title. Keep typing, toggles, and numeric changes immediately responsive. Use subtle press feedback and short, interruptible pointer transitions. Keep keyboard navigation immediate and respect reduced motion and transparency preferences.
 - Ship the 23 layouts from the main Enhancv gallery as editable template options, preserving their column structure, header placement, section order, and photo or logo slots. Use the same resume content across templates and restore the style settings previously saved for each template. [Enhancv reference gallery](https://enhancv.com/resume-templates/)
+- Include a 24th template, **Essential**, based on the supplied CV. Use a single column, Poppins, compact entries, and numeric dates with a hyphen separator. Make contact and document links interactive in the live preview.
 - Include palette presets and custom accent colors, curated fonts, body and heading sizes, weight, line height, letter spacing, four-sided page margins, header padding, section and item gaps, bullet spacing, and photo size and crop on supported templates. Offer per-section typography and spacing overrides plus a break-before control for sections. Use automatic pagination with visible page boundaries and intentional splitting of long content.
 - Preserve Unicode input and editable section titles, including Russian examples such as `Проекты`. Ship English copy and English text heuristics. Test Cyrillic rendering and extraction in both exports.
 
@@ -32,8 +39,8 @@ Teal documents separate resume-analysis and job-match scores. A real ATS parser 
 ## Implementation milestones
 
 1. **Foundation and document prototype.** Set up the workspace, private owner access, PostgreSQL migrations, and a thin end-to-end document slice. Prove A4 pagination, selectable text, photo rendering, and Cyrillic fixtures in PDF and DOCX. Test a long entry crossing pages before building the full designer.
-2. **Library and versioned CMS.** Build dashboard, library CRUD, CV editing, selections, reordering, autosave, duplication, explicit library sync, and checkpoint restore. Verify that two CVs can use the same library entry with different wording and selections.
-3. **Design and preview.** Ship the 23 layouts, photo controls, design presets and overrides, automatic pagination, and section page breaks. Verify changes in the desktop split pane and mobile preview.
+2. **Library and versioned CMS.** Build dashboard, library CRUD, the empty-Library prompt for **New resume**, CV editing, selections, reordering, autosave, duplication, explicit library sync, and checkpoint restore. Verify that two CVs can use the same library entry with different wording and selections.
+3. **Design and preview.** Ship the 24 layouts, photo controls, design presets and overrides, automatic pagination, and section page breaks. Verify changes in the desktop split pane and mobile preview.
 4. **Import, export, and Resume Check.** Ship PDF and DOCX import review, PDF and DOCX downloads, format-aware diagnostics, and optional AI rewrites. Validate round-trip text and reading order on representative fixtures and rehearse a backup restore before deploying the private builder.
 5. **Simple job tools.** Add manual job records, optional Job Match and CV tailoring, tailored cover letter drafts, and a sent-checkpoint link. Verify that the letter uses the selected CV and job description and that later edits preserve the historical application record.
 

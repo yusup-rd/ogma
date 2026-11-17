@@ -15,7 +15,7 @@ Use Node.js 24.15 or later on the 24.x line, Corepack, and Docker Compose. Run t
 
 Run `corepack yarn build`, `corepack yarn lint`, `corepack yarn typecheck`, and `corepack yarn format:check` before integrating changes.
 
-The API health route is a process check. `/api/health/ready` checks PostgreSQL and the resume, authentication, and checkpoint tables. After signing in, use the Resumes dashboard to create, search, duplicate, or archive drafts. Ogma autosaves edits to PostgreSQL and checks the draft revision before saving, restoring a checkpoint, or exporting. Switch to Design to choose one of 23 layouts and tune its style. PDF export uses Playwright Chromium by default. For local development, you can set `CHROMIUM_CHANNEL=msedge` in `apps/api/.env.local` to use an installed Microsoft Edge browser.
+The API health route is a process check. `/api/health/ready` checks PostgreSQL and the resume, authentication, and checkpoint tables. After signing in, use the Resumes dashboard to create, search, duplicate, or archive drafts. Ogma autosaves edits to PostgreSQL and checks the draft revision before saving, restoring a checkpoint, or exporting. Switch to Design to choose one of 24 layouts and tune its style. PDF export uses Playwright Chromium by default. For local development, you can set `CHROMIUM_CHANNEL=msedge` in `apps/api/.env.local` to use an installed Microsoft Edge browser.
 
 ## Owner sign-in
 

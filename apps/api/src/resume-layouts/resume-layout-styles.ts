@@ -53,6 +53,12 @@ header { display:grid; gap:.42em; margin-bottom:var(--gap); }
 .contact-icon { flex:none; color:var(--icon-ink); }
 .contact-icon svg,.entry-icon svg,.section-icon svg { display:block; width:1em; height:1em; }
 .contact > span { align-items:center; }
+a { color:inherit; text-decoration:none; }
+@media screen {
+  a { cursor:pointer; }
+  a:is(:hover,:focus-visible) { text-decoration:underline; }
+  a:focus-visible { outline:1px solid currentColor; outline-offset:2px; }
+}
 .columns { display:block }
 .two-columns .columns {
   display:grid; align-items:start; column-gap:var(--column-gap);
@@ -89,7 +95,8 @@ header { display:grid; gap:.42em; margin-bottom:var(--gap); }
 .awards .section-copy > .entry { margin:0 }
 .skill-list { list-style:none; padding:0; display:flex; flex-wrap:wrap; gap:.3em .66em; }
 .portrait { display:block; width:var(--portrait-size, 11.5cqw); aspect-ratio:1; border-radius:50%; object-fit:cover; }
-.portrait-placeholder { background:radial-gradient(circle at 50% 36%, #977865 0 16%, transparent 17%), radial-gradient(ellipse at 50% 91%, #997966 0 34%, transparent 35%), #e7d9cd; }
+.portrait-placeholder { display:grid; place-items:center; background:#e6e6e6; color:#686868; }
+.portrait-placeholder svg { width:52%; height:auto; }
 .photo-right header { grid-template-columns:minmax(0,1fr) auto; align-items:start; column-gap:2em }
 .photo-right header .portrait { grid-area:1 / 2 / span 2 / 3; justify-self:end; }
 .photo-top header .portrait { justify-self:center; --portrait-size:10.5cqw; margin-bottom:.3em; }
@@ -109,7 +116,8 @@ header { display:grid; gap:.42em; margin-bottom:var(--gap); }
 .timeline.logos-none .job { grid-template-columns:minmax(0,14%) minmax(0,1fr); }
 .timeline .job + .job { margin-top:var(--job-gap); }
 .timeline .job > .dates { grid-column:1; grid-row:1; flex-direction:column; gap:.35em; }
-.timeline .job > .dates > span:first-child { font-weight:700; color:var(--title-color); }
+.timeline .job > .dates > .entry-date { font-weight:700; color:var(--title-color); }
+.timeline .job > .dates > .metadata-right { align-self:flex-end; text-align:right; }
 .timeline .job-copy { position:relative; grid-column:2; grid-row:1; align-self:stretch; padding-left:1em; }
 .timeline .job-copy::before,.timeline .job:not(:last-child) .job-copy::after {
   content:""; position:absolute; inset-inline-start:0; top:var(--marker-offset);
@@ -282,6 +290,14 @@ header { display:grid; gap:.42em; margin-bottom:var(--gap); }
 .entry-separator {color:color-mix(in srgb,var(--meta) 70%,var(--paper)); flex:none;}
 .resume-page .entry-metadata-row{display:block; text-align:left;}
 .resume-page .entry-metadata-row.metadata-right{text-align:right;}
+.work-experience .dates :is(.entry-date,.entry-location) > svg {
+  inline-size:1em;
+  block-size:1em;
+  margin-inline-end:.28em;
+  vertical-align:-.12em;
+}
+.work-experience .entry-timeline-metadata { margin-block-start:.08em; }
+.accent-organizations .job .work-position { color:var(--title-color); }
 .skill-category-line {--list-marker:"\u2022";}
 .heading-spaced.head-center .skill-category-line {--list-marker:"\u2014";}
 .resume-page .skills .skill-category-list {position:relative; padding-inline-start:1.8em;}
@@ -324,10 +340,48 @@ header { display:grid; gap:.42em; margin-bottom:var(--gap); }
 .project-table th:first-child { width:32%; }
 .project-table tbody tr { break-inside:avoid; }
 .project-context { display:block; margin-top:.2em; color:var(--meta); font-size:.85em; }
+
+.template-essential {
+  --name-case:none; --name-color:var(--ink-accent); --heading-color:var(--ink-accent);
+  --title-color:#000; --meta:#000;
+  color:#000;
+}
+.template-essential h1 { line-height:1.2; letter-spacing:0; }
+.template-essential header { gap:calc(3 * var(--reference-point)); }
+.template-essential .contact-inline { display:block; line-height:1.27; }
+.template-essential .contact-inline > span { display:inline; }
+.template-essential .section h2 { line-height:1.22; }
+.resume-page.template-essential .section h2.summary-title {
+  text-transform:none; color:var(--title-color);
+  padding-bottom:calc(11 * var(--reference-point));
+  font-size:var(--essential-summary-size) !important;
+  font-weight:var(--essential-summary-weight) !important;
+}
+.template-essential .job-heading { column-gap:.65em; }
+.template-essential .job-heading > .entry-title-line { flex:1 1 0; gap:0 .25em; }
+.template-essential :is(.entry-title-line,.entry-right-metadata) { line-height:1.3; }
+.template-essential .section .job .dates { font-weight:var(--essential-summary-weight) !important; }
+.template-essential .job-heading .dates { gap:0 .2em; }
+.template-essential :is(h3,.employer) { color:var(--title-color); line-height:1.3; }
+.template-essential .employer,.template-essential .essential-entry-subtitle { margin:0; }
+.template-essential .rich-text { margin-top:var(--reference-point); }
+.template-essential .experience .rich-text { margin-top:calc(2.5 * var(--reference-point)); }
+.template-essential .experience .rich-text p + :is(ul,ol) { margin-top:calc(1.5 * var(--reference-point)); }
+.resume-page.template-essential .job + .job { margin-top:var(--essential-work-gap) !important; }
+.template-essential .education .rich-text { margin-top:calc(7 * var(--reference-point)); }
+.template-essential .projects .essential-entry-subtitle { margin-top:var(--essential-project-subtitle-gap); }
+.template-essential .projects .rich-text { margin-top:calc(3.25 * var(--reference-point)); }
+.template-essential .projects .rich-text p { margin-top:0; }
+.resume-page.template-essential .projects .rich-text > p + p { margin-top:var(--essential-project-paragraph-gap) !important; }
+.template-essential .rich-text ul { padding-inline-start:calc(6 * var(--reference-point)); }
+.template-essential .rich-text ul > li { padding-inline-start:calc(9.65 * var(--reference-point)); }
+.template-essential .rich-text strong { font-weight:700; }
+.template-essential .skill-category-label { font-weight:600; }
+.template-essential .skills .entry + .entry { margin-top:var(--essential-skill-gap) !important; }
 .project-context:empty { display:none; }
 .project-table td p+p { margin-top:.35em; }
 
-.accent-role .role,.accent-organizations :is(.employer,.education .entry-subtitle) { color:var(--voice); }
+.accent-role .role,.accent-organizations :is(.employer:not(.work-position),.work-organization,.education .entry-subtitle) { color:var(--voice); }
 .accent-section-headings { --heading-color:var(--ink-accent); }
 .head-badge.accent-role .role { color:#25313a; }
 .custom-accent:is(.head-banner,.rail-left,.rail-right) { --side:color-mix(in srgb,var(--ink-accent) 65%,#19212b); }
