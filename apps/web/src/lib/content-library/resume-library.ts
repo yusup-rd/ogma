@@ -1,4 +1,11 @@
-import { bulletKey, entryKey } from "@ogma/contracts/resolve-resume";
+import { mergeProjectOrder } from "./merge-project-order";
+import {
+  bulletKey,
+  entryKey,
+  projectBulletKey,
+  sectionKey,
+  visibleBulletIds,
+} from "@ogma/contracts/resolve-resume";
 import {
   librarySections,
   singletonLibraryKinds,
@@ -479,7 +486,11 @@ function labelForField(kind: LibraryValue["kind"], key: string) {
   return librarySections[kind].fields[key] ?? special[key] ?? key;
 }
 
-function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
+function prepareSync(
+  document: ResumeDocument,
+  incoming: LibraryEntry,
+  projectScope?: { entryId: string; projectId: string },
+) {
   const source = librarySources(document).find(
     ({ libraryId }) => libraryId === incoming.id,
   );
@@ -493,6 +504,10 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
   const latest = libraryValue(source.entryId, incoming.content);
   const current = readValue(document, base);
   if (!current) return;
+  const keyForBullet = (id: string) =>
+    projectScope
+      ? projectBulletKey(projectScope.entryId, projectScope.projectId, id)
+      : bulletKey(source.entryId, id);
   const changes: Change[] = [];
   const actions: ((
     patch: Record<string, unknown>,
@@ -602,16 +617,22 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
       ids.filter(
         (id) => previous.has(id) && updates.has(id) && existing.has(id),
       );
+    const mergedOrder = mergeProjectOrder(
+      shared(oldOrder),
+      shared(localOrder),
+      shared(nextOrder),
+    );
+    const desiredOrder = mergedOrder ?? shared(nextOrder);
     const orderChanged =
       !equal(shared(oldOrder), shared(nextOrder)) &&
-      !equal(shared(localOrder), shared(nextOrder));
+      !equal(shared(localOrder), desiredOrder);
     if (orderChanged)
       review(
         "project-order",
         "Work project order",
         [...existing.values()].map(({ name }) => name).join("\n"),
-        [...updates.values()].map(({ name }) => name).join("\n"),
-        !equal(shared(oldOrder), shared(localOrder)),
+        desiredOrder.map((id) => updates.get(id)!.name).join("\n"),
+        !mergedOrder,
       );
     for (const id of new Set([...previous.keys(), ...updates.keys()])) {
       const before = previous.get(id),
@@ -637,10 +658,14 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
           librarySources: [{ ...source, entryId: scope, content: oldContent }],
         };
         delete nestedDocument.experienceSources;
-        const plan = prepareSync(nestedDocument, {
-          ...incoming,
-          content: content(incomingProject),
-        });
+        const plan = prepareSync(
+          nestedDocument,
+          {
+            ...incoming,
+            content: content(incomingProject),
+          },
+          { entryId: source.entryId, projectId: id },
+        );
         if (!plan) continue;
         changes.push(
           ...plan.changes.map((change) => ({
@@ -664,10 +689,20 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
             name: project.name,
             description: project.description,
           });
-          for (const key of [...selected])
-            if (key.startsWith("bullet/" + scope + "/")) selected.delete(key);
-          for (const key of result.hidden)
-            if (key.startsWith("bullet/" + scope + "/")) selected.add(key);
+          const keys = new Set(
+            [before, here, incomingProject].flatMap((project) =>
+              bulletItems(project.description).flatMap((bullet) =>
+                bullet.attrs?.id
+                  ? [projectBulletKey(source.entryId, id, bullet.attrs.id)]
+                  : [],
+              ),
+            ),
+          );
+          const nextHidden = new Set(result.hidden);
+          for (const key of keys) {
+            selected.delete(key);
+            if (nextHidden.has(key)) selected.add(key);
+          }
         });
       } else if (
         !equal(before, incomingProject) &&
@@ -696,14 +731,26 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
             for (const bullet of bulletItems(incomingProject.description))
               if (bullet.attrs?.id)
                 selected.add(
-                  bulletKey(source.entryId + "/project/" + id, bullet.attrs.id),
+                  projectBulletKey(source.entryId, id, bullet.attrs.id),
                 );
           }
         });
       }
     }
     actions.push((patch, _, choices) => {
-      const projects = [...existing.values()];
+      let projects = [...existing.values()];
+      if (orderChanged && choices["project-order"] === "library") {
+        const reordered = new Set(desiredOrder);
+        const ordered = projects
+          .filter(({ id }) => reordered.has(id))
+          .sort(
+            (a, b) => desiredOrder.indexOf(a.id) - desiredOrder.indexOf(b.id),
+          );
+        let cursor = 0;
+        projects = projects.map((project) =>
+          reordered.has(project.id) ? ordered[cursor++] : project,
+        );
+      }
       for (const id of nextOrder.filter(
         (id) => !localOrder.includes(id) && existing.has(id),
       )) {
@@ -713,15 +760,7 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
         const at = projects.findIndex((project) => following.has(project.id));
         projects.splice(at < 0 ? projects.length : at, 0, project);
       }
-      if (orderChanged && choices["project-order"] === "library") {
-        const ordered = projects
-          .filter(({ id }) => updates.has(id))
-          .sort((a, b) => nextOrder.indexOf(a.id) - nextOrder.indexOf(b.id));
-        let cursor = 0;
-        patch.projects = projects.map((project) =>
-          updates.has(project.id) ? ordered[cursor++] : project,
-        );
-      } else patch.projects = projects;
+      patch.projects = projects;
     });
   }
 
@@ -733,6 +772,17 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
     const old = base.value.description;
     const local = current.value.description;
     const next = latest.value.description;
+    const section = projectScope ? "experience" : base.kind;
+    const visible = hidden.has(
+      sectionKey(section === "links" ? "personal" : section),
+    )
+      ? new Set<string>()
+      : visibleBulletIds(
+          local,
+          projectScope?.entryId ?? source.entryId,
+          hidden,
+          projectScope?.projectId,
+        );
     if (!equal(old, next) && !equal(local, next)) {
       const oldBullets = flatBullets(old);
       const nextBullets = flatBullets(next);
@@ -885,10 +935,7 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
             equal(ownParagraphs(local), ownParagraphs(next))
           )
             continue;
-          const removed =
-            !next &&
-            Boolean(local) &&
-            !hidden.has(bulletKey(source.entryId, id));
+          const removed = !next && Boolean(local) && visible.has(id);
           review(
             "bullet:" + id,
             !old ? "New bullet (unchecked)" : "Reusable bullet",
@@ -909,15 +956,14 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
           let content = rewriteBullets(local.content ?? [], chosen);
           const added: RichListItem[] = [];
           for (const [id, next] of chosen) {
-            const key = bulletKey(source.entryId, id);
+            const key = keyForBullet(id);
             if (!next) hidden.delete(key);
             else if (!existing.has(id)) {
               for (const item of bulletItems({
                 type: "doc",
                 content: [{ type: "bulletList", content: [next] }],
               })) {
-                if (item.attrs?.id)
-                  hidden.add(bulletKey(source.entryId, item.attrs.id));
+                if (item.attrs?.id) hidden.add(keyForBullet(item.attrs.id));
               }
               added.push(
                 previous.has(id)
@@ -1011,10 +1057,7 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
         );
         const selectedDescendant = (item: RichListItem) =>
           bulletItems({ type: "doc", content: item.content }).some(
-            (child) =>
-              child.attrs?.id &&
-              oldIds.has(child.attrs.id) &&
-              !hidden.has(bulletKey(source.entryId, child.attrs.id)),
+            (child) => child.attrs?.id && visible.has(child.attrs.id),
           );
         const selectedMove = bulletItems(next).some(
           (item) =>
@@ -1027,7 +1070,7 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
             attrs?.id &&
             oldIds.has(attrs.id) &&
             !nextIds.has(attrs.id) &&
-            !hidden.has(bulletKey(source.entryId, attrs.id)),
+            visible.has(attrs.id),
         );
         review(
           "description",
@@ -1047,7 +1090,7 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
                 bulletItems(next).find((item) => item.attrs?.id === id)!,
               )
             )
-              hidden.add(bulletKey(source.entryId, id));
+              hidden.add(keyForBullet(id));
         });
       }
     }

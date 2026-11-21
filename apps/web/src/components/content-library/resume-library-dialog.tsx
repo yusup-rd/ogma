@@ -4,7 +4,7 @@ import Image from "next/image";
 import { toast } from "sonner";
 
 import * as Dialog from "@radix-ui/react-dialog";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { LuLibrary, LuPlus, LuRefreshCw, LuX } from "react-icons/lu";
 import {
   librarySections,
@@ -58,6 +58,10 @@ const ResumeLibraryDialog = ({
   const [applying, setApplying] = useState<ResumeDocument>();
   const [open, setOpen] = useState(false);
   const [entries, setEntries] = useState<LibraryEntry[]>([]);
+  const activeLibraryIds = useMemo(
+    () => new Set(entries.map(({ id }) => id)),
+    [entries],
+  );
   const [section, setSection] = useState<LibraryKind>("personal");
   const [syncError, setSyncError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -234,6 +238,7 @@ const ResumeLibraryDialog = ({
                               type="button"
                               className={button}
                               onClick={() => {
+                                setSyncError("");
                                 const plan =
                                   reviewLibraryEntry(document, entry) ?? [];
                                 setChoices(
@@ -268,15 +273,16 @@ const ResumeLibraryDialog = ({
                                   !canIncludeLibraryEntry(
                                     document,
                                     entry,
-                                    new Set(entries.map(({ id }) => id)),
+                                    activeLibraryIds,
                                   )
                                 }
                                 aria-label={"Add " + title}
                                 onClick={() => {
+                                  setSyncError("");
                                   const next = includeLibraryEntry(
                                     document,
                                     entry,
-                                    new Set(entries.map(({ id }) => id)),
+                                    activeLibraryIds,
                                   );
                                   if (
                                     next === document ||

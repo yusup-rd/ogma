@@ -1,21 +1,47 @@
-const sectionKey = (id) => "section/" + id;
-const entryKey = (id) => "entry/" + id;
-const bulletKey = (entryId, bulletId) => "bullet/" + entryId + "/" + bulletId;
-const projectBulletKey = (entryId, projectId, bulletId) =>
-  bulletKey(entryId + "/project/" + projectId, bulletId);
+const {
+  sectionKey,
+  entryKey,
+  bulletKey,
+  projectBulletKey,
+  normalizeHiddenKeys,
+} = require("./selection-keys.cjs");
 
-function visibleDescription(value, entryId, hidden) {
+function visibleDescription(value, entryId, hidden, projectId) {
   function filter(block) {
     if (block.type === "paragraph") return [block];
     const content = block.content.flatMap((item) => {
       const id = item.attrs?.id;
-      if (id && hidden.has(bulletKey(entryId, id))) return [];
+      if (
+        id &&
+        hidden.has(
+          projectId === undefined
+            ? bulletKey(entryId, id)
+            : projectBulletKey(entryId, projectId, id),
+        )
+      )
+        return [];
       const [paragraph, ...children] = item.content;
       return [{ ...item, content: [paragraph, ...children.flatMap(filter)] }];
     });
     return content.length ? [{ ...block, content }] : [];
   }
   return { ...value, content: value.content?.flatMap(filter) };
+}
+
+function visibleBulletIds(description, entryId, hidden, projectId) {
+  const ids = new Set();
+  if (hidden.has(entryKey(entryId))) return ids;
+  function visit(blocks) {
+    for (const block of blocks ?? []) {
+      if (block.type === "paragraph") continue;
+      for (const item of block.content) {
+        if (item.attrs?.id) ids.add(item.attrs.id);
+        visit(item.content);
+      }
+    }
+  }
+  visit(visibleDescription(description, entryId, hidden, projectId).content);
+  return ids;
 }
 
 function visibleResume(content, hidden) {
@@ -47,8 +73,9 @@ function visibleResume(content, hidden) {
         ...project,
         description: visibleDescription(
           project.description,
-          entry.id + "/project/" + project.id,
+          entry.id,
           hidden,
+          project.id,
         ),
       })),
     })),
@@ -81,7 +108,7 @@ function defaultStyle(template) {
 }
 
 function resolveResume(document, template) {
-  const hidden = new Set(document.hidden);
+  const hidden = new Set(normalizeHiddenKeys(document));
   const style = document.settings[template.id] ?? defaultStyle(template);
   return {
     layoutId: template.id,
@@ -102,6 +129,8 @@ module.exports = {
   entryKey,
   bulletKey,
   projectBulletKey,
+  visibleBulletIds,
+  normalizeHiddenKeys,
   defaultStyle,
   resolveResume,
 };

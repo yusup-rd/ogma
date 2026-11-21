@@ -34,6 +34,7 @@ export type LibraryValue =
       kind: "links";
       value: LinkFields;
       originalFields?: Record<string, string>;
+      legacyUrlField?: (typeof linkFields)[number];
     }
   | { kind: "summary"; value: { summary: string } }
   | { kind: "experience"; value: WorkEntry }
@@ -131,6 +132,7 @@ export function libraryValue(
         github: text("github"),
         website: text("website"),
       };
+      let legacyUrlField: (typeof linkFields)[number] | undefined;
       if (fields.url) {
         let host = "";
         try {
@@ -144,9 +146,12 @@ export function libraryValue(
             : host === "github.com" || host.endsWith(".github.com")
               ? "github"
               : "website";
-        if (!value[key]) value[key] = fields.url;
+        if (!value[key] || value[key] === fields.url) {
+          value[key] = fields.url;
+          legacyUrlField = key;
+        }
       }
-      return { kind, value, originalFields: { ...fields } };
+      return { kind, value, originalFields: { ...fields }, legacyUrlField };
     }
     case "summary":
       return { kind, value: { summary: content.summary ?? "" } };
@@ -266,17 +271,12 @@ export function libraryContent(draft: LibraryValue): LibraryEntryContent {
     case "links": {
       const merged = { ...draft.originalFields, ...fields };
       const original = draft.originalFields;
-      if (original?.url) {
-        const initial = libraryValue("", { kind: "links", fields: original });
-        if (initial.kind === "links") {
-          const normalized = linkFields.find(
-            (key) => initial.value[key] === original.url,
-          );
-          if (normalized && value[normalized] !== original.url) {
-            delete merged.url;
-          }
-        }
-      }
+      if (
+        original?.url &&
+        draft.legacyUrlField &&
+        value[draft.legacyUrlField] !== original.url
+      )
+        delete merged.url;
       return { kind, fields: merged };
     }
     case "summary":

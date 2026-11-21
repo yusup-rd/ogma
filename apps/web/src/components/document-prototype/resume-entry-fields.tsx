@@ -1,3 +1,4 @@
+import { projectBulletKey } from "@ogma/contracts/resolve-resume";
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState, type Ref } from "react";
 import {
@@ -238,9 +239,8 @@ const WorkProjectsFields = ({
             onChange={(description) => update(project.id, { description })}
           />
           {visibility &&
-            descriptionBullets(
-              project.description,
-              entryId + "/project/" + project.id,
+            descriptionBullets(project.description, entryId, (id) =>
+              projectBulletKey(entryId, project.id, id),
             ).map((bullet) => (
               <label
                 key={bullet.key}

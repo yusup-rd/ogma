@@ -42,7 +42,11 @@ export function defaultSectionOrder(
   return ["personal", "summary", ...order];
 }
 
-export function descriptionBullets(description: RichText, entryId: string) {
+export function descriptionBullets(
+  description: RichText,
+  entryId: string,
+  keyForBullet = (id: string) => bulletKey(entryId, id),
+) {
   const items: { key: string; label: string }[] = [];
   function visit(block: RichBlock) {
     if (block.type === "paragraph") return;
@@ -52,7 +56,7 @@ export function descriptionBullets(description: RichText, entryId: string) {
         .join("")
         .trim();
       const id = item.attrs?.id;
-      if (label && id) items.push({ key: bulletKey(entryId, id), label });
+      if (label && id) items.push({ key: keyForBullet(id), label });
       item.content.forEach(visit);
     });
   }

@@ -1,3 +1,4 @@
+const { normalizeHiddenKeys } = require("./selection-keys.cjs");
 const { z } = require("zod");
 const {
   draftContentSchema,
@@ -127,7 +128,7 @@ const librarySource = z.object({
   revision: z.int().min(1).max(2_147_483_646),
   content: libraryEntryContentSchema,
 });
-const resumeDocumentSchema = z.object({
+const resumeDocumentInputSchema = z.object({
   schemaVersion: z.literal(1),
   layoutId: z.string().min(1).max(100),
   sectionOrder: z
@@ -162,10 +163,25 @@ const resumeDocumentSchema = z.object({
   settings: z
     .record(z.string().min(1).max(100), resumeStyleSchema)
     .refine((settings) => Object.keys(settings).length <= 24),
-  hidden: z.array(z.string().min(1).max(500)).max(20_000),
+  hidden: z.array(z.string().min(1).max(1000)).max(20_000),
+  hiddenKeyVersion: z.literal(2).optional(),
   photo: picture.optional(),
   photoCrop: photoCrop.optional(),
 });
+const resumeDocumentSchema = resumeDocumentInputSchema.transform(
+  (document, context) => {
+    const hidden = normalizeHiddenKeys(document);
+    if (hidden.length > 20_000) {
+      context.addIssue({
+        code: "custom",
+        path: ["hidden"],
+        message: "Too many selections.",
+      });
+      return z.NEVER;
+    }
+    return { ...document, hidden, hiddenKeyVersion: 2 };
+  },
+);
 const resumeSummarySchema = z.object({
   id: z.uuid(),
   title: titleSchema,

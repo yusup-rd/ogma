@@ -33,6 +33,8 @@ export interface ResumeDocument {
   librarySources?: ResumeLibrarySource[];
   settings: Record<string, WorkspaceStyle>;
   hidden: string[];
+  /** Older documents are converted by the shared parser without changing saved checkpoints. */
+  hiddenKeyVersion?: 2;
   photo?: string;
   photoCrop?: PhotoCrop;
 }

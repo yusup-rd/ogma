@@ -1,4 +1,4 @@
-import type { DraftContent, ResumeSectionId } from "./resume-content";
+import type { DraftContent, ResumeSectionId, RichText } from "./resume-content";
 import type { ResumeDocument, WorkspaceStyle } from "./resume-workspace.cjs";
 
 type TemplateDefaults = Pick<
@@ -30,3 +30,13 @@ export function resolveResume(
   document: ResumeDocument,
   template: TemplateDefaults,
 ): ResolvedResume;
+
+export function normalizeHiddenKeys(
+  document: Pick<ResumeDocument, "content" | "hidden" | "hiddenKeyVersion">,
+): string[];
+export function visibleBulletIds(
+  description: RichText,
+  entryId: string,
+  hidden: ReadonlySet<string>,
+  projectId?: string,
+): Set<string>;
