@@ -223,6 +223,10 @@ const ResumeContentForm = ({
             entry={entry}
             patch={patch}
             showWorkProjects={showWorkProjects}
+            visibility={{
+              hidden: controls.hidden,
+              onToggle: controls.onToggle,
+            }}
           />
         )}
       </EntrySection>

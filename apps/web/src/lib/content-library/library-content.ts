@@ -30,12 +30,16 @@ export type PersonalFields = Omit<ContactInformation, keyof LinkFields> & {
 
 export type LibraryValue =
   | { kind: "personal"; value: PersonalFields }
-  | { kind: "links"; value: LinkFields }
+  | {
+      kind: "links";
+      value: LinkFields;
+      originalFields?: Record<string, string>;
+    }
   | { kind: "summary"; value: { summary: string } }
   | { kind: "experience"; value: WorkEntry }
   | { kind: "education"; value: EducationEntry }
   | { kind: "projects"; value: ProjectEntry }
-  | { kind: "skills"; value: SkillCategory }
+  | { kind: "skills"; value: SkillCategory; legacySingle?: boolean }
   | { kind: "languages"; value: Skill }
   | { kind: "certifications"; value: CertificationEntry }
   | { kind: "awards"; value: AwardEntry }
@@ -78,14 +82,19 @@ function description(content: LibraryEntryContent): RichText {
       ],
     };
   }
-  return {
-    type: "doc",
-    content:
-      content.details?.split(/\r?\n/).map((text) => ({
-        type: "paragraph",
-        ...(text && { content: [{ type: "text", text }] }),
-      })) ?? [],
-  };
+  const lines = content.details?.split(/\r?\n/) ?? [];
+  const blocks: NonNullable<RichText["content"]> = [];
+  for (let offset = 0; offset < lines.length; offset += 250)
+    blocks.push({
+      type: "paragraph",
+      content: lines
+        .slice(offset, offset + 250)
+        .flatMap((text, index) => [
+          ...(index ? [{ type: "hardBreak" as const }] : []),
+          ...(text ? [{ type: "text" as const, text }] : []),
+        ]),
+    });
+  return { type: "doc", content: blocks };
 }
 
 export function libraryValue(
@@ -137,7 +146,7 @@ export function libraryValue(
               : "website";
         if (!value[key]) value[key] = fields.url;
       }
-      return { kind, value };
+      return { kind, value, originalFields: { ...fields } };
     }
     case "summary":
       return { kind, value: { summary: content.summary ?? "" } };
@@ -187,6 +196,7 @@ export function libraryValue(
     case "skills":
       return {
         kind,
+        legacySingle: !content.skills && Boolean(fields.name),
         value: {
           id,
           category: text("category"),
@@ -253,6 +263,8 @@ export function libraryContent(draft: LibraryValue): LibraryEntryContent {
   switch (kind) {
     case "personal":
       return { kind, fields, photo: value.photo, photoCrop: value.photoCrop };
+    case "links":
+      return { kind, fields: { ...draft.originalFields, ...fields } };
     case "summary":
       return { kind, fields, summary: value.summary };
     case "experience":
@@ -268,6 +280,18 @@ export function libraryContent(draft: LibraryValue): LibraryEntryContent {
         ),
       };
     case "skills":
+      if (
+        draft.legacySingle &&
+        !value.category.trim() &&
+        value.skills.length === 1
+      )
+        return {
+          kind,
+          fields: {
+            name: value.skills[0].name.trim(),
+            level: value.skills[0].level,
+          },
+        };
       return {
         kind,
         fields,

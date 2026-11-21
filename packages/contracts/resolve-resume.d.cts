@@ -19,6 +19,11 @@ export interface ResolvedResume {
 
 export function sectionKey(id: "personal" | ResumeSectionId): string;
 export function entryKey(id: string): string;
+export function projectBulletKey(
+  entryId: string,
+  projectId: string,
+  bulletId: string,
+): string;
 export function bulletKey(entryId: string, bulletId: string): string;
 export function defaultStyle(template: TemplateDefaults): WorkspaceStyle;
 export function resolveResume(

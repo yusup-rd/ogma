@@ -29,6 +29,7 @@ interface Change {
   resume: string;
   library: string;
   defaultChoice?: Choice;
+  logos?: { resume?: string; library?: string };
   photos?: { resume?: string; library?: string };
 }
 
@@ -163,6 +164,7 @@ export function pruneLibrarySources(document: ResumeDocument) {
 export function canIncludeLibraryEntry(
   document: ResumeDocument,
   entry: LibraryEntry,
+  activeLibraryIds?: ReadonlySet<string>,
 ) {
   const { kind } = entry.content;
   if (
@@ -170,7 +172,9 @@ export function canIncludeLibraryEntry(
     librarySources(document).some(
       (source) =>
         source.libraryId === entry.id ||
-        (source.content.kind === kind && singletonLibraryKinds.includes(kind)),
+        (source.content.kind === kind &&
+          singletonLibraryKinds.includes(kind) &&
+          (!activeLibraryIds || activeLibraryIds.has(source.libraryId))),
     )
   )
     return false;
@@ -190,8 +194,10 @@ export function canIncludeLibraryEntry(
 export function includeLibraryEntry(
   document: ResumeDocument,
   entry: LibraryEntry,
+  activeLibraryIds?: ReadonlySet<string>,
 ): ResumeDocument {
-  if (!canIncludeLibraryEntry(document, entry)) return document;
+  if (!canIncludeLibraryEntry(document, entry, activeLibraryIds))
+    return document;
   const incoming = libraryValue(entry.id, entry.content);
   const current = readValue(document, incoming);
   const patch = Object.fromEntries(
@@ -201,7 +207,15 @@ export function includeLibraryEntry(
     patch.photoCrop = current.value.photoCrop;
   const next = writeValue(document, incoming, patch);
   return withSources(next, [
-    ...librarySources(document),
+    ...librarySources(document).filter(
+      (source) =>
+        !(
+          activeLibraryIds &&
+          singletonLibraryKinds.includes(entry.content.kind) &&
+          source.content.kind === entry.content.kind &&
+          !activeLibraryIds.has(source.libraryId)
+        ),
+    ),
     {
       entryId: entry.id,
       libraryId: entry.id,
@@ -504,7 +518,13 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
   const oldFields = new Map(Object.entries(base.value));
   const nextFields = new Map(Object.entries(latest.value));
   const localFields = new Map(Object.entries(current.value));
-  const collectionKeys = new Set(["id", "description", "skills", "photoCrop"]);
+  const collectionKeys = new Set([
+    "id",
+    "description",
+    "skills",
+    "photoCrop",
+    "projects",
+  ]);
 
   for (const key of new Set([...oldFields.keys(), ...nextFields.keys()])) {
     if (collectionKeys.has(key)) continue;
@@ -551,8 +571,120 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
       format(next),
       !equal(local, old),
     );
+    if (key === "logo")
+      changes[changes.length - 1].logos = {
+        resume: typeof local === "string" ? local : undefined,
+        library: typeof next === "string" ? next : undefined,
+      };
     actions.push((patch, _, choices) => {
       if (choices[key] === "library") patch[key] = next;
+    });
+  }
+
+  if (
+    base.kind === "experience" &&
+    current.kind === "experience" &&
+    latest.kind === "experience"
+  ) {
+    const previous = new Map(
+      (base.value.projects ?? []).map((project) => [project.id, project]),
+    );
+    const existing = new Map(
+      (current.value.projects ?? []).map((project) => [project.id, project]),
+    );
+    const updates = new Map(
+      (latest.value.projects ?? []).map((project) => [project.id, project]),
+    );
+    for (const id of new Set([...previous.keys(), ...updates.keys()])) {
+      const before = previous.get(id),
+        here = existing.get(id),
+        incomingProject = updates.get(id);
+      const prefix = "project:" + id + ":";
+      if (before && here && incomingProject) {
+        const scope = source.entryId + "/project/" + id;
+        const content = (project: typeof before) => ({
+          kind: "projects" as const,
+          fields: { name: project.name },
+          description: project.description,
+        });
+        const oldContent = content(before);
+        const value = libraryValue(scope, oldContent);
+        if (value.kind !== "projects") continue;
+        const nestedDocument: ResumeDocument = {
+          ...document,
+          content: {
+            ...document.content,
+            projects: [{ ...value.value, ...here, id: scope }],
+          },
+          librarySources: [{ ...source, entryId: scope, content: oldContent }],
+        };
+        delete nestedDocument.experienceSources;
+        const plan = prepareSync(nestedDocument, {
+          ...incoming,
+          content: content(incomingProject),
+        });
+        if (!plan) continue;
+        changes.push(
+          ...plan.changes.map((change) => ({
+            ...change,
+            id: prefix + change.id,
+            label: here.name + " - " + change.label,
+          })),
+        );
+        actions.push((_, selected, choices) => {
+          const result = plan.apply(
+            Object.fromEntries(
+              Object.entries(choices)
+                .filter(([key]) => key.startsWith(prefix))
+                .map(([key, choice]) => [key.slice(prefix.length), choice]),
+            ),
+          );
+          const project = result.content.projects[0];
+          existing.set(id, {
+            ...here,
+            name: project.name,
+            description: project.description,
+          });
+          for (const key of [...selected])
+            if (key.startsWith("bullet/" + scope + "/")) selected.delete(key);
+          for (const key of result.hidden)
+            if (key.startsWith("bullet/" + scope + "/")) selected.add(key);
+        });
+      } else if (
+        !equal(before, incomingProject) &&
+        !equal(here, incomingProject)
+      ) {
+        const key = prefix + "entry";
+        review(
+          key,
+          incomingProject ? "Work project" : "Remove work project",
+          here
+            ? [here.name, ...richTextLines(here.description)].join("\n")
+            : "",
+          incomingProject
+            ? [
+                incomingProject.name,
+                ...richTextLines(incomingProject.description),
+              ].join("\n")
+            : "",
+          Boolean(here) && (!incomingProject || !equal(here, before)),
+        );
+        actions.push((_, selected, choices) => {
+          if (choices[key] !== "library") return;
+          if (!incomingProject) existing.delete(id);
+          else {
+            existing.set(id, incomingProject);
+            for (const bullet of bulletItems(incomingProject.description))
+              if (bullet.attrs?.id)
+                selected.add(
+                  bulletKey(source.entryId + "/project/" + id, bullet.attrs.id),
+                );
+          }
+        });
+      }
+    }
+    actions.push((patch) => {
+      patch.projects = [...existing.values()];
     });
   }
 
@@ -840,6 +972,19 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
         const nextIds = new Set(
           bulletItems(next).map((item) => item.attrs?.id),
         );
+        const selectedDescendant = (item: RichListItem) =>
+          bulletItems({ type: "doc", content: item.content }).some(
+            (child) =>
+              child.attrs?.id &&
+              oldIds.has(child.attrs.id) &&
+              !hidden.has(bulletKey(source.entryId, child.attrs.id)),
+          );
+        const selectedMove = bulletItems(next).some(
+          (item) =>
+            item.attrs?.id &&
+            !oldIds.has(item.attrs.id) &&
+            selectedDescendant(item),
+        );
         const selectedRemoval = bulletItems(local).some(
           ({ attrs }) =>
             attrs?.id &&
@@ -852,13 +997,19 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
           "Description",
           richTextLines(local).join("\n"),
           richTextLines(next).join("\n"),
-          selectedRemoval || !equal(local, old),
+          selectedRemoval || selectedMove || !equal(local, old),
         );
         actions.push((patch, hidden, choices) => {
           if (choices.description !== "library") return;
           patch.description = next;
           for (const id of nextIds)
-            if (id && !oldIds.has(id))
+            if (
+              id &&
+              !oldIds.has(id) &&
+              !selectedDescendant(
+                bulletItems(next).find((item) => item.attrs?.id === id)!,
+              )
+            )
               hidden.add(bulletKey(source.entryId, id));
         });
       }

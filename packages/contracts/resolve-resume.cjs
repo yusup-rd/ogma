@@ -1,6 +1,8 @@
 const sectionKey = (id) => "section/" + id;
 const entryKey = (id) => "entry/" + id;
 const bulletKey = (entryId, bulletId) => "bullet/" + entryId + "/" + bulletId;
+const projectBulletKey = (entryId, projectId, bulletId) =>
+  bulletKey(entryId + "/project/" + projectId, bulletId);
 
 function visibleDescription(value, entryId, hidden) {
   function filter(block) {
@@ -39,7 +41,17 @@ function visibleResume(content, hidden) {
         ? ""
         : content.targetTitle,
     summary: hidden.has(sectionKey("summary")) ? "" : content.summary,
-    experience: described("experience", content.experience),
+    experience: described("experience", content.experience).map((entry) => ({
+      ...entry,
+      projects: entry.projects?.map((project) => ({
+        ...project,
+        description: visibleDescription(
+          project.description,
+          entry.id + "/project/" + project.id,
+          hidden,
+        ),
+      })),
+    })),
     education: described("education", content.education),
     skills: entries("skills", content.skills).map((category) => ({
       ...category,
@@ -89,6 +101,7 @@ module.exports = {
   sectionKey,
   entryKey,
   bulletKey,
+  projectBulletKey,
   defaultStyle,
   resolveResume,
 };

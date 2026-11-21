@@ -26,7 +26,10 @@ import type {
   VolunteerEntry,
   PublicationEntry,
 } from "../../../../../packages/contracts/resume-content";
-import { entryKey } from "@/lib/document-prototype/content-presentation";
+import {
+  descriptionBullets,
+  entryKey,
+} from "@/lib/document-prototype/content-presentation";
 import { VisibilityCheckbox } from "./section-card";
 import { ResumeImageUpload } from "./resume-image-upload";
 import { SelectSetting } from "./select-setting";
@@ -178,12 +181,16 @@ const DateRangeFields = ({
 interface WorkProjectsFieldsProps {
   projects: WorkProject[];
   shown: boolean;
+  entryId: string;
+  visibility?: { hidden: ReadonlySet<string>; onToggle: (key: string) => void };
   onChange: (projects: WorkProject[]) => void;
 }
 
 const WorkProjectsFields = ({
   projects,
   shown,
+  entryId,
+  visibility,
   onChange,
 }: WorkProjectsFieldsProps) => {
   const [newProject, setNewProject] = useState<string>();
@@ -230,6 +237,23 @@ const WorkProjectsFields = ({
             value={project.description}
             onChange={(description) => update(project.id, { description })}
           />
+          {visibility &&
+            descriptionBullets(
+              project.description,
+              entryId + "/project/" + project.id,
+            ).map((bullet) => (
+              <label
+                key={bullet.key}
+                className="flex items-center gap-2 text-xs"
+              >
+                <VisibilityCheckbox
+                  label={"Include " + bullet.label}
+                  checked={!visibility.hidden.has(bullet.key)}
+                  onChange={() => visibility.onToggle(bullet.key)}
+                />
+                <span>{bullet.label}</span>
+              </label>
+            ))}
           <button
             type="button"
             aria-label={`Remove project ${index + 1}`}
@@ -269,6 +293,7 @@ interface WorkFieldsProps {
   entry: WorkEntry;
   patch: (changes: Partial<WorkEntry>) => void;
   showWorkProjects: boolean;
+  visibility?: { hidden: ReadonlySet<string>; onToggle: (key: string) => void };
   onLogoBusyChange?: (busy: boolean) => void;
 }
 const WorkFields = ({
@@ -276,6 +301,7 @@ const WorkFields = ({
   patch,
   showWorkProjects,
   onLogoBusyChange,
+  visibility,
 }: WorkFieldsProps) => {
   return (
     <>
@@ -333,6 +359,8 @@ const WorkFields = ({
         onChange={(logo) => patch({ logo })}
       />
       <WorkProjectsFields
+        entryId={entry.id}
+        visibility={visibility}
         shown={showWorkProjects}
         projects={entry.projects ?? []}
         onChange={(projects) => patch({ projects })}
