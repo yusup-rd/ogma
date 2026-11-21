@@ -273,9 +273,7 @@ export function libraryContent(draft: LibraryValue): LibraryEntryContent {
             (key) => initial.value[key] === original.url,
           );
           if (normalized && value[normalized] !== original.url) {
-            if (/^https?:\/\//.test(value[normalized]))
-              merged.url = value[normalized];
-            else delete merged.url;
+            delete merged.url;
           }
         }
       }

@@ -602,7 +602,9 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
       ids.filter(
         (id) => previous.has(id) && updates.has(id) && existing.has(id),
       );
-    const orderChanged = !equal(shared(oldOrder), shared(nextOrder));
+    const orderChanged =
+      !equal(shared(oldOrder), shared(nextOrder)) &&
+      !equal(shared(localOrder), shared(nextOrder));
     if (orderChanged)
       review(
         "project-order",
