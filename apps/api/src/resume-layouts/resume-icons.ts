@@ -50,6 +50,7 @@ const sectionIcons = {
   experience: LuBriefcaseBusiness,
   education: LuGraduationCap,
   skills: LuWrench,
+  languages: LuWrench,
   certifications: LuAward,
   awards: LuStar,
   projects: LuFolderKanban,

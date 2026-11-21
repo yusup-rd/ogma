@@ -18,6 +18,10 @@ export class HealthController {
     try {
       await this.database.$transaction(async (transaction) => {
         await transaction.$executeRaw`SET LOCAL statement_timeout = '2s'`;
+        await transaction.libraryEntry.findFirst({ select: { id: true } });
+        await transaction.libraryEntryRevision.findFirst({
+          select: { revision: true },
+        });
         await transaction.resume.findFirst({ select: { id: true } });
         await transaction.ownerSession.findFirst({
           select: { tokenHash: true },

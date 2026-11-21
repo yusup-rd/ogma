@@ -45,6 +45,7 @@ function visibleResume(content, hidden) {
       ...category,
       skills: entries("skills", category.skills),
     })),
+    languages: entries("languages", content.languages ?? []),
     certifications: entries("certifications", content.certifications),
     awards: entries("awards", content.awards),
     projects: described("projects", content.projects),

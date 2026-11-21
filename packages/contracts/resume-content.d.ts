@@ -128,6 +128,7 @@ export interface DraftContent {
   experience: WorkEntry[];
   education: EducationEntry[];
   skills: SkillCategory[];
+  languages?: Skill[];
   certifications: CertificationEntry[];
   awards: AwardEntry[];
   projects: ProjectEntry[];

@@ -5,6 +5,7 @@
   "exports": {
     "./resume-content-schema": "./resume-content-schema.cjs",
     "./resume-workspace": "./resume-workspace.cjs",
+    "./content-library": "./content-library.cjs",
     "./resolve-resume": "./resolve-resume.cjs"
   },
   "dependencies": {

@@ -15,6 +15,7 @@ const sectionNames: Record<SectionId, string> = {
   experience: "Work Experience",
   education: "Education",
   skills: "Skills and Interests",
+  languages: "Languages",
   certifications: "Certifications",
   awards: "Awards and Scholarships",
   projects: "Projects",
@@ -155,6 +156,15 @@ export function resumeEntries(
         title: category.category,
         skills: category.skills.filter((skill) => skill.name.trim()),
       }));
+      break;
+    case "languages":
+      entries = [
+        {
+          id: "languages",
+          title: "",
+          skills: (content.languages ?? []).filter(({ name }) => name.trim()),
+        },
+      ];
       break;
     case "certifications":
       entries = content.certifications.map((certification) => ({

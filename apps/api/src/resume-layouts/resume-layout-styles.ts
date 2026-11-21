@@ -100,10 +100,12 @@ a { color:inherit; text-decoration:none; }
 .photo-right header { grid-template-columns:minmax(0,1fr) auto; align-items:start; column-gap:2em }
 .photo-right header .portrait { grid-area:1 / 2 / span 2 / 3; justify-self:end; }
 .photo-top header .portrait { justify-self:center; --portrait-size:10.5cqw; margin-bottom:.3em; }
-.employer-logo { display:grid; place-items:center; flex:none; width:2.3em; aspect-ratio:1; object-fit:contain; background:#326d95; color:white; font-weight:bold; font-size:1.06em; }
+.employer-logo { display:grid; place-items:center; flex:none; width:2.3em; aspect-ratio:1; background:#326d95; color:white; font-weight:bold; font-size:1.06em; }
 .brand-1 { background:#6251a1 }
 .brand-2 { background:#29836d }
 .brand-3 { background:#3b5786 }
+img.employer-logo { height:2.3em; object-fit:cover; object-position:center; background:transparent; }
+.template-ivy-league-logos img.employer-logo { height:2.7em; }
 .logos-left .employer-logo { order:-1 }
 .logos-right .employer-logo { order:2 }
 .timeline .job {

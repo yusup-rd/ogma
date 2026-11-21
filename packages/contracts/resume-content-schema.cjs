@@ -21,7 +21,13 @@ const id = z.string().min(1).max(64);
 const picture = z
   .string()
   .max(180_000)
-  .regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/);
+  .regex(/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/);
+const photoCrop = z.object({
+  source: picture,
+  x: z.number().min(-1536).max(1536),
+  y: z.number().min(-1536).max(1536),
+  zoom: z.number().min(1).max(3),
+});
 const entryIcon = z.enum([
   "award",
   "graduation",
@@ -84,6 +90,18 @@ const description = z.object({
   content: z.array(richBlock(8)).max(300).optional(),
 });
 const workProject = z.object({ id, name: field, description });
+const skill = z.object({
+  id,
+  name: field,
+  level: z.enum([
+    "",
+    "Beginner",
+    "Intermediate",
+    "Advanced",
+    "Expert",
+    "Native",
+  ]),
+});
 const draftContentSchema = z.object({
   contact: z.object({
     firstName: field,
@@ -134,25 +152,11 @@ const draftContentSchema = z.object({
       z.object({
         id,
         category: field,
-        skills: z
-          .array(
-            z.object({
-              id,
-              name: field,
-              level: z.enum([
-                "",
-                "Beginner",
-                "Intermediate",
-                "Advanced",
-                "Expert",
-                "Native",
-              ]),
-            }),
-          )
-          .max(50),
+        skills: z.array(skill).max(50),
       }),
     )
     .max(50),
+  languages: z.array(skill).max(50).optional(),
   certifications: z
     .array(z.object({ id, name: field, provider: field, ...range }))
     .max(50),
@@ -197,4 +201,4 @@ const draftContentSchema = z.object({
     .max(50),
 });
 
-module.exports = { draftContentSchema, field, picture };
+module.exports = { draftContentSchema, field, picture, photoCrop };

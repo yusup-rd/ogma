@@ -321,8 +321,10 @@ function renderSections(
           .filter((line) => line.trim())
           .map((line) => `<p>${renderLinkedText(line)}</p>`)
           .join("");
-      } else if (id === "skills") {
-        body = skills.regular
+      } else if (id === "skills" || id === "languages") {
+        body = (
+          id === "skills" ? skills.regular : resumeEntries(draft.content, id)
+        )
           .map((entry) => renderSkills(entry, defaults, draft.style))
           .join("");
       } else if (
@@ -527,7 +529,11 @@ export function renderResumeLayout(
   const identity = resumeHeader(content, layout);
   const showPhoto = layout.photo !== "none" && style.showPhoto;
   const photo = showPhoto ? portrait(draft.photo) : "";
-  const { main, side } = resumeColumns(layout, draft.sectionOrder);
+  const { main, side } = resumeColumns(
+    layout,
+    draft.sectionOrder,
+    Boolean(content.languages?.some(({ name }) => name.trim())),
+  );
   const headerInMain =
     layout.rail === "left" ||
     layout.header === "badge" ||

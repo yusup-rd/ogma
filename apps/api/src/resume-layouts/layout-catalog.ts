@@ -5,6 +5,7 @@ export const sectionIds = [
   "experience",
   "awards",
   "skills",
+  "languages",
   "education",
   "certifications",
   "projects",
@@ -410,13 +411,27 @@ export function getResumeLayout(id: string) {
 export function resumeColumns(
   layout: ResumeLayout,
   sectionOrder?: SectionId[],
+  showLanguages = true,
 ) {
   const remaining = sectionIds.filter(
     (section) =>
-      !layout.main.includes(section) && !layout.side.includes(section),
+      section !== "languages" &&
+      !layout.main.includes(section) &&
+      !layout.side.includes(section),
   );
-  const main = [...layout.main, ...remaining];
-  if (!sectionOrder?.length) return { main, side: layout.side };
-  const order = Array.from(new Set([...sectionOrder, ...main, ...layout.side]));
+  const main: SectionId[] = [...layout.main, ...remaining];
+  const side: SectionId[] = [...layout.side];
+  const column = side.includes("skills") ? side : main;
+  const position = column.indexOf("skills");
+  if (showLanguages)
+    column.splice(position < 0 ? column.length : position + 1, 0, "languages");
+  if (!sectionOrder?.length) return { main, side };
+  const order = Array.from(
+    new Set([
+      ...sectionOrder.filter((id) => showLanguages || id !== "languages"),
+      ...main,
+      ...side,
+    ]),
+  );
   return { main: order.slice(0, main.length), side: order.slice(main.length) };
 }

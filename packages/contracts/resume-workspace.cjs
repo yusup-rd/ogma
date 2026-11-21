@@ -1,5 +1,11 @@
 const { z } = require("zod");
-const { draftContentSchema, picture } = require("./resume-content-schema.cjs");
+const {
+  draftContentSchema,
+  picture,
+  photoCrop,
+} = require("./resume-content-schema.cjs");
+
+const { libraryEntryContentSchema } = require("./content-library.cjs");
 
 const marginSize = z.number().min(5).max(45);
 const textSize = z.number().min(5).max(60);
@@ -107,6 +113,7 @@ const editorSectionSchema = z.enum([
   "experience",
   "education",
   "skills",
+  "languages",
   "certifications",
   "awards",
   "projects",
@@ -114,20 +121,50 @@ const editorSectionSchema = z.enum([
   "publications",
 ]);
 const titleSchema = z.string().trim().min(1).max(120);
+const librarySource = z.object({
+  entryId: z.uuid(),
+  libraryId: z.uuid(),
+  revision: z.int().min(1).max(2_147_483_646),
+  content: libraryEntryContentSchema,
+});
 const resumeDocumentSchema = z.object({
   schemaVersion: z.literal(1),
   layoutId: z.string().min(1).max(100),
   sectionOrder: z
     .array(editorSectionSchema)
-    .length(editorSectionSchema.options.length)
-    .refine((order) => new Set(order).size === order.length)
+    .refine(
+      (order) =>
+        new Set(order).size === order.length &&
+        (order.length === editorSectionSchema.options.length ||
+          (order.length === editorSectionSchema.options.length - 1 &&
+            !order.includes("languages"))),
+    )
+    .transform((order) => {
+      if (order.includes("languages")) return order;
+      const at = order.indexOf("skills") + 1;
+      return [...order.slice(0, at), "languages", ...order.slice(at)];
+    })
     .optional(),
   content: draftContentSchema,
+  experienceSources: z
+    .array(librarySource.refine(({ content }) => content.kind === "experience"))
+    .max(50)
+    .optional(),
+  librarySources: z
+    .array(librarySource)
+    .max(453)
+    .refine(
+      (sources) =>
+        new Set(sources.map(({ libraryId }) => libraryId)).size ===
+        sources.length,
+    )
+    .optional(),
   settings: z
     .record(z.string().min(1).max(100), resumeStyleSchema)
     .refine((settings) => Object.keys(settings).length <= 24),
   hidden: z.array(z.string().min(1).max(500)).max(20_000),
   photo: picture.optional(),
+  photoCrop: photoCrop.optional(),
 });
 const resumeSummarySchema = z.object({
   id: z.uuid(),
