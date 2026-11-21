@@ -59,7 +59,11 @@ const RichTextField = ({
   const state = useEditorState({
     editor,
     selector: ({ editor }) => ({
-      empty: editor?.isEmpty,
+      showPlaceholder:
+        editor?.isEmpty &&
+        editor.state.doc.content.content.every(
+          (node) => node.type.name === "paragraph",
+        ),
       bold: editor?.isActive("bold"),
       italic: editor?.isActive("italic"),
       underline: editor?.isActive("underline"),
@@ -125,9 +129,9 @@ const RichTextField = ({
             </button>
           ))}
         </div>
-        <div className="relative focus-within:ring-2 focus-within:ring-accent focus-within:ring-inset">
+        <div className="relative rounded-b-[calc(var(--radius-lg)-1px)] focus-within:ring-2 focus-within:ring-accent focus-within:ring-inset">
           <EditorContent editor={editor} />
-          {placeholder && state?.empty && (
+          {placeholder && state?.showPlaceholder && (
             <p
               aria-hidden="true"
               className="pointer-events-none absolute inset-x-3 top-2.5 text-sm text-muted"
