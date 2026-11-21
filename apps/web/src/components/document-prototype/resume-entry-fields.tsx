@@ -1,6 +1,16 @@
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState, type Ref } from "react";
-import { LuPlus } from "react-icons/lu";
+import {
+  LuPlus,
+  LuAward,
+  LuGraduationCap,
+  LuStar,
+  LuTarget,
+  LuChartNoAxesColumnIncreasing,
+  LuBookOpen,
+  LuHeart,
+  LuBuilding2,
+} from "react-icons/lu";
 import type {
   ContactInformation,
   EntryIcon,
@@ -82,6 +92,26 @@ const entryIconOptions = [
   ["star", "Star"],
 ] as const satisfies ReadonlyArray<readonly [EntryIcon, string]>;
 
+const entryIconPreviews = {
+  award: LuAward,
+  graduation: LuGraduationCap,
+  star: LuStar,
+  target: LuTarget,
+  chart: LuChartNoAxesColumnIncreasing,
+  book: LuBookOpen,
+  heart: LuHeart,
+  building: LuBuilding2,
+};
+const renderEntryIcon = (value: string) => {
+  const Icon = Object.entries(entryIconPreviews).find(
+    ([id]) => id === value,
+  )?.[1];
+  return Icon ? (
+    <Icon className="size-4" />
+  ) : (
+    <span className="size-1.5 rounded-full bg-current" />
+  );
+};
 const newEntry = () => ({ id: crypto.randomUUID() });
 const emptyRange = { startDate: "", endDate: "" };
 const emptyDescription = { type: "doc" as const };
@@ -495,6 +525,7 @@ const AwardFields = ({ entry, patch }: AwardFieldsProps) => {
       />
       <SelectSetting
         label="Award icon"
+        renderPreview={renderEntryIcon}
         value={entry.icon ?? ""}
         options={[
           ["", "Bullet"],

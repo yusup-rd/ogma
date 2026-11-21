@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import * as Select from "@radix-ui/react-select";
 import { LuCheck, LuChevronDown } from "react-icons/lu";
 
@@ -17,6 +18,7 @@ interface SelectSettingProps<Value extends string | number> {
   value: Value;
   defaultValue?: Value;
   options: readonly (readonly [Value, string])[];
+  renderPreview?: (value: Value) => ReactNode;
   onChange: (value: Value) => void;
 }
 
@@ -26,6 +28,7 @@ export const SelectSetting = <Value extends string | number>({
   value,
   defaultValue,
   options,
+  renderPreview,
   onChange,
 }: SelectSettingProps<Value>) => {
   return (
@@ -42,6 +45,14 @@ export const SelectSetting = <Value extends string | number>({
           aria-label={accessibleLabel ?? label}
           className={`${fieldClass} flex items-center justify-between gap-1 text-left active:bg-canvas data-[state=open]:border-accent/60`}
         >
+          {renderPreview && (
+            <span
+              aria-hidden="true"
+              className="mr-1 grid size-4 shrink-0 place-items-center"
+            >
+              {renderPreview(value)}
+            </span>
+          )}
           <span className="min-w-0 flex-1 truncate">
             <Select.Value />
           </span>
@@ -64,9 +75,19 @@ export const SelectSetting = <Value extends string | number>({
                   value={`option:${id}`}
                   className="flex min-h-9 items-center justify-between gap-3 rounded-lg px-2.5 text-sm outline-none data-highlighted:bg-accent-soft data-highlighted:text-accent"
                 >
-                  <Select.ItemText className="min-w-0 truncate">
-                    {title}
-                  </Select.ItemText>
+                  <span className="flex min-w-0 flex-1 items-center gap-2">
+                    {renderPreview && (
+                      <span
+                        aria-hidden="true"
+                        className="grid size-4 shrink-0 place-items-center"
+                      >
+                        {renderPreview(id)}
+                      </span>
+                    )}
+                    <Select.ItemText className="min-w-0 truncate">
+                      {title}
+                    </Select.ItemText>
+                  </span>
                   <span className="flex max-w-[45%] min-w-0 items-center gap-1.5">
                     {id === defaultValue && <DefaultTag />}
                     <span className="size-4 shrink-0">
