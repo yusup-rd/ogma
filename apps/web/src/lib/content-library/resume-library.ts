@@ -29,6 +29,7 @@ interface Change {
   resume: string;
   library: string;
   defaultChoice?: Choice;
+  photos?: { resume?: string; library?: string };
 }
 
 function readValue(
@@ -245,18 +246,35 @@ function bulletItems(description: RichText): RichListItem[] {
 }
 
 function flatBullets(description: RichText) {
-  const blocks = description.content ?? [];
-  if (
+  const valid = (blocks: RichBlock[]): boolean =>
     blocks.every(
       (block) =>
         block.type === "paragraph" ||
         (block.type === "bulletList" &&
-          block.content.every(
-            (item) => item.attrs?.id && item.content.length === 1,
-          )),
-    )
-  )
-    return bulletItems(description);
+          block.content.every((item) => item.attrs?.id && valid(item.content))),
+    );
+  if (valid(description.content ?? [])) return bulletItems(description);
+}
+
+function bulletPositions(description: RichText, ids: Set<string>) {
+  const positions = new Map<string, string>();
+  function visit(blocks: RichBlock[], parent: string) {
+    let paragraphs = 0;
+    for (const block of blocks) {
+      if (block.type === "paragraph") {
+        paragraphs++;
+        continue;
+      }
+      for (const item of block.content) {
+        const id = item.attrs?.id ?? "";
+        if (ids.has(id))
+          positions.set(id, `${parent}:${paragraphs}:${block.type}`);
+        visit(item.content, id);
+      }
+    }
+  }
+  visit(description.content ?? [], "root");
+  return [...positions].sort(([a], [b]) => a.localeCompare(b));
 }
 
 function itemText(item?: RichListItem) {
@@ -364,6 +382,10 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
         valueLabel(next),
         !equal(localPhoto, oldPhoto),
       );
+      changes[changes.length - 1].photos = {
+        resume: typeof local === "string" ? local : undefined,
+        library: typeof next === "string" ? next : undefined,
+      };
       actions.push((patch, _, choices) => {
         if (choices.photo === "library") {
           patch.photo = next;
@@ -405,7 +427,34 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
       const oldBullets = flatBullets(old);
       const nextBullets = flatBullets(next);
       const localBullets = flatBullets(local);
+      const sharedIds = new Set(
+        bulletItems(old)
+          .map((item) => item.attrs?.id)
+          .filter(
+            (id): id is string =>
+              Boolean(id) &&
+              bulletItems(next).some((item) => item.attrs?.id === id),
+          ),
+      );
+      const positionChanged = !equal(
+        bulletPositions(old, sharedIds),
+        bulletPositions(next, sharedIds),
+      );
+      const nestedOrderChanged = (value: RichText) =>
+        (value.content ?? []).some(
+          (block) =>
+            block.type !== "paragraph" &&
+            block.content.some((item) => item.content.length > 1),
+        );
+      const reorderedNested =
+        (nestedOrderChanged(old) || nestedOrderChanged(next)) &&
+        !equal(
+          bulletItems(old).map((item) => item.attrs?.id),
+          bulletItems(next).map((item) => item.attrs?.id),
+        );
       if (
+        !positionChanged &&
+        !reorderedNested &&
         oldBullets &&
         nextBullets &&
         localBullets &&
@@ -628,6 +677,28 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
       const here = local.get(id);
       const incoming = next.get(id);
       if (equal(before, incoming) || equal(here, incoming)) continue;
+      if (before && here && incoming) {
+        for (const field of ["name", "level"] as const) {
+          if (
+            equal(before[field], incoming[field]) ||
+            equal(here[field], incoming[field])
+          )
+            continue;
+          const choice = "skill:" + id + ":" + field;
+          review(
+            choice,
+            field === "name" ? "Skill name" : "Skill proficiency",
+            here[field],
+            incoming[field],
+            !equal(before[field], here[field]),
+          );
+          actions.push((patch, _, choices) => {
+            if (choices[choice] === "library")
+              local.set(id, { ...local.get(id)!, [field]: incoming[field] });
+          });
+        }
+        continue;
+      }
       review(
         "skill:" + id,
         before ? "Skill" : "New skill (unchecked)",

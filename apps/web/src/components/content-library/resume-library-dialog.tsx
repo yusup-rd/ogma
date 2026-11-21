@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { toast } from "sonner";
 
 import * as Dialog from "@radix-ui/react-dialog";
@@ -273,7 +274,7 @@ const ResumeLibraryDialog = ({
                   </p>
                 )}
                 {changes.map(
-                  ({ id, label, resume, library, defaultChoice }) => (
+                  ({ id, label, resume, library, defaultChoice, photos }) => (
                     <fieldset
                       key={id}
                       className="rounded-lg border border-line px-3 pt-2 pb-3"
@@ -319,9 +320,24 @@ const ResumeLibraryDialog = ({
                               <span className="block font-semibold">
                                 {option.label}
                               </span>
-                              <span className="mt-1 block leading-relaxed wrap-anywhere whitespace-pre-wrap text-muted">
-                                {option.text || "Empty"}
-                              </span>
+                              {photos?.[option.value] ? (
+                                <Image
+                                  src={photos[option.value]!}
+                                  alt={
+                                    option.value === "resume"
+                                      ? "Current resume photo"
+                                      : "Library photo"
+                                  }
+                                  width={96}
+                                  height={96}
+                                  unoptimized
+                                  className="mt-2 size-24 rounded-lg object-cover"
+                                />
+                              ) : (
+                                <span className="mt-1 block leading-relaxed wrap-anywhere whitespace-pre-wrap text-muted">
+                                  {option.text || "Empty"}
+                                </span>
+                              )}
                             </span>
                           </label>
                         ))}
