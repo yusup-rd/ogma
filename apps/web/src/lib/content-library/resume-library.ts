@@ -287,10 +287,20 @@ function ownParagraphs(item?: RichListItem) {
 }
 
 function itemText(item?: RichListItem) {
-  return richTextLines({
-    type: "doc",
-    content: ownParagraphs(item) ?? [],
-  }).join("\n");
+  return (ownParagraphs(item) ?? [])
+    .map((paragraph) =>
+      (paragraph.content ?? [])
+        .map((node) =>
+          node.type === "hardBreak"
+            ? "\n"
+            : node.text +
+              (node.marks?.length
+                ? " (" + node.marks.map(({ type }) => type).join(", ") + ")"
+                : ""),
+        )
+        .join(""),
+    )
+    .join("\n");
 }
 
 function insertBlock(
@@ -305,19 +315,24 @@ function insertBlock(
     const ids = new Set(anchor.content.map((item) => item.attrs?.id));
     return candidate.content.some((item) => ids.has(item.attrs?.id));
   };
-  for (let at = index - 1; at >= 0; at--) {
-    const previous = blocks.findLastIndex((candidate) =>
-      matches(candidate, template[at]),
+  const anchorIndex = (at: number) => {
+    const occurrence = template
+      .slice(0, at)
+      .filter((candidate) => matches(candidate, template[at])).length;
+    const candidates = blocks.flatMap((candidate, index) =>
+      matches(candidate, template[at]) ? [index] : [],
     );
+    return candidates[Math.min(occurrence, candidates.length - 1)] ?? -1;
+  };
+  for (let at = index - 1; at >= 0; at--) {
+    const previous = anchorIndex(at);
     if (previous >= 0) {
       blocks.splice(previous + 1, 0, block);
       return;
     }
   }
   for (let at = index + 1; at < template.length; at++) {
-    const following = blocks.findIndex((candidate) =>
-      matches(candidate, template[at]),
-    );
+    const following = anchorIndex(at);
     if (following >= 0) {
       blocks.splice(following, 0, block);
       return;
@@ -404,34 +419,30 @@ function rewriteBullets(
   return blocks.flatMap((block): RichBlock[] => {
     if (block.type === "paragraph") return [block];
     const content = block.content.flatMap((item): RichListItem[] => {
-      const paragraphs = ownParagraphs(item) ?? [];
-      const nested = rewriteBullets(
-        item.content.filter((child) => child.type !== "paragraph"),
-        replacements,
-      );
+      const nested = rewriteBullets(item.content.slice(1), replacements);
       const id = item.attrs?.id;
       if (!id || !replacements.has(id))
-        return [
-          {
-            ...item,
-            content: [item.content[0], ...paragraphs.slice(1), ...nested],
-          },
-        ];
+        return [{ ...item, content: [item.content[0], ...nested] }];
       const next = replacements.get(id);
-      if (next)
+      if (next) {
+        const paragraphs = ownParagraphs(next) ?? [];
+        let cursor = 1;
+        const children = nested.flatMap((block): RichBlock[] =>
+          block.type === "paragraph"
+            ? cursor < paragraphs.length
+              ? [paragraphs[cursor++]]
+              : []
+            : [block],
+        );
         return [
           {
             ...item,
             content: [
               next.content[0],
-              ...(ownParagraphs(next)?.slice(1) ?? []),
-              ...nested,
+              ...children,
+              ...paragraphs.slice(cursor),
             ],
           },
-        ];
-      if (nested.some((child) => child.type === "paragraph")) {
-        return [
-          { type: "listItem", content: [{ type: "paragraph" }, ...nested] },
         ];
       }
       return nested.flatMap((child) =>
@@ -595,10 +606,18 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
             block.type !== "paragraph" &&
             block.content.some(
               (item) =>
-                (!oldIds.has(item.attrs?.id) &&
-                  Boolean(parent) &&
+                (Boolean(parent) &&
                   oldIds.has(parent) &&
-                  !localIds.has(parent)) ||
+                  !localIds.has(parent) &&
+                  !localIds.has(item.attrs?.id) &&
+                  !equal(
+                    ownParagraphs(
+                      oldBullets?.find(
+                        (old) => old.attrs?.id === item.attrs?.id,
+                      ),
+                    ),
+                    ownParagraphs(item),
+                  )) ||
                 missingParent(item.content, item.attrs?.id),
             ),
         );
@@ -731,7 +750,17 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
                 if (item.attrs?.id)
                   hidden.add(bulletKey(source.entryId, item.attrs.id));
               }
-              added.push(structuredClone(next));
+              added.push(
+                previous.has(id)
+                  ? {
+                      ...next,
+                      content: [
+                        next.content[0],
+                        ...(ownParagraphs(next)?.slice(1) ?? []),
+                      ],
+                    }
+                  : structuredClone(next),
+              );
             }
           }
           for (const item of added) {

@@ -262,13 +262,42 @@ const libraryEntrySchema = z.object({
   content: libraryEntryContentSchema,
 });
 const libraryListSchema = z.array(libraryEntrySchema);
+// List identities are required on writes so every new bullet can stay unchecked on sync.
+// Keep reads compatible with older stored descriptions.
+const libraryWriteContentSchema = libraryEntryContentSchema.superRefine(
+  (content, context) => {
+    function check(description, path) {
+      const seen = new Set();
+      function visit(blocks) {
+        for (const block of blocks ?? []) {
+          if (block.type === "paragraph") continue;
+          for (const item of block.content) {
+            const id = item.attrs?.id;
+            if (!id || seen.has(id))
+              context.addIssue({
+                code: "custom",
+                path,
+                message: "Every list item needs a unique ID.",
+              });
+            if (id) seen.add(id);
+            visit(item.content);
+          }
+        }
+      }
+      visit(description?.content);
+    }
+    check(content.description, ["description"]);
+    for (const [index, project] of (content.projects ?? []).entries())
+      check(project.description, ["projects", index, "description"]);
+  },
+);
 const createLibraryEntrySchema = z.object({
   id: z.uuid(),
-  content: libraryEntryContentSchema,
+  content: libraryWriteContentSchema,
 });
 const updateLibraryEntrySchema = z.object({
   expectedRevision: revision,
-  content: libraryEntryContentSchema,
+  content: libraryWriteContentSchema,
 });
 const archiveLibraryEntrySchema = z.object({
   expectedRevision: revision,
