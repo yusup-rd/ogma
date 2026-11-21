@@ -57,7 +57,7 @@ const RichTextField = ({
     },
     onUpdate: ({ editor }) => {
       // Initial extension normalization is not a user edit.
-      if (!editor.isFocused) return;
+      if (!editor.isInitialized) return;
       const next = editor.getJSON() as RichText;
       onChange(next);
     },
