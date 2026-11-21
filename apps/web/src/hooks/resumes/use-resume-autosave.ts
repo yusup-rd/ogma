@@ -1,4 +1,5 @@
 "use client";
+import { notifyAfterNavigation } from "@/lib/notifications/navigation";
 
 import {
   useCallback,
@@ -147,6 +148,7 @@ export function useResumeAutosave(
     if (state.hasSectionDrafts || !matches(attempt.snapshot, state.latest))
       return false;
     state.allowNavigation = true;
+    notifyAfterNavigation("Your edits were saved in a separate resume.");
     window.location.assign(
       new URL(`/resumes/${saved.id}`, window.location.origin),
     );

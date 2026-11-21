@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "sonner";
 
 import * as Dialog from "@radix-ui/react-dialog";
 import { LuDownload, LuX } from "react-icons/lu";
@@ -79,6 +80,9 @@ const ExportDialog = ({
       document.body.append(link);
       link.click();
       link.remove();
+      toast.success(
+        format === "pdf" ? "PDF download started." : "Word download started.",
+      );
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       setOpen(false);
     } catch {

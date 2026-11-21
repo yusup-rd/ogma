@@ -1,4 +1,6 @@
 "use client";
+import { toast } from "sonner";
+import { notifyAfterNavigation } from "@/lib/notifications/navigation";
 
 import * as Dialog from "@radix-ui/react-dialog";
 import {
@@ -92,6 +94,7 @@ const CheckpointHistory = ({
         ...(current ?? []).filter(({ id }) => id !== checkpoint.id),
       ]);
       setName("");
+      toast.success("Checkpoint saved.");
     } catch (error) {
       if (!onFailure(error))
         setError("Couldn’t save this checkpoint. Try again.");
@@ -114,6 +117,7 @@ const CheckpointHistory = ({
         body: { id: operationId(key), expectedRevision },
       });
       ids.current.delete(key);
+      notifyAfterNavigation("Checkpoint restored.");
       onRestored();
     } catch (error) {
       if (!onFailure(error))

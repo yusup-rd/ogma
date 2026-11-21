@@ -1,3 +1,4 @@
+import { notifyAfterNavigation } from "@/lib/notifications/navigation";
 import { LuLogOut } from "react-icons/lu";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 
@@ -29,6 +30,7 @@ const SignOutDialog = ({
           throw new Error("Save or recover your edits before signing out.");
         const response = await fetch("/api/auth/sign-out", { method: "POST" });
         if (!response.ok) throw new Error("Couldn’t sign out. Try again.");
+        notifyAfterNavigation("Signed out.");
         window.location.replace(new URL("/", window.location.origin));
       }}
     />
