@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   libraryEntryContentSchema,
   type LibraryEntryContent,
@@ -26,11 +26,15 @@ import {
   libraryContent,
   libraryValue,
   linkFields,
+  type LibraryValue,
 } from "@/lib/content-library/library-content";
 import { LibraryRequestError } from "@/lib/content-library/library-api";
 
 interface LibraryEntryFormProps {
   kind: LibraryKind;
+  locked?: boolean;
+  cachedDraft?: LibraryValue;
+  onDraftChange?: (draft: LibraryValue | undefined) => void;
   entryId?: string;
   initial?: LibraryEntryContent;
   title?: string;
@@ -41,6 +45,9 @@ interface LibraryEntryFormProps {
 
 const LibraryEntryForm = ({
   kind,
+  locked = false,
+  cachedDraft,
+  onDraftChange,
   entryId,
   initial,
   title,
@@ -48,16 +55,20 @@ const LibraryEntryForm = ({
   onSave,
   onCancel,
 }: LibraryEntryFormProps) => {
-  const [draft, setDraft] = useState(() =>
+  const [savedDraft] = useState(() =>
     initial
       ? libraryValue(entryId ?? "", initial)
       : blankLibraryValue(kind, entryId ?? ""),
   );
+  const [draft, setDraft] = useState(() => cachedDraft ?? savedDraft);
   const [preparingImage, setPreparingImage] = useState(false);
   const [baseline, setBaseline] = useState(() =>
-    JSON.stringify(libraryContent(draft)),
+    JSON.stringify(libraryContent(savedDraft)),
   );
   const changed = JSON.stringify(libraryContent(draft)) !== baseline;
+  useEffect(() => {
+    onDraftChange?.(changed ? draft : undefined);
+  }, [changed, draft, onDraftChange]);
   const saving = useRef(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -251,7 +262,8 @@ const LibraryEntryForm = ({
       className={title ? "mt-6 border-t border-line pt-6" : ""}
       onSubmit={async (event) => {
         event.preventDefault();
-        if (pending || preparingImage || saving.current || !changed) return;
+        if (locked || pending || preparingImage || saving.current || !changed)
+          return;
         const result = libraryEntryContentSchema.safeParse(
           libraryContent(draft),
         );
@@ -279,8 +291,8 @@ const LibraryEntryForm = ({
       }}
     >
       <fieldset
-        inert={pending}
-        disabled={pending}
+        inert={pending || locked}
+        disabled={pending || locked}
         className="flex min-w-0 flex-col gap-4"
       >
         {title && (
@@ -307,13 +319,16 @@ const LibraryEntryForm = ({
           )}
           <button
             type="submit"
-            disabled={pending || preparingImage || !changed}
+            disabled={locked || pending || preparingImage || !changed}
             className="min-h-11 rounded-lg bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60"
           >
             {pending ? "Saving…" : "Save to Library"}
           </button>
         </div>
       </fieldset>
+      <p role="status" className="sr-only">
+        {pending ? "Saving to Library..." : ""}
+      </p>
     </form>
   );
 };

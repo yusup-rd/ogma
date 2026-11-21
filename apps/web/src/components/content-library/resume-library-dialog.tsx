@@ -4,7 +4,7 @@ import Image from "next/image";
 import { toast } from "sonner";
 
 import * as Dialog from "@radix-ui/react-dialog";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LuLibrary, LuPlus, LuRefreshCw, LuX } from "react-icons/lu";
 import {
   librarySections,
@@ -47,6 +47,14 @@ const ResumeLibraryDialog = ({
   disabled,
   onChange,
 }: ResumeLibraryDialogProps) => {
+  const requestId = useRef(0);
+  useEffect(
+    () => () => {
+      requestId.current++;
+    },
+    [],
+  );
+  const [applying, setApplying] = useState<ResumeDocument>();
   const [open, setOpen] = useState(false);
   const [entries, setEntries] = useState<LibraryEntry[]>([]);
   const [section, setSection] = useState<LibraryKind>("personal");
@@ -69,10 +77,12 @@ const ResumeLibraryDialog = ({
   );
   const rows = entries.filter(({ content }) => content.kind === section);
   const refresh = async () => {
+    const id = ++requestId.current;
     setLoading(true);
     setError("");
     try {
       const entries = await loadLibrary(false);
+      if (id !== requestId.current) return;
       setEntries(entries);
       setSection((current) =>
         entries.some(({ content }) => content.kind === current)
@@ -80,17 +90,40 @@ const ResumeLibraryDialog = ({
           : (entries[0]?.content.kind ?? "personal"),
       );
     } catch {
-      setError("Couldn’t load your Library. Try again.");
+      if (id === requestId.current)
+        setError("Couldn’t load your Library. Try again.");
     } finally {
-      setLoading(false);
+      if (id === requestId.current) setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!applying || document === reviewedDocument) return;
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      setApplying(undefined);
+      if (document === applying) {
+        setSelected(undefined);
+        setOpen(false);
+        toast.success("Library update applied to this resume.");
+      } else {
+        setSyncError(
+          "Your resume changed. Go back and review the update again.",
+        );
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [applying, document, reviewedDocument]);
 
   return (
     <div className="mb-4 flex flex-col items-start gap-2">
       <Dialog.Root
         open={open}
         onOpenChange={(next) => {
+          if (!next) requestId.current++;
           setOpen(next);
           setSelected(undefined);
           setSyncError("");
@@ -248,7 +281,7 @@ const ResumeLibraryDialog = ({
                 className="flex flex-col gap-3"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  if (reviewStale || !reviewedDocument) return;
+                  if (applying || reviewStale || !reviewedDocument) return;
                   const latest = selected;
                   const next = syncLibraryEntry(document, latest, choices);
                   if (
@@ -260,12 +293,10 @@ const ResumeLibraryDialog = ({
                     );
                     return;
                   }
+                  setApplying(next);
                   onChange((current) =>
                     current === reviewedDocument ? next : current,
                   );
-                  setSelected(undefined);
-                  setOpen(false);
-                  toast.success("Library update applied to this resume.");
                 }}
               >
                 {!changes.length && (
@@ -371,10 +402,12 @@ const ResumeLibraryDialog = ({
                     type="submit"
                     className={primary}
                     disabled={
-                      reviewStale || changes.some(({ id }) => !choices[id])
+                      Boolean(applying) ||
+                      reviewStale ||
+                      changes.some(({ id }) => !choices[id])
                     }
                   >
-                    Apply update
+                    {applying ? "Applying..." : "Apply update"}
                   </button>
                 </div>
               </form>

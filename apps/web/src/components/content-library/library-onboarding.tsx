@@ -37,7 +37,7 @@ const LibraryOnboarding = ({
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-ink/35" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-3 rounded-2xl border border-line bg-paper p-5 text-ink shadow-xl">
+        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-3 overflow-y-auto rounded-2xl border border-line bg-paper p-5 text-ink shadow-xl">
           <div className="flex items-start justify-between gap-3">
             <Dialog.Title className="text-lg font-semibold tracking-tight">
               Start with your Library?

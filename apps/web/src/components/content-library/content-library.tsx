@@ -3,7 +3,7 @@ import { notifyAfterNavigation } from "@/lib/notifications/navigation";
 
 import { toast } from "sonner";
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   LuArchive,
   LuBriefcaseBusiness,
@@ -30,6 +30,7 @@ import {
 import {
   libraryTitle,
   librarySubtitle,
+  type LibraryValue,
 } from "@/lib/content-library/library-content";
 import { createResume } from "@/lib/resumes/resume-api";
 import { LibraryEntryForm } from "./library-entry-form";
@@ -63,6 +64,7 @@ const ContentLibrary = ({
   const [error, setError] = useState(
     loadFailed ? "Couldn’t load your Library." : "",
   );
+  const [drafts, setDrafts] = useState(() => new Map<string, LibraryValue>());
   const resumeId = useRef<string | undefined>(undefined);
   const rows = entries.filter((entry) => entry.content.kind === section);
   const singleton = singletonLibraryKinds.includes(section);
@@ -73,6 +75,24 @@ const ContentLibrary = ({
           ? { id: rows[0]?.id, entry: rows[0] }
           : undefined))
       : undefined;
+  const draftKey =
+    section +
+    ":" +
+    (activeEditor?.entry
+      ? activeEditor.entry.id + ":" + activeEditor.entry.revision
+      : "new");
+  const rememberDraft = useCallback(
+    (draft: LibraryValue | undefined) => {
+      setDrafts((current) => {
+        if (current.get(draftKey) === draft) return current;
+        const next = new Map(current);
+        if (draft) next.set(draftKey, draft);
+        else next.delete(draftKey);
+        return next;
+      });
+    },
+    [draftKey],
+  );
   const sectionTitle = librarySections[section].label;
   const locked = busy || saving;
 
@@ -357,6 +377,9 @@ const ContentLibrary = ({
                 ":" +
                 (activeEditor.entry?.revision ?? 0)
               }
+              locked={busy}
+              cachedDraft={drafts.get(draftKey)}
+              onDraftChange={rememberDraft}
               entryId={activeEditor.id}
               initial={activeEditor.entry?.content}
               kind={section}
@@ -369,7 +392,10 @@ const ContentLibrary = ({
               }
               onCancel={
                 !singleton && rows.length > 0
-                  ? () => setEditor(undefined)
+                  ? () => {
+                      rememberDraft(undefined);
+                      setEditor(undefined);
+                    }
                   : undefined
               }
               actions={
@@ -408,6 +434,8 @@ const ContentLibrary = ({
                 ) : undefined
               }
               onSave={async (id, content) => {
+                if (busy)
+                  throw new Error("Wait for the Library to finish loading.");
                 setSaving(true);
                 try {
                   const entry = await saveLibraryEntry(
@@ -415,6 +443,7 @@ const ContentLibrary = ({
                     content,
                     activeEditor.entry?.revision,
                   );
+                  rememberDraft(undefined);
                   setEntries((current) =>
                     entry.archived
                       ? current.filter(({ id }) => id !== entry.id)
