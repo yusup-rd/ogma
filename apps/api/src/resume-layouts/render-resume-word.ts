@@ -1,3 +1,4 @@
+import { maxPicturePixels } from "@ogma/contracts/resume-content-schema";
 import { BadRequestException } from "@nestjs/common";
 import sharp from "sharp";
 import {
@@ -98,7 +99,7 @@ async function prepareWordImage(dataUri: string, cover: boolean) {
         : bytes[0] === 255 && bytes[1] === 216;
   if (!valid) throw new BadRequestException("Invalid resume image.");
   try {
-    const raster = sharp(bytes, { limitInputPixels: 320 * 320 });
+    const raster = sharp(bytes, { limitInputPixels: maxPicturePixels });
     return await (
       cover
         ? raster.resize(120, 120, { fit: "cover", position: "centre" })
@@ -131,13 +132,6 @@ export async function renderResumeWord(
   const { content, style } = draft;
   const converted = new Map<string, Buffer>();
   const logos = new Map<string, Buffer>();
-  const logoSources =
-    layout.logos === "none"
-      ? []
-      : [draft.logo, ...content.experience.map(({ logo }) => logo)];
-  for (const logo of new Set(logoSources)) {
-    if (logo) logos.set(logo, await prepareWordImage(logo, true));
-  }
   if (
     layout.photo !== "none" &&
     style.showPhoto &&
@@ -198,6 +192,25 @@ export async function renderResumeWord(
   const skillMode = style.skillsLayout ?? defaults.skillsLayout;
   const dateFormat = style.dateFormat ?? defaults.dateFormat;
   const dateSeparator = style.dateSeparator ?? defaults.dateSeparator;
+  const experienceEntries =
+    main.includes("experience") || side.includes("experience")
+      ? resumeEntries(
+          content,
+          "experience",
+          dateFormat,
+          style.workProjectTables ?? defaults.workProjectTables,
+          dateSeparator,
+        )
+      : [];
+  const logoSources =
+    layout.logos === "none"
+      ? []
+      : experienceEntries.map(
+          (entry, index) =>
+            entry.logo ?? (index === 0 ? draft.logo : undefined),
+        );
+  for (const logo of new Set(logoSources))
+    if (logo) logos.set(logo, await prepareWordImage(logo, true));
   const separator = essential ? " • " : " | ";
   const metadataStyle = {
     ...style,
@@ -400,7 +413,10 @@ export async function renderResumeWord(
                     : dateSeparator,
                 )
             ).flatMap((entry, index) => {
-              const logo = entry.logo ?? (index === 0 ? draft.logo : undefined);
+              const logo =
+                id === "experience"
+                  ? (entry.logo ?? (index === 0 ? draft.logo : undefined))
+                  : undefined;
               const skills =
                 entry.skills?.map((skill) =>
                   proficiency !== "none" && skill.level

@@ -78,8 +78,16 @@ export class ContentLibraryController {
     @Param("id", ParseUUIDPipe) id: string,
     @Body() body: unknown,
   ) {
-    const { expectedRevision } = readBody(deleteLibraryEntrySchema, body);
-    return this.library.delete(ownerIdFor(request), id, expectedRevision);
+    const { expectedRevision, expectedArchiveToken } = readBody(
+      deleteLibraryEntrySchema,
+      body,
+    );
+    return this.library.delete(
+      ownerIdFor(request),
+      id,
+      expectedRevision,
+      expectedArchiveToken,
+    );
   }
 
   @Post(":id/archive")

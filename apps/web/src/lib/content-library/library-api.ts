@@ -65,6 +65,9 @@ export async function archiveLibraryEntry(entry: LibraryEntry) {
 export async function deleteLibraryEntry(entry: LibraryEntry) {
   await requestLibrary("/" + entry.id, {
     method: "DELETE",
-    body: { expectedRevision: entry.revision },
+    body: {
+      expectedRevision: entry.revision,
+      expectedArchiveToken: entry.archiveToken,
+    },
   });
 }

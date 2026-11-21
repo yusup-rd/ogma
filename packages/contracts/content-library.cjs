@@ -258,6 +258,7 @@ const libraryEntrySchema = z.object({
   id: z.uuid(),
   revision,
   archived: z.boolean(),
+  archiveToken: z.uuid().nullable().optional(),
   updatedAt: z.iso.datetime(),
   content: libraryEntryContentSchema,
 });
@@ -286,6 +287,32 @@ const libraryWriteContentSchema = libraryEntryContentSchema.superRefine(
       }
       visit(description?.content);
     }
+    if (
+      content.kind === "languages" &&
+      ![
+        "",
+        "beginner",
+        "intermediate",
+        "advanced",
+        "expert",
+        "native",
+      ].includes((content.fields.level ?? "").toLowerCase())
+    )
+      context.addIssue({
+        code: "custom",
+        path: ["fields", "level"],
+        message: "Choose an available proficiency level.",
+      });
+    if (
+      content.projects &&
+      new Set(content.projects.map(({ id }) => id)).size !==
+        content.projects.length
+    )
+      context.addIssue({
+        code: "custom",
+        path: ["projects"],
+        message: "Project IDs must be unique.",
+      });
     check(content.description, ["description"]);
     for (const [index, project] of (content.projects ?? []).entries())
       check(project.description, ["projects", index, "description"]);
@@ -303,7 +330,10 @@ const archiveLibraryEntrySchema = z.object({
   expectedRevision: revision,
   archived: z.boolean(),
 });
-const deleteLibraryEntrySchema = z.object({ expectedRevision: revision });
+const deleteLibraryEntrySchema = z.object({
+  expectedRevision: revision,
+  expectedArchiveToken: z.uuid(),
+});
 const libraryStatusSchema = z.object({ hasEntries: z.boolean() });
 
 module.exports = {

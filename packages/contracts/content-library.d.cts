@@ -40,6 +40,7 @@ export interface LibraryEntry {
   id: string;
   revision: number;
   archived: boolean;
+  archiveToken?: string | null;
   updatedAt: string;
   content: LibraryEntryContent;
 }
@@ -68,4 +69,7 @@ export const archiveLibraryEntrySchema: z.ZodType<{
 }>;
 export const libraryStatusSchema: z.ZodType<{ hasEntries: boolean }>;
 
-export const deleteLibraryEntrySchema: z.ZodType<{ expectedRevision: number }>;
+export const deleteLibraryEntrySchema: z.ZodType<{
+  expectedRevision: number;
+  expectedArchiveToken: string;
+}>;

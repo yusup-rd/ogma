@@ -9,6 +9,7 @@ export interface PhotoCrop {
 }
 export const photoCrop: z.ZodType<PhotoCrop>;
 export const field: z.ZodString;
+export const maxPicturePixels: number;
 export const picture: z.ZodString;
 export const draftContentSchema: z.ZodType<
   Omit<DraftContent, "projects"> & {

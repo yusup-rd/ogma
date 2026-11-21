@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import {
   ConflictException,
@@ -31,6 +32,7 @@ function present(
     id: entry.id,
     revision: entry.currentRevision,
     archived: entry.archivedAt !== null,
+    archiveToken: entry.archiveToken,
     updatedAt: entry.updatedAt.toISOString(),
     content: libraryEntryContentSchema.parse(entry.revisions[0]?.content),
   };
@@ -165,6 +167,7 @@ export class ContentLibraryService {
   ) {
     return this.database
       .$transaction(async (transaction) => {
+        await transaction.$queryRaw`SELECT id FROM library_entries WHERE id = ${id}::uuid AND owner_id = ${ownerId}::uuid FOR UPDATE`;
         const entry = await transaction.libraryEntry.findUnique({
           where: { id, ownerId },
           include: latestRevision,
@@ -180,7 +183,10 @@ export class ContentLibraryService {
             currentRevision: expectedRevision,
             archivedAt: entry.archivedAt,
           },
-          data: { archivedAt: archived ? new Date() : null },
+          data: {
+            archivedAt: archived ? new Date() : null,
+            archiveToken: archived ? randomUUID() : null,
+          },
         });
         if (!updated.count) await this.rejectChange(transaction, ownerId, id);
         return present(
@@ -203,14 +209,23 @@ export class ContentLibraryService {
       });
   }
 
-  delete(ownerId: string, id: string, expectedRevision: number) {
+  delete(
+    ownerId: string,
+    id: string,
+    expectedRevision: number,
+    expectedArchiveToken: string,
+  ) {
     return this.database.$transaction(async (transaction) => {
       await transaction.$queryRaw`SELECT id FROM library_entries WHERE id = ${id}::uuid AND owner_id = ${ownerId}::uuid FOR UPDATE`;
       const entry = await transaction.libraryEntry.findUnique({
         where: { id, ownerId },
       });
       if (!entry) throw new NotFoundException("Library entry not found.");
-      if (!entry.archivedAt || entry.currentRevision !== expectedRevision)
+      if (
+        !entry.archivedAt ||
+        entry.currentRevision !== expectedRevision ||
+        entry.archiveToken !== expectedArchiveToken
+      )
         throw new ConflictException(
           "Only an unchanged archived entry can be deleted.",
         );

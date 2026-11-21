@@ -1,3 +1,7 @@
+const {
+  maxPicturePixels,
+  withinPictureBudget,
+} = require("./picture-dimensions.cjs");
 const { z } = require("zod");
 
 const field = z.string().max(240);
@@ -21,7 +25,8 @@ const id = z.string().min(1).max(64);
 const picture = z
   .string()
   .max(180_000)
-  .regex(/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/);
+  .regex(/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/)
+  .refine(withinPictureBudget, "Choose a valid image under 24 megapixels.");
 const photoCrop = z.object({
   source: picture,
   x: z.number().min(-1536).max(1536),
@@ -201,4 +206,10 @@ const draftContentSchema = z.object({
     .max(50),
 });
 
-module.exports = { draftContentSchema, field, picture, photoCrop };
+module.exports = {
+  maxPicturePixels,
+  draftContentSchema,
+  field,
+  picture,
+  photoCrop,
+};
