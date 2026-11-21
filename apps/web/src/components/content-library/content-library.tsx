@@ -65,6 +65,7 @@ const ContentLibrary = ({
     loadFailed ? "Couldn’t load your Library." : "",
   );
   const [drafts, setDrafts] = useState(() => new Map<string, LibraryValue>());
+  const createIds = useRef(new Map<string, string>());
   const resumeId = useRef<string | undefined>(undefined);
   const rows = entries.filter((entry) => entry.content.kind === section);
   const singleton = singletonLibraryKinds.includes(section);
@@ -380,6 +381,13 @@ const ContentLibrary = ({
               locked={busy}
               cachedDraft={drafts.get(draftKey)}
               onDraftChange={rememberDraft}
+              getCreateId={() => {
+                const cached = createIds.current.get(draftKey);
+                if (cached) return cached;
+                const id = activeEditor.id ?? crypto.randomUUID();
+                createIds.current.set(draftKey, id);
+                return id;
+              }}
               entryId={activeEditor.id}
               initial={activeEditor.entry?.content}
               kind={section}
@@ -394,6 +402,7 @@ const ContentLibrary = ({
                 !singleton && rows.length > 0
                   ? () => {
                       rememberDraft(undefined);
+                      createIds.current.delete(draftKey);
                       setEditor(undefined);
                     }
                   : undefined
@@ -419,6 +428,8 @@ const ContentLibrary = ({
                       if (!entry) return;
                       try {
                         await archiveLibraryEntry(entry);
+                        rememberDraft(undefined);
+                        createIds.current.delete(draftKey);
                         setEntries((current) =>
                           current.filter(({ id }) => id !== entry.id),
                         );
@@ -444,6 +455,7 @@ const ContentLibrary = ({
                     activeEditor.entry?.revision,
                   );
                   rememberDraft(undefined);
+                  createIds.current.delete(draftKey);
                   setEntries((current) =>
                     entry.archived
                       ? current.filter(({ id }) => id !== entry.id)

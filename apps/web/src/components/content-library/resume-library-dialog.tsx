@@ -54,6 +54,7 @@ const ResumeLibraryDialog = ({
     },
     [],
   );
+  const [applyingAction, setApplyingAction] = useState<"add" | "sync">("sync");
   const [applying, setApplying] = useState<ResumeDocument>();
   const [open, setOpen] = useState(false);
   const [entries, setEntries] = useState<LibraryEntry[]>([]);
@@ -106,7 +107,11 @@ const ResumeLibraryDialog = ({
       if (document === applying) {
         setSelected(undefined);
         setOpen(false);
-        toast.success("Library update applied to this resume.");
+        toast.success(
+          applyingAction === "add"
+            ? "Added to this resume."
+            : "Library update applied to this resume.",
+        );
       } else {
         setSyncError(
           "Your resume changed. Go back and review the update again.",
@@ -116,7 +121,7 @@ const ResumeLibraryDialog = ({
     return () => {
       active = false;
     };
-  }, [applying, document, reviewedDocument]);
+  }, [applying, applyingAction, document, reviewedDocument]);
 
   return (
     <div className="mb-4 flex flex-col items-start gap-2">
@@ -162,6 +167,11 @@ const ResumeLibraryDialog = ({
                 </button>
               </Dialog.Close>
             </div>
+            {syncError && !selected && (
+              <p role="alert" className="text-sm text-red-800">
+                {syncError}
+              </p>
+            )}
             {loading && (
               <p role="status" className="text-sm text-muted">
                 Loading Library…
@@ -250,25 +260,46 @@ const ResumeLibraryDialog = ({
                               Already included
                             </span>
                           ) : (
-                            <Dialog.Close asChild>
+                            <>
                               <button
                                 type="button"
                                 className={button}
                                 disabled={
-                                  !canIncludeLibraryEntry(document, entry)
+                                  !canIncludeLibraryEntry(
+                                    document,
+                                    entry,
+                                    new Set(entries.map(({ id }) => id)),
+                                  )
                                 }
                                 aria-label={"Add " + title}
                                 onClick={() => {
-                                  onChange((current) =>
-                                    includeLibraryEntry(current, entry),
+                                  const next = includeLibraryEntry(
+                                    document,
+                                    entry,
+                                    new Set(entries.map(({ id }) => id)),
                                   );
-                                  toast.success("Added to this resume.");
+                                  if (
+                                    next === document ||
+                                    !resumeDocumentSchema.safeParse(next)
+                                      .success
+                                  ) {
+                                    setSyncError(
+                                      "This entry cannot be added. Shorten its content or remove an item from the resume and try again.",
+                                    );
+                                    return;
+                                  }
+                                  setReviewedDocument(document);
+                                  setApplyingAction("add");
+                                  setApplying(next);
+                                  onChange((current) =>
+                                    current === document ? next : current,
+                                  );
                                 }}
                               >
                                 <LuPlus aria-hidden="true" className="size-4" />
                                 Add
                               </button>
-                            </Dialog.Close>
+                            </>
                           )}
                         </li>
                       );
@@ -293,6 +324,7 @@ const ResumeLibraryDialog = ({
                     );
                     return;
                   }
+                  setApplyingAction("sync");
                   setApplying(next);
                   onChange((current) =>
                     current === reviewedDocument ? next : current,
@@ -305,7 +337,15 @@ const ResumeLibraryDialog = ({
                   </p>
                 )}
                 {changes.map(
-                  ({ id, label, resume, library, defaultChoice, photos }) => (
+                  ({
+                    id,
+                    label,
+                    resume,
+                    library,
+                    defaultChoice,
+                    photos,
+                    logos,
+                  }) => (
                     <fieldset
                       key={id}
                       className="rounded-lg border border-line px-3 pt-2 pb-3"
@@ -351,13 +391,17 @@ const ResumeLibraryDialog = ({
                               <span className="block font-semibold">
                                 {option.label}
                               </span>
-                              {photos?.[option.value] ? (
+                              {(photos ?? logos)?.[option.value] ? (
                                 <Image
-                                  src={photos[option.value]!}
+                                  src={(photos ?? logos)![option.value]!}
                                   alt={
-                                    option.value === "resume"
-                                      ? "Current resume photo"
-                                      : "Library photo"
+                                    logos
+                                      ? option.value === "resume"
+                                        ? "Current employer logo"
+                                        : "Library employer logo"
+                                      : option.value === "resume"
+                                        ? "Current resume photo"
+                                        : "Library photo"
                                   }
                                   width={96}
                                   height={96}

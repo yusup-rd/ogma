@@ -36,6 +36,7 @@ interface LibraryEntryFormProps {
   cachedDraft?: LibraryValue;
   onDraftChange?: (draft: LibraryValue | undefined) => void;
   entryId?: string;
+  getCreateId?: () => string;
   initial?: LibraryEntryContent;
   title?: string;
   onSave: (id: string, content: LibraryEntryContent) => Promise<void>;
@@ -49,6 +50,7 @@ const LibraryEntryForm = ({
   cachedDraft,
   onDraftChange,
   entryId,
+  getCreateId,
   initial,
   title,
   actions,
@@ -271,7 +273,7 @@ const LibraryEntryForm = ({
           setError(result.error.issues[0].message);
           return;
         }
-        id.current ??= crypto.randomUUID();
+        id.current ??= getCreateId?.() ?? crypto.randomUUID();
         saving.current = true;
         setPending(true);
         setError("");

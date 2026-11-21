@@ -94,7 +94,15 @@ const ResumesDashboard = ({
     }
   };
 
+  const active = useRef(true);
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
   const openDraft = async (sourceId?: string) => {
+    if (!active.current) return;
     const key = sourceId ?? "new";
     const existing = mutationIds.current.get(key);
     const id = existing ?? crypto.randomUUID();
@@ -108,6 +116,7 @@ const ResumesDashboard = ({
             body: { id },
           })
         : await createResume({ id, title: "Untitled resume" });
+      if (!active.current) return;
       notifyAfterNavigation(
         sourceId ? "Resume duplicated." : "Resume created.",
       );
@@ -115,6 +124,7 @@ const ResumesDashboard = ({
         new URL(`/resumes/${resume.id}`, window.location.origin),
       );
     } catch {
+      if (!active.current) return;
       toast.error(
         sourceId
           ? "Couldn’t duplicate the resume. Try again."
@@ -125,16 +135,19 @@ const ResumesDashboard = ({
   };
 
   const startNewResume = async () => {
-    if (busy) return;
+    if (busy || !active.current) return;
     setBusy(true);
     setError("");
     try {
-      if ((await getLibraryStatus()).hasEntries) {
+      const status = await getLibraryStatus();
+      if (!active.current) return;
+      if (status.hasEntries) {
         await openDraft();
         return;
       }
       setShowLibraryPrompt(true);
     } catch {
+      if (!active.current) return;
       toast.error("Couldn’t check your Library. Try New resume again.");
     }
     setBusy(false);
