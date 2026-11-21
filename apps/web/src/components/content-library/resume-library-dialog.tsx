@@ -52,12 +52,17 @@ const ResumeLibraryDialog = ({
   const [syncError, setSyncError] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [reviewedDocument, setReviewedDocument] = useState<ResumeDocument>();
   const [selected, setSelected] = useState<LibraryEntry>();
   const [choices, setChoices] = useState<Record<string, Choice>>({});
   const sources = new Map(
     librarySources(document).map((source) => [source.libraryId, source]),
   );
-  const changes = selected && reviewLibraryEntry(document, selected);
+  const reviewStale = Boolean(selected && reviewedDocument !== document);
+  const changes =
+    selected &&
+    reviewedDocument &&
+    reviewLibraryEntry(reviewedDocument, selected);
   const kinds = (Object.keys(librarySections) as LibraryKind[]).filter((kind) =>
     entries.some(({ content }) => content.kind === kind),
   );
@@ -196,6 +201,7 @@ const ResumeLibraryDialog = ({
                                     ),
                                   ),
                                 );
+                                setReviewedDocument(document);
                                 setSelected(entry);
                               }}
                             >
@@ -241,6 +247,7 @@ const ResumeLibraryDialog = ({
                 className="flex flex-col gap-3"
                 onSubmit={(event) => {
                   event.preventDefault();
+                  if (reviewStale || !reviewedDocument) return;
                   const latest = selected;
                   const next = syncLibraryEntry(document, latest, choices);
                   if (
@@ -253,9 +260,7 @@ const ResumeLibraryDialog = ({
                     return;
                   }
                   onChange((current) =>
-                    current === document
-                      ? next
-                      : syncLibraryEntry(current, latest, choices),
+                    current === reviewedDocument ? next : current,
                   );
                   setSelected(undefined);
                   setOpen(false);
@@ -324,6 +329,12 @@ const ResumeLibraryDialog = ({
                     </fieldset>
                   ),
                 )}
+                {reviewStale && (
+                  <p role="alert" className="text-sm text-red-800">
+                    Your resume changed. Go back and review the update again
+                    before applying it.
+                  </p>
+                )}
                 {syncError && (
                   <p role="alert" className="text-sm text-red-800">
                     {syncError}
@@ -343,7 +354,9 @@ const ResumeLibraryDialog = ({
                   <button
                     type="submit"
                     className={primary}
-                    disabled={changes.some(({ id }) => !choices[id])}
+                    disabled={
+                      reviewStale || changes.some(({ id }) => !choices[id])
+                    }
                   >
                     Apply update
                   </button>

@@ -123,7 +123,12 @@ export function libraryValue(
         website: text("website"),
       };
       if (fields.url) {
-        const host = URL.parse(fields.url)?.hostname.toLowerCase() ?? "";
+        let host = "";
+        try {
+          host = new URL(fields.url).hostname.toLowerCase();
+        } catch {
+          host = "";
+        }
         const key =
           host === "linkedin.com" || host.endsWith(".linkedin.com")
             ? "linkedin"

@@ -249,10 +249,11 @@ function flatBullets(description: RichText) {
   if (
     blocks.every(
       (block) =>
-        block.type === "bulletList" &&
-        block.content.every(
-          (item) => item.attrs?.id && item.content.length === 1,
-        ),
+        block.type === "paragraph" ||
+        (block.type === "bulletList" &&
+          block.content.every(
+            (item) => item.attrs?.id && item.content.length === 1,
+          )),
     )
   )
     return bulletItems(description);
@@ -403,9 +404,11 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
     if (!equal(old, next) && !equal(local, next)) {
       const oldBullets = flatBullets(old);
       const nextBullets = flatBullets(next);
+      const localBullets = flatBullets(local);
       if (
         oldBullets &&
         nextBullets &&
+        localBullets &&
         (oldBullets.length || nextBullets.length)
       ) {
         const previous = new Map(
@@ -417,6 +420,48 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
         const existing = new Map(
           bulletItems(local).map((item) => [item.attrs?.id, item]),
         );
+        const order = (items: RichListItem[]) =>
+          items.map((item) => item.attrs!.id!);
+        const oldOrder = order(oldBullets);
+        const nextOrder = order(nextBullets);
+        const localOrder = order(localBullets);
+        const shared = new Set(
+          oldOrder.filter(
+            (id) => nextOrder.includes(id) && localOrder.includes(id),
+          ),
+        );
+        const sharedOrder = (ids: string[]) =>
+          ids.filter((id) => shared.has(id));
+        const orderChanged = !equal(
+          sharedOrder(oldOrder),
+          sharedOrder(nextOrder),
+        );
+        if (orderChanged) {
+          review(
+            "bullet-order",
+            "Bullet order",
+            localBullets.map(itemText).join("\n"),
+            nextBullets.map(itemText).join("\n"),
+            !equal(sharedOrder(localOrder), sharedOrder(oldOrder)),
+          );
+        }
+        const paragraphs = (value: RichText) =>
+          (value.content ?? []).filter((block) => block.type === "paragraph");
+        const oldParagraphs = paragraphs(old);
+        const nextParagraphs = paragraphs(next);
+        const localParagraphs = paragraphs(local);
+        const proseChanged =
+          !equal(oldParagraphs, nextParagraphs) &&
+          !equal(localParagraphs, nextParagraphs);
+        if (proseChanged) {
+          review(
+            "description-text",
+            "Description text",
+            richTextLines({ type: "doc", content: localParagraphs }).join("\n"),
+            richTextLines({ type: "doc", content: nextParagraphs }).join("\n"),
+            !equal(localParagraphs, oldParagraphs),
+          );
+        }
         const candidates = new Map<string, RichListItem | undefined>();
         for (const id of new Set([...previous.keys(), ...updates.keys()])) {
           if (!id) continue;
@@ -447,8 +492,8 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
               ([id]) => choices["bullet:" + id] === "library",
             ),
           );
-          const content = rewriteBullets(local.content ?? [], chosen);
-          const added = [];
+          let content = rewriteBullets(local.content ?? [], chosen);
+          const added: RichListItem[] = [];
           for (const [id, next] of chosen) {
             const key = bulletKey(source.entryId, id);
             if (!next) hidden.delete(key);
@@ -457,9 +502,83 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
               added.push(next);
             }
           }
-          if (added.length)
-            content.push({ type: "bulletList", content: added });
-          if (chosen.size) patch.description = { type: "doc", content };
+          for (const item of added) {
+            const position = nextOrder.indexOf(item.attrs!.id!);
+            const following = new Set(nextOrder.slice(position + 1));
+            const preceding = new Set(nextOrder.slice(0, position));
+            let target = content.find(
+              (block) =>
+                block.type === "bulletList" &&
+                block.content.some((candidate) =>
+                  following.has(candidate.attrs?.id ?? ""),
+                ),
+            );
+            let index =
+              target && target.type === "bulletList"
+                ? target.content.findIndex((candidate) =>
+                    following.has(candidate.attrs?.id ?? ""),
+                  )
+                : -1;
+            if (!target) {
+              target = content.findLast(
+                (block) =>
+                  block.type === "bulletList" &&
+                  block.content.some((candidate) =>
+                    preceding.has(candidate.attrs?.id ?? ""),
+                  ),
+              );
+              if (target && target.type === "bulletList")
+                index =
+                  target.content.findLastIndex((candidate) =>
+                    preceding.has(candidate.attrs?.id ?? ""),
+                  ) + 1;
+            }
+            if (target && target.type === "bulletList")
+              target.content.splice(index, 0, item);
+            else content.push({ type: "bulletList", content: [item] });
+          }
+          if (orderChanged && choices["bullet-order"] === "library") {
+            const ordered = content
+              .flatMap((block) =>
+                block.type === "bulletList" ? block.content : [],
+              )
+              .filter((item) => nextOrder.includes(item.attrs?.id ?? ""))
+              .sort(
+                (a, b) =>
+                  nextOrder.indexOf(a.attrs!.id!) -
+                  nextOrder.indexOf(b.attrs!.id!),
+              );
+            let cursor = 0;
+            content = content.map((block) =>
+              block.type === "bulletList"
+                ? {
+                    ...block,
+                    content: block.content.map((item) =>
+                      nextOrder.includes(item.attrs?.id ?? "")
+                        ? ordered[cursor++]
+                        : item,
+                    ),
+                  }
+                : block,
+            );
+          }
+          if (proseChanged && choices["description-text"] === "library") {
+            let cursor = 0;
+            content = content.flatMap((block): RichBlock[] =>
+              block.type === "paragraph"
+                ? cursor < nextParagraphs.length
+                  ? [nextParagraphs[cursor++]]
+                  : []
+                : [block],
+            );
+            content.push(...nextParagraphs.slice(cursor));
+          }
+          if (
+            chosen.size ||
+            choices["bullet-order"] === "library" ||
+            choices["description-text"] === "library"
+          )
+            patch.description = { type: "doc", content };
         });
       } else {
         const oldIds = new Set(bulletItems(old).map((item) => item.attrs?.id));
