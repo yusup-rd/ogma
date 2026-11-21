@@ -277,12 +277,75 @@ function bulletPositions(description: RichText, ids: Set<string>) {
   return [...positions].sort(([a], [b]) => a.localeCompare(b));
 }
 
+function ownParagraphs(item?: RichListItem) {
+  return item?.content.filter((block) => block.type === "paragraph");
+}
+
 function itemText(item?: RichListItem) {
-  return (
-    (item &&
-      richTextLines({ type: "doc", content: [item.content[0]] }).join("\n")) ||
-    ""
+  return richTextLines({
+    type: "doc",
+    content: ownParagraphs(item) ?? [],
+  }).join("\n");
+}
+
+function insertBullet(
+  blocks: RichBlock[],
+  item: RichListItem,
+  incoming: RichText,
+) {
+  function locate(
+    children: RichBlock[],
+    parent?: string,
+  ): { parent?: string; index: number; peers: Set<string> } | undefined {
+    for (const [index, block] of children.entries()) {
+      if (block.type === "paragraph") continue;
+      if (
+        block.content.some(
+          (candidate) => candidate.attrs?.id === item.attrs?.id,
+        )
+      )
+        return {
+          parent,
+          index,
+          peers: new Set(
+            block.content.map((candidate) => candidate.attrs?.id ?? ""),
+          ),
+        };
+      for (const candidate of block.content) {
+        const found = locate(candidate.content, candidate.attrs?.id);
+        if (found) return found;
+      }
+    }
+  }
+  const position = locate(incoming.content ?? []);
+  if (!position) return;
+  const parent = position.parent
+    ? bulletItems({ type: "doc", content: blocks }).find(
+        (candidate) => candidate.attrs?.id === position.parent,
+      )
+    : undefined;
+  if (position.parent && !parent) return;
+  const children = parent?.content ?? blocks;
+  const list = children.find(
+    (block) =>
+      block.type === "bulletList" &&
+      block.content.some((candidate) =>
+        position.peers.has(candidate.attrs?.id ?? ""),
+      ),
   );
+  if (list && list.type === "bulletList") {
+    const order = [...position.peers];
+    const rank = order.indexOf(item.attrs?.id ?? "");
+    const after = list.content.findIndex(
+      (candidate) => order.indexOf(candidate.attrs?.id ?? "") > rank,
+    );
+    list.content.splice(after < 0 ? list.content.length : after, 0, item);
+  } else {
+    children.splice(Math.min(position.index, children.length), 0, {
+      type: "bulletList",
+      content: [item],
+    });
+  }
 }
 
 function rewriteBullets(
@@ -292,13 +355,31 @@ function rewriteBullets(
   return blocks.flatMap((block): RichBlock[] => {
     if (block.type === "paragraph") return [block];
     const content = block.content.flatMap((item): RichListItem[] => {
-      const [paragraph, ...children] = item.content;
-      const nested = rewriteBullets(children, replacements);
+      const paragraphs = ownParagraphs(item) ?? [];
+      const nested = rewriteBullets(
+        item.content.filter((child) => child.type !== "paragraph"),
+        replacements,
+      );
       const id = item.attrs?.id;
       if (!id || !replacements.has(id))
-        return [{ ...item, content: [paragraph, ...nested] }];
+        return [
+          {
+            ...item,
+            content: [item.content[0], ...paragraphs.slice(1), ...nested],
+          },
+        ];
       const next = replacements.get(id);
-      if (next) return [{ ...item, content: [next.content[0], ...nested] }];
+      if (next)
+        return [
+          {
+            ...item,
+            content: [
+              next.content[0],
+              ...(ownParagraphs(next)?.slice(1) ?? []),
+              ...nested,
+            ],
+          },
+        ];
       if (nested.some((child) => child.type === "paragraph")) {
         return [
           { type: "listItem", content: [{ type: "paragraph" }, ...nested] },
@@ -446,12 +527,15 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
             block.type !== "paragraph" &&
             block.content.some((item) => item.content.length > 1),
         );
+      const sharedSequence = (value: RichText) =>
+        bulletItems(value)
+          .map((item) => item.attrs?.id)
+          .filter((id): id is string => Boolean(id) && sharedIds.has(id!));
       const reorderedNested =
-        (nestedOrderChanged(old) || nestedOrderChanged(next)) &&
-        !equal(
-          bulletItems(old).map((item) => item.attrs?.id),
-          bulletItems(next).map((item) => item.attrs?.id),
-        );
+        (nestedOrderChanged(old) ||
+          nestedOrderChanged(next) ||
+          nestedOrderChanged(local)) &&
+        !equal(sharedSequence(old), sharedSequence(next));
       if (
         !positionChanged &&
         !reorderedNested &&
@@ -518,8 +602,8 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
           const next = updates.get(id);
           const local = existing.get(id);
           if (
-            equal(old?.content[0], next?.content[0]) ||
-            equal(local?.content[0], next?.content[0])
+            equal(ownParagraphs(old), ownParagraphs(next)) ||
+            equal(ownParagraphs(local), ownParagraphs(next))
           )
             continue;
           const removed =
@@ -531,7 +615,7 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
             !old ? "New bullet (unchecked)" : "Reusable bullet",
             itemText(local),
             itemText(next),
-            removed || !equal(local?.content[0], old?.content[0]),
+            removed || !equal(ownParagraphs(local), ownParagraphs(old)),
           );
           candidates.set(id, next);
         }
@@ -548,44 +632,16 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
             if (!next) hidden.delete(key);
             else if (!existing.has(id)) {
               hidden.add(key);
-              added.push(next);
+              added.push({
+                ...next,
+                content: [
+                  next.content[0],
+                  ...(ownParagraphs(next)?.slice(1) ?? []),
+                ],
+              });
             }
           }
-          for (const item of added) {
-            const position = nextOrder.indexOf(item.attrs!.id!);
-            const following = new Set(nextOrder.slice(position + 1));
-            const preceding = new Set(nextOrder.slice(0, position));
-            let target = content.find(
-              (block) =>
-                block.type === "bulletList" &&
-                block.content.some((candidate) =>
-                  following.has(candidate.attrs?.id ?? ""),
-                ),
-            );
-            let index =
-              target && target.type === "bulletList"
-                ? target.content.findIndex((candidate) =>
-                    following.has(candidate.attrs?.id ?? ""),
-                  )
-                : -1;
-            if (!target) {
-              target = content.findLast(
-                (block) =>
-                  block.type === "bulletList" &&
-                  block.content.some((candidate) =>
-                    preceding.has(candidate.attrs?.id ?? ""),
-                  ),
-              );
-              if (target && target.type === "bulletList")
-                index =
-                  target.content.findLastIndex((candidate) =>
-                    preceding.has(candidate.attrs?.id ?? ""),
-                  ) + 1;
-            }
-            if (target && target.type === "bulletList")
-              target.content.splice(index, 0, item);
-            else content.push({ type: "bulletList", content: [item] });
-          }
+          for (const item of added) insertBullet(content, item, next);
           if (orderChanged && choices["bullet-order"] === "library") {
             const ordered = content
               .flatMap((block) =>
