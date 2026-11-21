@@ -293,6 +293,39 @@ function itemText(item?: RichListItem) {
   }).join("\n");
 }
 
+function insertBlock(
+  blocks: RichBlock[],
+  block: RichBlock,
+  template: RichBlock[],
+  index: number,
+) {
+  const matches = (candidate: RichBlock, anchor: RichBlock) => {
+    if (candidate.type === "paragraph" || anchor.type === "paragraph")
+      return equal(candidate, anchor);
+    const ids = new Set(anchor.content.map((item) => item.attrs?.id));
+    return candidate.content.some((item) => ids.has(item.attrs?.id));
+  };
+  for (let at = index - 1; at >= 0; at--) {
+    const previous = blocks.findLastIndex((candidate) =>
+      matches(candidate, template[at]),
+    );
+    if (previous >= 0) {
+      blocks.splice(previous + 1, 0, block);
+      return;
+    }
+  }
+  for (let at = index + 1; at < template.length; at++) {
+    const following = blocks.findIndex((candidate) =>
+      matches(candidate, template[at]),
+    );
+    if (following >= 0) {
+      blocks.splice(following, 0, block);
+      return;
+    }
+  }
+  blocks.push(block);
+}
+
 function insertBullet(
   blocks: RichBlock[],
   item: RichListItem,
@@ -301,7 +334,14 @@ function insertBullet(
   function locate(
     children: RichBlock[],
     parent?: string,
-  ): { parent?: string; index: number; peers: Set<string> } | undefined {
+  ):
+    | {
+        parent?: string;
+        index: number;
+        peers: Set<string>;
+        template: RichBlock[];
+      }
+    | undefined {
     for (const [index, block] of children.entries()) {
       if (block.type === "paragraph") continue;
       if (
@@ -312,6 +352,7 @@ function insertBullet(
         return {
           parent,
           index,
+          template: children,
           peers: new Set(
             block.content.map((candidate) => candidate.attrs?.id ?? ""),
           ),
@@ -346,10 +387,12 @@ function insertBullet(
     );
     list.content.splice(after < 0 ? list.content.length : after, 0, item);
   } else {
-    children.splice(Math.min(position.index, children.length), 0, {
-      type: "bulletList",
-      content: [item],
-    });
+    insertBlock(
+      children,
+      { type: "bulletList", content: [item] },
+      position.template,
+      position.index,
+    );
   }
   return true;
 }
@@ -542,11 +585,6 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
           nestedOrderChanged(next) ||
           nestedOrderChanged(local)) &&
         !equal(sharedSequence(old), sharedSequence(next));
-      const paragraphCount = (value: RichText) =>
-        (value.content ?? []).filter((block) => block.type === "paragraph")
-          .length;
-      const proseStructureChanged =
-        paragraphCount(old) !== paragraphCount(next);
       const localIds = new Set(
         bulletItems(local).map((item) => item.attrs?.id),
       );
@@ -566,7 +604,6 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
         );
       if (
         !positionChanged &&
-        !proseStructureChanged &&
         !missingParent(next.content ?? []) &&
         !reorderedNested &&
         oldBullets &&
@@ -613,6 +650,17 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
         const oldParagraphs = paragraphs(old);
         const nextParagraphs = paragraphs(next);
         const localParagraphs = paragraphs(local);
+        let priorParagraph = 0;
+        const insertedParagraphs = nextParagraphs.filter((paragraph) => {
+          if (equal(paragraph, oldParagraphs[priorParagraph])) {
+            priorParagraph++;
+            return false;
+          }
+          return true;
+        });
+        const proseInsertionOnly =
+          priorParagraph === oldParagraphs.length &&
+          nextParagraphs.length > oldParagraphs.length;
         const proseChanged =
           !equal(oldParagraphs, nextParagraphs) &&
           !equal(localParagraphs, nextParagraphs);
@@ -622,13 +670,26 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
             "Description text",
             richTextLines({ type: "doc", content: localParagraphs }).join("\n"),
             richTextLines({ type: "doc", content: nextParagraphs }).join("\n"),
-            !equal(localParagraphs, oldParagraphs),
+            !proseInsertionOnly && !equal(localParagraphs, oldParagraphs),
           );
         }
+        const parents = new Map<string, string>();
+        const collectParents = (blocks: RichBlock[], parent?: string) => {
+          for (const block of blocks) {
+            if (block.type === "paragraph") continue;
+            for (const item of block.content) {
+              if (item.attrs?.id && parent) parents.set(item.attrs.id, parent);
+              collectParents(item.content, item.attrs?.id);
+            }
+          }
+        };
+        collectParents(next.content ?? []);
         const candidates = new Map<string, RichListItem | undefined>();
         for (const id of new Set([...previous.keys(), ...updates.keys()])) {
           if (!id) continue;
           const old = previous.get(id);
+          const parent = parents.get(id);
+          if (!old && parent && !previous.has(parent)) continue;
           const next = updates.get(id);
           const local = existing.get(id);
           if (
@@ -644,7 +705,9 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
             "bullet:" + id,
             !old ? "New bullet (unchecked)" : "Reusable bullet",
             itemText(local),
-            itemText(next),
+            !old && next
+              ? richTextLines({ type: "doc", content: next.content }).join("\n")
+              : itemText(next),
             removed || !equal(ownParagraphs(local), ownParagraphs(old)),
           );
           candidates.set(id, next);
@@ -661,14 +724,14 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
             const key = bulletKey(source.entryId, id);
             if (!next) hidden.delete(key);
             else if (!existing.has(id)) {
-              hidden.add(key);
-              added.push({
-                ...next,
-                content: [
-                  next.content[0],
-                  ...(ownParagraphs(next)?.slice(1) ?? []),
-                ],
-              });
+              for (const item of bulletItems({
+                type: "doc",
+                content: [{ type: "bulletList", content: [next] }],
+              })) {
+                if (item.attrs?.id)
+                  hidden.add(bulletKey(source.entryId, item.attrs.id));
+              }
+              added.push(structuredClone(next));
             }
           }
           for (const item of added) {
@@ -700,15 +763,41 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
             );
           }
           if (proseChanged && choices["description-text"] === "library") {
-            let cursor = 0;
-            content = content.flatMap((block): RichBlock[] =>
-              block.type === "paragraph"
-                ? cursor < nextParagraphs.length
-                  ? [nextParagraphs[cursor++]]
-                  : []
-                : [block],
-            );
-            content.push(...nextParagraphs.slice(cursor));
+            if (proseInsertionOnly) {
+              for (const paragraph of insertedParagraphs) {
+                if (
+                  content.filter((block) => equal(block, paragraph)).length <
+                  Math.max(
+                    localParagraphs.filter((block) => equal(block, paragraph))
+                      .length,
+                    nextParagraphs.filter((block) => equal(block, paragraph))
+                      .length,
+                  )
+                )
+                  insertBlock(
+                    content,
+                    paragraph,
+                    next.content ?? [],
+                    (next.content ?? []).indexOf(paragraph),
+                  );
+              }
+            } else {
+              let cursor = 0;
+              content = content.flatMap((block): RichBlock[] =>
+                block.type === "paragraph"
+                  ? cursor < nextParagraphs.length
+                    ? [nextParagraphs[cursor++]]
+                    : []
+                  : [block],
+              );
+              for (const paragraph of nextParagraphs.slice(cursor))
+                insertBlock(
+                  content,
+                  paragraph,
+                  next.content ?? [],
+                  (next.content ?? []).indexOf(paragraph),
+                );
+            }
           }
           if (
             chosen.size ||
