@@ -13,6 +13,7 @@ export const sectionTitles = {
   experience: "Work Experience",
   education: "Education",
   skills: "Skills and Interests",
+  languages: "Languages",
   certifications: "Certifications",
   awards: "Awards and Scholarships",
   projects: "Projects",
@@ -34,9 +35,11 @@ export function defaultSectionOrder(
     (id) => !template.main.includes(id) && !template.side.includes(id),
   );
   const body = [...template.main, ...missing, ...template.side].filter(
-    (id) => id !== "summary",
+    (id) => id !== "summary" && id !== "languages",
   );
-  return ["personal", "summary", ...body];
+  const order: ResumeSectionId[] = [...body];
+  order.splice(order.indexOf("skills") + 1, 0, "languages");
+  return ["personal", "summary", ...order];
 }
 
 export function descriptionBullets(description: RichText, entryId: string) {

@@ -1,4 +1,7 @@
 "use client";
+import { toast } from "sonner";
+
+import type { PhotoCrop } from "@ogma/contracts/resume-content-schema";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ResumeDocument } from "@ogma/contracts/resume-workspace";
@@ -15,6 +18,8 @@ import {
   type TemplateOption,
   type TemplateStyle,
 } from "@/lib/document-prototype/resume-layout-model";
+
+import { pruneLibrarySources } from "@/lib/content-library/resume-library";
 
 export function useResumeLayouts(initialDocument: ResumeDocument) {
   const [catalog, setCatalog] = useState<TemplateCatalog | null>(null);
@@ -158,8 +163,9 @@ export function useResumeLayouts(initialDocument: ResumeDocument) {
     order,
     hidden,
     photo,
+    setDocument,
     setContent: (content: DraftContent) =>
-      setDocument((current) => ({ ...current, content })),
+      setDocument((current) => pruneLibrarySources({ ...current, content })),
     setTemplate: (selected: TemplateOption) =>
       setDocument((current) =>
         current.layoutId === selected.id
@@ -174,8 +180,8 @@ export function useResumeLayouts(initialDocument: ResumeDocument) {
               ),
             },
       ),
-    setPhoto: (photo: string | undefined) =>
-      setDocument((current) => ({ ...current, photo })),
+    setPhoto: (photo?: string, photoCrop?: PhotoCrop) =>
+      setDocument((current) => ({ ...current, photo, photoCrop })),
     setOrder: (sectionOrder: EditorSectionId[]) =>
       setDocument((current) => ({ ...current, sectionOrder })),
     updateStyle,
@@ -187,7 +193,8 @@ export function useResumeLayouts(initialDocument: ResumeDocument) {
         return { ...current, hidden: [...next] };
       }),
     resetStyle: () => {
-      if (template)
+      if (template) {
+        toast.success("Template design reset.", { id: "design-reset" });
         setDocument((current) => ({
           ...current,
           settings: {
@@ -195,6 +202,7 @@ export function useResumeLayouts(initialDocument: ResumeDocument) {
             [template.id]: defaultStyle(template),
           },
         }));
+      }
     },
     retry: () => {
       setError("");

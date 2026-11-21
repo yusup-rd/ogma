@@ -55,7 +55,7 @@ export const SelectSetting = <Value extends string | number>({
           <Select.Content
             position="popper"
             sideOffset={5}
-            className="z-40 max-h-[var(--radix-select-content-available-height)] max-w-[calc(100dvw-1.25rem)] min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-xl border border-line bg-paper p-1 shadow-lg"
+            className="z-60 max-h-[var(--radix-select-content-available-height)] max-w-[calc(100dvw-1.25rem)] min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-xl border border-line bg-paper p-1 shadow-lg"
           >
             <Select.Viewport className="max-h-[var(--radix-select-content-available-height)]">
               {options.map(([id, title]) => (
