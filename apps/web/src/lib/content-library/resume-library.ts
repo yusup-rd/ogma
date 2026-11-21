@@ -639,6 +639,7 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
                 .map(([key, choice]) => [key.slice(prefix.length), choice]),
             ),
           );
+          if (result === nestedDocument && plan.changes.length) return false;
           const project = result.content.projects[0];
           existing.set(id, {
             ...here,

@@ -273,7 +273,9 @@ const LibraryEntryForm = ({
           setError(result.error.issues[0].message);
           return;
         }
-        id.current ??= getCreateId?.() ?? crypto.randomUUID();
+        id.current = initial
+          ? (id.current ?? crypto.randomUUID())
+          : (getCreateId?.() ?? id.current ?? crypto.randomUUID());
         saving.current = true;
         setPending(true);
         setError("");
