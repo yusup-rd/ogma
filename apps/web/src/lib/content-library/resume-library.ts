@@ -134,9 +134,14 @@ function writeValue(
 }
 
 export function librarySources(document: ResumeDocument) {
-  return (document.librarySources ?? document.experienceSources ?? []).filter(
-    (source) =>
-      readValue(document, libraryValue(source.entryId, source.content)),
+  const sources = new Map(
+    (document.librarySources ?? []).map((source) => [source.libraryId, source]),
+  );
+  for (const source of document.experienceSources ?? []) {
+    if (!sources.has(source.libraryId)) sources.set(source.libraryId, source);
+  }
+  return [...sources.values()].filter((source) =>
+    readValue(document, libraryValue(source.entryId, source.content)),
   );
 }
 
@@ -318,13 +323,13 @@ function insertBullet(
     }
   }
   const position = locate(incoming.content ?? []);
-  if (!position) return;
+  if (!position) return false;
   const parent = position.parent
     ? bulletItems({ type: "doc", content: blocks }).find(
         (candidate) => candidate.attrs?.id === position.parent,
       )
     : undefined;
-  if (position.parent && !parent) return;
+  if (position.parent && !parent) return false;
   const children = parent?.content ?? blocks;
   const list = children.find(
     (block) =>
@@ -346,6 +351,7 @@ function insertBullet(
       content: [item],
     });
   }
+  return true;
 }
 
 function rewriteBullets(
@@ -424,7 +430,7 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
     patch: Record<string, unknown>,
     hidden: Set<string>,
     choices: Choices,
-  ) => void)[] = [];
+  ) => boolean | void)[] = [];
   const hidden = new Set(document.hidden);
   const review = (
     id: string,
@@ -536,8 +542,32 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
           nestedOrderChanged(next) ||
           nestedOrderChanged(local)) &&
         !equal(sharedSequence(old), sharedSequence(next));
+      const paragraphCount = (value: RichText) =>
+        (value.content ?? []).filter((block) => block.type === "paragraph")
+          .length;
+      const proseStructureChanged =
+        paragraphCount(old) !== paragraphCount(next);
+      const localIds = new Set(
+        bulletItems(local).map((item) => item.attrs?.id),
+      );
+      const oldIds = new Set(bulletItems(old).map((item) => item.attrs?.id));
+      const missingParent = (blocks: RichBlock[], parent?: string): boolean =>
+        blocks.some(
+          (block) =>
+            block.type !== "paragraph" &&
+            block.content.some(
+              (item) =>
+                (!oldIds.has(item.attrs?.id) &&
+                  Boolean(parent) &&
+                  oldIds.has(parent) &&
+                  !localIds.has(parent)) ||
+                missingParent(item.content, item.attrs?.id),
+            ),
+        );
       if (
         !positionChanged &&
+        !proseStructureChanged &&
+        !missingParent(next.content ?? []) &&
         !reorderedNested &&
         oldBullets &&
         nextBullets &&
@@ -641,7 +671,9 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
               });
             }
           }
-          for (const item of added) insertBullet(content, item, next);
+          for (const item of added) {
+            if (!insertBullet(content, item, next)) return false;
+          }
           if (orderChanged && choices["bullet-order"] === "library") {
             const ordered = content
               .flatMap((block) =>
@@ -784,7 +816,9 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
     changes,
     apply(choices: Choices) {
       const patch = {};
-      for (const action of actions) action(patch, hidden, choices);
+      for (const action of actions) {
+        if (action(patch, hidden, choices) === false) return document;
+      }
       const next = {
         ...writeValue(document, current, patch),
         hidden: [...hidden],
