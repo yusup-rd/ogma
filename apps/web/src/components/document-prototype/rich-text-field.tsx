@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import UniqueID from "@tiptap/extension-unique-id";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -39,7 +39,6 @@ const RichTextField = ({
   value,
   onChange,
 }: RichTextFieldProps) => {
-  const emitted = useRef<RichText | undefined>(undefined);
   const editor = useEditor({
     immediatelyRender: false,
     extensions,
@@ -60,12 +59,11 @@ const RichTextField = ({
       // Initial extension normalization is not a user edit.
       if (!editor.isFocused) return;
       const next = editor.getJSON() as RichText;
-      emitted.current = next;
       onChange(next);
     },
   });
   useEffect(() => {
-    if (!editor || value === emitted.current) return;
+    if (!editor) return;
     const next = value.content?.length
       ? value
       : { type: "doc" as const, content: [{ type: "paragraph" as const }] };

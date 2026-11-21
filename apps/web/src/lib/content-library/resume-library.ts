@@ -595,6 +595,22 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
     const updates = new Map(
       (latest.value.projects ?? []).map((project) => [project.id, project]),
     );
+    const oldOrder = [...previous.keys()],
+      nextOrder = [...updates.keys()],
+      localOrder = [...existing.keys()];
+    const shared = (ids: string[]) =>
+      ids.filter(
+        (id) => previous.has(id) && updates.has(id) && existing.has(id),
+      );
+    const orderChanged = !equal(shared(oldOrder), shared(nextOrder));
+    if (orderChanged)
+      review(
+        "project-order",
+        "Work project order",
+        [...existing.values()].map(({ name }) => name).join("\n"),
+        [...updates.values()].map(({ name }) => name).join("\n"),
+        !equal(shared(oldOrder), shared(localOrder)),
+      );
     for (const id of new Set([...previous.keys(), ...updates.keys()])) {
       const before = previous.get(id),
         here = existing.get(id),
@@ -668,7 +684,7 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
                 ...richTextLines(incomingProject.description),
               ].join("\n")
             : "",
-          Boolean(here) && (!incomingProject || !equal(here, before)),
+          !equal(here, before) || (Boolean(here) && !incomingProject),
         );
         actions.push((_, selected, choices) => {
           if (choices[key] !== "library") return;
@@ -684,8 +700,26 @@ function prepareSync(document: ResumeDocument, incoming: LibraryEntry) {
         });
       }
     }
-    actions.push((patch) => {
-      patch.projects = [...existing.values()];
+    actions.push((patch, _, choices) => {
+      const projects = [...existing.values()];
+      for (const id of nextOrder.filter(
+        (id) => !localOrder.includes(id) && existing.has(id),
+      )) {
+        const index = projects.findIndex((project) => project.id === id);
+        const [project] = projects.splice(index, 1);
+        const following = new Set(nextOrder.slice(nextOrder.indexOf(id) + 1));
+        const at = projects.findIndex((project) => following.has(project.id));
+        projects.splice(at < 0 ? projects.length : at, 0, project);
+      }
+      if (orderChanged && choices["project-order"] === "library") {
+        const ordered = projects
+          .filter(({ id }) => updates.has(id))
+          .sort((a, b) => nextOrder.indexOf(a.id) - nextOrder.indexOf(b.id));
+        let cursor = 0;
+        patch.projects = projects.map((project) =>
+          updates.has(project.id) ? ordered[cursor++] : project,
+        );
+      } else patch.projects = projects;
     });
   }
 
