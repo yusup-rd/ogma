@@ -14,35 +14,47 @@ export const SavedResumeThumbnail = ({
   const [html, setHtml] = useState<string>();
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
   const frame = useRef<HTMLIFrameElement>(null);
+  const container = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    const node = container.current;
+    if (!node) return;
     const request = new AbortController();
-    const signal = AbortSignal.any([
-      request.signal,
-      AbortSignal.timeout(25000),
-    ]);
-    void fetch(`/api/resumes/${id}/thumbnail?revision=${revision}`, {
-      signal,
-      cache: "no-store",
-    })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Thumbnail unavailable");
-        const html = await response.text();
-        if (
-          !new DOMParser()
-            .parseFromString(html, "text/html")
-            .querySelector(".workspace .resume-page")
-        )
-          throw new Error("Invalid thumbnail");
-        if (!request.signal.aborted) setHtml(html);
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      observer.disconnect();
+      const signal = AbortSignal.any([
+        request.signal,
+        AbortSignal.timeout(25000),
+      ]);
+      void fetch(`/api/resumes/${id}/thumbnail?revision=${revision}`, {
+        signal,
+        cache: "no-store",
       })
-      .catch(() => {
-        if (!request.signal.aborted) setPhase("error");
-      });
-    return () => request.abort();
+        .then(async (response) => {
+          if (!response.ok) throw new Error("Thumbnail unavailable");
+          const html = await response.text();
+          if (
+            !new DOMParser()
+              .parseFromString(html, "text/html")
+              .querySelector(".workspace .resume-page")
+          )
+            throw new Error("Invalid thumbnail");
+          if (!request.signal.aborted) setHtml(html);
+        })
+        .catch(() => {
+          if (!request.signal.aborted) setPhase("error");
+        });
+    });
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+      request.abort();
+    };
   }, [id, revision]);
 
   return (
     <div
+      ref={container}
       aria-hidden="true"
       data-thumbnail-state={phase}
       className={`relative w-54 max-w-[78%] overflow-hidden rounded-t-sm bg-paper shadow-lg ${paper === "Letter" ? "aspect-[8.5/11]" : "aspect-[210/297]"}`}
