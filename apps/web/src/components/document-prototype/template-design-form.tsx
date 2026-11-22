@@ -127,6 +127,7 @@ interface NumberSettingProps {
   min: number;
   max: number;
   unit: string;
+  inheritDefault?: boolean;
   onChange: (value?: number) => void;
 }
 
@@ -138,12 +139,13 @@ const NumberSetting = ({
   min,
   max,
   unit,
+  inheritDefault = true,
   onChange,
 }: NumberSettingProps) => {
   const [typed, setTyped] = useState<string | null>(null);
   const effective = value ?? fallback;
   const update = (value: number) =>
-    onChange(value === fallback ? undefined : value);
+    onChange(inheritDefault && value === fallback ? undefined : value);
   return (
     <div className={`flex min-w-0 flex-col gap-1 ${className ?? ""}`}>
       <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs font-semibold">
@@ -163,7 +165,10 @@ const NumberSetting = ({
               const next = event.currentTarget.valueAsNumber;
               setTyped(null);
               if (!event.currentTarget.value) onChange(undefined);
-              else if (Number.isFinite(next) && next !== effective)
+              else if (
+                Number.isFinite(next) &&
+                (next !== effective || (!inheritDefault && typed !== null))
+              )
                 update(Math.max(min, Math.min(max, next)));
             }}
             onKeyDown={(event) => {
@@ -595,6 +600,7 @@ const TemplateDesignForm = ({
                 <NumberSetting
                   className="col-span-2"
                   label="Photo size"
+                  inheritDefault={false}
                   value={style.photoSize}
                   fallback={templatePhotoSize(style, template)}
                   min={10}
