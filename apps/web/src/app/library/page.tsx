@@ -1,3 +1,6 @@
+import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
+import { createQueryClient } from "@/lib/queries/query-client";
+import { queryKeys } from "@/lib/queries/query-keys";
 import { redirect } from "next/navigation";
 import { libraryListSchema } from "@ogma/contracts/content-library";
 import { ContentLibrary } from "@/components/content-library/content-library";
@@ -16,12 +19,16 @@ const LibraryPage = async ({ searchParams }: LibraryPageProps) => {
   const entries = libraryListSchema.safeParse(
     response?.ok ? await response.json().catch(() => null) : null,
   );
+  const queryClient = createQueryClient();
+  if (entries.success)
+    queryClient.setQueryData(queryKeys.libraryList(false), entries.data);
   return (
-    <ContentLibrary
-      initialEntries={entries.success ? entries.data : []}
-      loadFailed={!entries.success}
-      continueToResume={from === "new-resume"}
-    />
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <ContentLibrary
+        loadFailed={!entries.success}
+        continueToResume={from === "new-resume"}
+      />
+    </HydrationBoundary>
   );
 };
 

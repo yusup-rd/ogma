@@ -170,6 +170,8 @@ export type SpacingRole =
 export type PageEdge = "top" | "right" | "bottom" | "left";
 
 export interface DesignOptions {
+  photoSize?: number;
+  headerPadding?: Partial<Record<PageEdge, number>>;
   paperSize?: PaperSize;
   listLineHeight?: number;
   dateFormat?: DateFormat;

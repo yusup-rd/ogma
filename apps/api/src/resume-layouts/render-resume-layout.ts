@@ -371,15 +371,18 @@ function renderSections(
           : "";
       const section =
         body || summaryTitle
-          ? `<section class="section ${id}" data-preview-anchor="section:${id}"><h2${summaryTitle ? ' class="summary-title"' : ""}>${icon}${escapeText(summaryTitle || sectionName(id, layout))}</h2><div class="section-copy">${body || "<div></div>"}</div></section>`
+          ? `<section class="section ${id}" data-break-before="${draft.style.sectionOverrides?.[id]?.breakBefore ?? false}" data-preview-anchor="section:${id}"><h2${summaryTitle ? ' class="summary-title"' : ""}>${icon}${escapeText(draft.style.sectionOverrides?.[id]?.title || summaryTitle || sectionName(id, layout))}</h2><div class="section-copy">${body || "<div></div>"}</div></section>`
           : "";
       if (id !== layout.proficiencyAfter) return [section];
       return [
         section,
-        ...skills.proficiency.map(
-          (group) =>
-            `<section class="section proficiency" data-preview-anchor="proficiency:${escapeText(group.id)}"><h2>${escapeText(group.title)}</h2><div class="section-copy">${renderSkills({ ...group, title: "" }, defaults, { ...draft.style, skillsLayout: "columns" })}</div></section>`,
-        ),
+        ...skills.proficiency.map((group, index) => {
+          const firstSkillsGroup = index === 0 && skills.regular.length === 0;
+          const title = firstSkillsGroup
+            ? draft.style.sectionOverrides?.skills?.title
+            : undefined;
+          return `<section class="section proficiency" data-break-before="${firstSkillsGroup && (draft.style.sectionOverrides?.skills?.breakBefore ?? false)}" data-preview-anchor="proficiency:${escapeText(group.id)}"><h2>${escapeText(title || group.title)}</h2><div class="section-copy">${renderSkills({ ...group, title: title ? group.title : "" }, defaults, { ...draft.style, skillsLayout: "columns" })}</div></section>`;
+        }),
       ];
     })
     .join("");
@@ -551,6 +554,7 @@ export function renderResumeLayout(
     "rail-" + layout.rail,
     showPhoto ? "photo-" + layout.photo : "",
     "portrait-" + layout.photoShape,
+    style.photoSize !== undefined && showPhoto ? "custom-photo-size" : "",
     layout.timeline ? "timeline" : "",
     "logos-" + layout.logos,
     side.length ? "two-columns" : "",
@@ -595,6 +599,7 @@ html { --paper-width:${paper.width}; --paper-height:${paper.height}; }
   --margin-top:${toWidth(margins.top)}; --margin-right:${toWidth(margins.right)};
   --margin-bottom:${toWidth(margins.bottom)}; --margin-left:${toWidth(margins.left)};
   --gap:${toWidth(style.sectionGap)};
+  ${style.photoSize === undefined ? "" : `--custom-photo-size:${toWidth(style.photoSize)};`}
   --body:${toPoints(style.bodySize)};
   --leading:${style.lineHeight}; --font:${fontChoices[style.font].css};
   --ach-columns:${layout.achievementColumns};
@@ -605,6 +610,26 @@ html { --paper-width:${paper.width}; --paper-height:${paper.height}; }
 ${resumeLayoutStyles}
 ${formattingRules(effectiveStyle, toPoints, style.spacing?.titleContent !== undefined, essential ? { size: style.sizes?.secondary, weight: style.weights?.secondary } : undefined)}
 ${fontStyles(style.font)}
+${Object.entries(style.headerPadding ?? {})
+  .map(([edge, padding]) =>
+    padding === undefined
+      ? ""
+      : `.resume-page header{--header-padding-${edge}:${toWidth(padding)};padding-${edge}:var(--header-padding-${edge});}`,
+  )
+  .join("\n")}
+${Object.entries(style.sectionOverrides ?? {})
+  .map(([id, override]) => {
+    const selector =
+      id === "skills"
+        ? ".resume-page .column section.section:is(.skills,.proficiency)"
+        : `.resume-page .column section.section.${id}`;
+    return `${selector}{${override.sectionGap === undefined ? "" : `--gap:${toWidth(override.sectionGap)};`}${override.lineHeight === undefined ? "" : `line-height:${override.lineHeight};--leading:${override.lineHeight};`}}
+${override.sectionGap === undefined ? "" : `${selector}:not(:last-child){margin-bottom:${toWidth(override.sectionGap)} !important;}`}
+${selector} h2{${override.headingSize === undefined ? "" : `font-size:${toPoints(override.headingSize)} !important;`}${override.headingWeight === undefined ? "" : `font-weight:${override.headingWeight} !important;`}${override.letterSpacing === undefined ? "" : `letter-spacing:${toPoints(override.letterSpacing)} !important;`}}
+${override.lineHeight === undefined ? "" : `${selector} .section-copy,${selector} .section-copy :is(p,li){line-height:${override.lineHeight} !important;}`}
+${override.bulletSpacing === undefined ? "" : `${selector} .rich-text :is(ul,ol)>li+li{margin-top:${toWidth(override.bulletSpacing)} !important;}${selector} .skill-list{row-gap:${toWidth(override.bulletSpacing)} !important;}`}`;
+  })
+  .join("\n")}
 ${
   thumbnail
     ? `

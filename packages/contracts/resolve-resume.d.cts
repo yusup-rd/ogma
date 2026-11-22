@@ -1,4 +1,9 @@
-import type { DraftContent, ResumeSectionId, RichText } from "./resume-content";
+import type {
+  DraftContent,
+  ResumeSectionId,
+  RichText,
+  PageEdge,
+} from "./resume-content";
 import type { ResumeDocument, WorkspaceStyle } from "./resume-workspace.cjs";
 
 type TemplateDefaults = Pick<
@@ -26,6 +31,24 @@ export function projectBulletKey(
 ): string;
 export function bulletKey(entryId: string, bulletId: string): string;
 export function defaultStyle(template: TemplateDefaults): WorkspaceStyle;
+export function resolveStyle(
+  document: ResumeDocument,
+  template: TemplateDefaults,
+): WorkspaceStyle;
+// Measurements are in millimetres.
+type TemplateGeometry = Pick<TemplateDefaults, "id" | "photo"> & {
+  header: string;
+  margins?: WorkspaceStyle["margins"];
+};
+export function templatePhotoSize(
+  style: WorkspaceStyle,
+  template: TemplateGeometry,
+): number;
+export function templateHeaderPadding(
+  style: WorkspaceStyle,
+  template: TemplateGeometry,
+): Record<PageEdge, number>;
+
 export function resolveResume(
   document: ResumeDocument,
   template: TemplateDefaults,

@@ -1,3 +1,8 @@
+import { cookies } from "next/headers";
+import { validTimeZone } from "@/lib/formatUtil";
+import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
+import { createQueryClient } from "@/lib/queries/query-client";
+import { queryKeys } from "@/lib/queries/query-keys";
 import { z } from "zod";
 import { OwnerSignIn } from "@/components/owner-auth/owner-sign-in";
 import { ResumesDashboard } from "@/components/resumes/resumes-dashboard";
@@ -25,6 +30,13 @@ async function loadResumes() {
   return resumeListSchema.parse(await response.json());
 }
 
+async function loadDisplayClock() {
+  const timeZone = validTimeZone(
+    (await cookies()).get("ogma-time-zone")?.value,
+  );
+  return timeZone ? { now: Date.now(), timeZone } : null;
+}
+
 const HomePage = async ({ searchParams }: HomePageProps) => {
   const [session, { signIn }] = await Promise.all([
     loadSession().catch(() => null),
@@ -39,9 +51,16 @@ const HomePage = async ({ searchParams }: HomePageProps) => {
     );
   }
   if (session.signedIn) {
-    const resumes = await loadResumes().catch(() => null);
+    const [resumes, initialClock] = await Promise.all([
+      loadResumes().catch(() => null),
+      loadDisplayClock(),
+    ]);
+    const queryClient = createQueryClient();
+    if (resumes) queryClient.setQueryData(queryKeys.resumeList(false), resumes);
     return (
-      <ResumesDashboard initialRows={resumes ?? []} loadFailed={!resumes} />
+      <HydrationBoundary state={dehydrate(queryClient)}>
+        <ResumesDashboard loadFailed={!resumes} initialClock={initialClock} />
+      </HydrationBoundary>
     );
   }
 

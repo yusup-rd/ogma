@@ -17,6 +17,7 @@
     "@ogma/contracts": "workspace:*",
     "@radix-ui/react-dialog": "^1.1.0",
     "@radix-ui/react-select": "^2.4.1",
+    "@tanstack/react-query": "5",
     "@tiptap/core": "3.34.0",
     "@tiptap/extension-unique-id": "3.34.0",
     "@tiptap/pm": "^3.34.0",

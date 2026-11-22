@@ -8,6 +8,7 @@ interface ResumePreviewProps {
   paper: "A4" | "Letter";
   templateName?: string;
   mobileVisible: boolean;
+  hasUnsavedChanges: boolean;
 }
 
 const buttonClass =
@@ -114,6 +115,7 @@ const ResumePreview = ({
   paper,
   templateName,
   mobileVisible,
+  hasUnsavedChanges,
 }: ResumePreviewProps) => {
   const [zoom, setZoom] = useState(1);
   useEffect(() => {
@@ -216,6 +218,11 @@ const ResumePreview = ({
           </button>
         </div>
       </div>
+      {hasUnsavedChanges && (
+        <p role="status" className="shrink-0 px-1 text-xs text-accent">
+          Previewing unsaved edits · Save each edited section to keep them.
+        </p>
+      )}
       {hasPreview && (
         <iframe
           ref={frame}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import type { ReactNode } from "react";
 import "./globals.css";
+import { QueryProvider } from "@/components/query-provider";
 import { AppToaster } from "@/components/app-toaster";
 
 const inter = localFont({
@@ -24,8 +25,10 @@ const RootLayout = ({ children }: RootLayoutProps) => {
   return (
     <html lang="en" className={inter.variable}>
       <body className="bg-canvas font-sans text-ink antialiased">
-        {children}
-        <AppToaster />
+        <QueryProvider>
+          {children}
+          <AppToaster />
+        </QueryProvider>
       </body>
     </html>
   );

@@ -2214,6 +2214,7 @@ __metadata:
     "@radix-ui/react-dialog": "npm:^1.1.0"
     "@radix-ui/react-select": "npm:^2.4.1"
     "@tailwindcss/postcss": "npm:^4.0.0"
+    "@tanstack/react-query": "npm:5"
     "@tiptap/core": "npm:3.34.0"
     "@tiptap/extension-unique-id": "npm:3.34.0"
     "@tiptap/pm": "npm:^3.34.0"
@@ -3196,6 +3197,28 @@ __metadata:
     postcss: "npm:^8.5.25"
     tailwindcss: "npm:4.3.5"
   checksum: 10c0/fe739b6cc968c05b9a22ba4e56f2f0ca3c71398804afdd0023645eb23ef974c10089e4032f0ad682830a9ba9e0021173790a81a88e6681f89f6612429626c2a8
+  languageName: node
+  linkType: hard
+
+"@tanstack/query-core@npm:5.108.2":
+  version: 5.108.2
+  resolution: "@tanstack/query-core@npm:5.108.2"
+  checksum: 10c0/22f5618cfd98858cd7ec47900992c505b287fde162edebcbf4448647194ff9330080b8911e2a2670e5f4f6ea1bd867a56071596f418977c5d2482cf4f710d90a
+  languageName: node
+  linkType: hard
+
+"@tanstack/react-query@npm:5":
+  version: 5.108.2
+  resolution: "@tanstack/react-query@npm:5.108.2"
+  dependencies:
+    "@tanstack/query-core": "npm:5.108.2"
+  peerDependencies:
+    "@types/react": ^18 || ^19
+    react: ^18 || ^19
+  peerDependenciesMeta:
+    "@types/react":
+      optional: true
+  checksum: 10c0/db33301c719dd78ac89cea754e394dbb47cb269b82db4b2edb4e2c1a95a171a14476ffec8f1e3ca474d2d03bcc7cdfa56cba53772c52f4c118c184bb44191c50
   languageName: node
   linkType: hard
 

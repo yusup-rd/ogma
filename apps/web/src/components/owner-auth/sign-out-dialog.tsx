@@ -1,4 +1,5 @@
 import { notifyAfterNavigation } from "@/lib/notifications/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { LuLogOut } from "react-icons/lu";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 
@@ -11,6 +12,7 @@ const SignOutDialog = ({
   beforeSignOut,
   sidebar = false,
 }: SignOutDialogProps) => {
+  const client = useQueryClient();
   return (
     <ConfirmationDialog
       trigger={
@@ -30,6 +32,8 @@ const SignOutDialog = ({
           throw new Error("Save or recover your edits before signing out.");
         const response = await fetch("/api/auth/sign-out", { method: "POST" });
         if (!response.ok) throw new Error("Couldn’t sign out. Try again.");
+        await client.cancelQueries();
+        client.clear();
         notifyAfterNavigation("Signed out.");
         window.location.replace(new URL("/", window.location.origin));
       }}

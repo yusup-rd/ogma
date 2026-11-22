@@ -133,6 +133,15 @@ export async function paginateResume(page: Page) {
     for (const [columnIndex, sections] of sources.entries()) {
       let pageIndex = 0;
       for (const source of sections) {
+        if (source.dataset.breakBefore === "true") {
+          const { sheet, columns } = pageAt(pageIndex);
+          if (
+            columns.children[columnIndex].children.length ||
+            (pageIndex === 0 && sheet.querySelector("header, .rail-portrait"))
+          ) {
+            pageIndex++;
+          }
+        }
         const sectionContent =
           source.querySelector<HTMLElement>(".section-copy")!;
         let currentSection: HTMLElement | undefined;

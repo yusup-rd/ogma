@@ -1,6 +1,6 @@
 generator client {
   provider     = "prisma-client"
-  output       = "../src/generated/database"
+  output       = "../src/generated/prisma-client"
   moduleFormat = "cjs"
 }
 
@@ -47,6 +47,7 @@ model Resume {
   id            String             @id @default(uuid()) @db.Uuid
   ownerId       String             @map("owner_id") @db.Uuid
   title         String
+  locked        Boolean            @default(false)
   draftRevision Int                @default(1) @map("draft_revision")
   pageCount     Int?               @map("page_count")
   document      Json               @db.JsonB

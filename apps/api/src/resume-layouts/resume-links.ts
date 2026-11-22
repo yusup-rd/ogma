@@ -1,4 +1,3 @@
-// cspell:ignore noopener noreferrer
 const entities: Record<string, string> = {
   "&": "&amp;",
   "<": "&lt;",

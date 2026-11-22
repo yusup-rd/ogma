@@ -48,6 +48,10 @@ const saveSchema = z.object({
   title: titleSchema,
   document: resumeDocumentSchema,
 });
+const lockSchema = z.discriminatedUnion("locked", [
+  z.object({ locked: z.literal(true), expectedRevision: revisionSchema }),
+  saveSchema.extend({ locked: z.literal(false) }),
+]);
 
 function readBody<T>(schema: z.ZodType<T>, body: unknown) {
   const result = schema.safeParse(body);
@@ -122,10 +126,14 @@ export class ResumesController {
   async thumbnail(
     @Req() request: OwnerRequest,
     @Param("id", ParseUUIDPipe) id: string,
+    @Query("revision") revision?: string,
   ) {
     const { draft, layout } = await this.resumes.getRenderSnapshot(
       ownerIdFor(request),
       id,
+      revision === undefined
+        ? undefined
+        : readBody(z.coerce.number().pipe(revisionSchema), revision),
     );
     return this.documents.prepareHtml(
       renderResumeLayout(draft, layout, true),
@@ -146,6 +154,24 @@ export class ResumesController {
       expectedRevision,
       title,
       document,
+    );
+  }
+
+  @Post(":id/lock")
+  setLocked(
+    @Req() request: OwnerRequest,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const parsed = readBody(lockSchema, body);
+    return this.resumes.setLocked(
+      ownerIdFor(request),
+      id,
+      parsed.expectedRevision,
+      parsed.locked,
+      parsed.locked
+        ? undefined
+        : { title: parsed.title, document: parsed.document },
     );
   }
 

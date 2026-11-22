@@ -36,6 +36,42 @@ const resumeStyleSchema = z.object({
   margin: z.number().min(8).max(27),
   lineHeight: z.number().min(0.9).max(2.5),
   showPhoto: z.boolean(),
+  photoSize: z.number().min(10).max(50).optional(),
+  headerPadding: z
+    .object({
+      top: z.number().min(0).max(45),
+      right: z.number().min(0).max(45),
+      bottom: z.number().min(0).max(45),
+      left: z.number().min(0).max(45),
+    })
+    .partial()
+    .optional(),
+  sectionOverrides: z
+    .partialRecord(
+      z.enum([
+        "summary",
+        "experience",
+        "education",
+        "skills",
+        "languages",
+        "certifications",
+        "awards",
+        "projects",
+        "volunteering",
+        "publications",
+      ]),
+      z.object({
+        title: z.string().trim().min(1).max(120).optional(),
+        headingSize: textSize.optional(),
+        headingWeight: textWeight.optional(),
+        letterSpacing: z.number().min(-1).max(5).optional(),
+        bulletSpacing: z.number().min(0).max(15).optional(),
+        sectionGap: z.number().min(0).max(20).optional(),
+        lineHeight: z.number().min(0.9).max(2.5).optional(),
+        breakBefore: z.boolean().optional(),
+      }),
+    )
+    .optional(),
   paperSize: z.enum(["a4", "letter"]).optional(),
   listLineHeight: z.number().min(0.9).max(2.5).optional(),
   dateFormat: z.enum(["numeric", "year", "short", "long"]).optional(),
@@ -147,6 +183,9 @@ const resumeDocumentInputSchema = z.object({
     })
     .optional(),
   content: draftContentSchema,
+  sectionTitles: z
+    .partialRecord(editorSectionSchema.exclude(["personal"]), titleSchema)
+    .optional(),
   experienceSources: z
     .array(librarySource.refine(({ content }) => content.kind === "experience"))
     .max(50)
@@ -190,6 +229,7 @@ const resumeSummarySchema = z.object({
   templateName: z.string().min(1),
   paper: z.enum(["A4", "Letter"]),
   archived: z.boolean(),
+  locked: z.boolean().default(false),
   pageCount: z.int().positive().nullable(),
 });
 const savedResumeSchema = resumeSummarySchema.extend({

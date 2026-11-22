@@ -1,4 +1,8 @@
 import { useState, type ReactNode } from "react";
+import {
+  templatePhotoSize,
+  templateHeaderPadding,
+} from "@ogma/contracts/resolve-resume";
 import { LuCheck } from "react-icons/lu";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { ratioToPercent } from "@/lib/formatUtil";
@@ -6,6 +10,8 @@ import type {
   TemplateOption,
   TemplateStyle,
 } from "@/lib/document-prototype/resume-layout-model";
+import type { EditorSectionId } from "@/lib/document-prototype/content-presentation";
+import { SectionSettings } from "./section-settings";
 import { SelectSetting } from "./select-setting";
 
 interface TemplateDesignFormProps {
@@ -15,6 +21,7 @@ interface TemplateDesignFormProps {
   onChange: (changes: Partial<TemplateStyle>) => void;
   onReset: () => void;
   gallery: ReactNode;
+  sectionOrder: EditorSectionId[];
 }
 
 const fieldClass =
@@ -120,6 +127,7 @@ interface NumberSettingProps {
   min: number;
   max: number;
   unit: string;
+  inheritDefault?: boolean;
   onChange: (value?: number) => void;
 }
 
@@ -131,12 +139,13 @@ const NumberSetting = ({
   min,
   max,
   unit,
+  inheritDefault = true,
   onChange,
 }: NumberSettingProps) => {
   const [typed, setTyped] = useState<string | null>(null);
   const effective = value ?? fallback;
   const update = (value: number) =>
-    onChange(value === fallback ? undefined : value);
+    onChange(inheritDefault && value === fallback ? undefined : value);
   return (
     <div className={`flex min-w-0 flex-col gap-1 ${className ?? ""}`}>
       <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs font-semibold">
@@ -236,11 +245,13 @@ const TemplateDesignForm = ({
   onChange,
   onReset,
   gallery,
+  sectionOrder,
 }: TemplateDesignFormProps) => {
   const [tab, setTab] = useState<"Classic Settings" | "Advanced">(
     "Classic Settings",
   );
   const defaults = template.designDefaults;
+  const headerPadding = templateHeaderPadding(style, template);
   const workDefaults = defaults.workExperience;
   const defaultIndicator =
     defaults.proficiencyIndicator === "none"
@@ -577,11 +588,24 @@ const TemplateDesignForm = ({
               onChange={(showSectionIcons) => onChange({ showSectionIcons })}
             />
             {template.photo !== "none" && (
-              <ToggleSetting
-                label="Show profile photo"
-                checked={style.showPhoto}
-                onChange={(showPhoto) => onChange({ showPhoto })}
-              />
+              <>
+                <ToggleSetting
+                  label="Show profile photo"
+                  checked={style.showPhoto}
+                  onChange={(showPhoto) => onChange({ showPhoto })}
+                />
+                <NumberSetting
+                  className="col-span-2"
+                  label="Photo size"
+                  inheritDefault={false}
+                  value={style.photoSize}
+                  fallback={templatePhotoSize(style, template)}
+                  min={10}
+                  max={50}
+                  unit="mm"
+                  onChange={(photoSize) => onChange({ photoSize })}
+                />
+              </>
             )}
           </SettingsGroup>
           <SettingsGroup title="Projects">
@@ -666,6 +690,28 @@ const TemplateDesignForm = ({
               />
             ))}
           </SettingsGroup>
+          <SettingsGroup title="Header padding">
+            {(["top", "right", "bottom", "left"] as const).map((edge) => (
+              <NumberSetting
+                key={edge}
+                label={
+                  edge.charAt(0).toUpperCase() +
+                  edge.slice(1) +
+                  " header padding"
+                }
+                value={style.headerPadding?.[edge]}
+                fallback={headerPadding[edge]}
+                min={0}
+                max={45}
+                unit="mm"
+                onChange={(value) =>
+                  onChange({
+                    headerPadding: { ...style.headerPadding, [edge]: value },
+                  })
+                }
+              />
+            ))}
+          </SettingsGroup>
           <SettingsGroup title="Vertical spacing">
             {spacingRoles.map(([role, label]) => (
               <NumberSetting
@@ -685,6 +731,18 @@ const TemplateDesignForm = ({
           </SettingsGroup>
         </>
       )}
+      <SettingsGroup title="Section settings">
+        {sectionOrder
+          .filter((section) => section !== "personal")
+          .map((section) => (
+            <SectionSettings
+              key={section}
+              section={section}
+              style={style}
+              onChange={onChange}
+            />
+          ))}
+      </SettingsGroup>
       <ConfirmationDialog
         trigger={
           <button

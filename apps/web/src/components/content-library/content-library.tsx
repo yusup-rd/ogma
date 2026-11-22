@@ -1,9 +1,18 @@
 "use client";
 import { notifyAfterNavigation } from "@/lib/notifications/navigation";
 
+import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  libraryListQuery,
+  cacheLibraryEntry,
+  removeCachedLibraryEntry,
+} from "@/lib/queries/library-queries";
+import { cacheResumeSummary } from "@/lib/queries/resume-queries";
+import { queryKeys } from "@/lib/queries/query-keys";
 import { toast } from "sonner";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   LuArchive,
   LuBriefcaseBusiness,
@@ -24,7 +33,6 @@ import {
   archiveLibraryEntry,
   deleteLibraryEntry,
   LibraryRequestError,
-  loadLibrary,
   saveLibraryEntry,
 } from "@/lib/content-library/library-api";
 import {
@@ -36,12 +44,13 @@ import { createResume } from "@/lib/resumes/resume-api";
 import { LibraryEntryForm } from "./library-entry-form";
 
 interface ContentLibraryProps {
-  initialEntries: LibraryEntry[];
   loadFailed: boolean;
   continueToResume: boolean;
 }
 
-type EditState = { id: string; entry?: LibraryEntry };
+type EditState = { id?: string; entry?: LibraryEntry };
+
+const emptyEntries: LibraryEntry[] = [];
 
 const kinds = Object.keys(librarySections) as LibraryKind[];
 const primary =
@@ -50,32 +59,57 @@ const secondary =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-line bg-paper px-3 text-sm font-semibold hover:bg-canvas disabled:opacity-60";
 
 const ContentLibrary = ({
-  initialEntries,
   loadFailed,
   continueToResume,
 }: ContentLibraryProps) => {
-  const [entries, setEntries] = useState(initialEntries);
+  const client = useQueryClient();
+  const router = useRouter();
   const [section, setSection] = useState<LibraryKind>("personal");
   const [archived, setArchived] = useState(false);
+  const list = useQuery({
+    ...libraryListQuery(archived),
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+  const entries = list.data ?? emptyEntries;
   const [editor, setEditor] = useState<EditState>();
-  const [blocked, setBlocked] = useState(loadFailed);
+  const [editorReset, setEditorReset] = useState(0);
+  const [draftEditors, setDraftEditors] = useState(
+    () => new Map<string, EditState>(),
+  );
+  const [loadBlocked, setBlocked] = useState(loadFailed);
+  const blocked = !list.data && (loadBlocked || list.isError || list.isPending);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(
-    loadFailed ? "Couldn’t load your Library." : "",
-  );
+  const [actionError, setError] = useState("");
+  const error =
+    actionError ||
+    (!list.data && loadFailed ? "Couldn’t load your Library." : "");
   const [drafts, setDrafts] = useState(() => new Map<string, LibraryValue>());
   const createIds = useRef(new Map<string, string>());
   const resumeId = useRef<string | undefined>(undefined);
-  const rows = entries.filter((entry) => entry.content.kind === section);
+  const rows = useMemo(
+    () => entries.filter((entry) => entry.content.kind === section),
+    [entries, section],
+  );
   const singleton = singletonLibraryKinds.includes(section);
-  const activeEditor =
-    !archived && !blocked
-      ? (editor ??
-        (singleton || !rows.length
-          ? { id: rows[0]?.id, entry: rows[0] }
-          : undefined))
-      : undefined;
+  const activeEditor = useMemo(() => {
+    if (archived || blocked) return undefined;
+    const candidate =
+      editor ??
+      (singleton || !rows.length
+        ? { id: rows[0]?.id, entry: rows[0] }
+        : undefined);
+    if (!candidate) return undefined;
+    const recovery = draftEditors.get(
+      `${section}:${candidate.entry?.id ?? "new"}`,
+    );
+    const singletonRecovery =
+      !editor && singleton
+        ? [...draftEditors].find(([key]) => key.startsWith(`${section}:`))?.[1]
+        : undefined;
+    return recovery ?? singletonRecovery ?? candidate;
+  }, [archived, blocked, editor, singleton, rows, draftEditors, section]);
   const draftKey =
     section +
     ":" +
@@ -84,6 +118,16 @@ const ContentLibrary = ({
       : "new");
   const rememberDraft = useCallback(
     (draft: LibraryValue | undefined) => {
+      if (activeEditor)
+        setDraftEditors((current) => {
+          const key = `${section}:${activeEditor.entry?.id ?? "new"}`;
+          if (draft ? current.get(key) === activeEditor : !current.has(key))
+            return current;
+          const next = new Map(current);
+          if (draft) next.set(key, activeEditor);
+          else next.delete(key);
+          return next;
+        });
       setDrafts((current) => {
         if (current.get(draftKey) === draft) return current;
         const next = new Map(current);
@@ -92,7 +136,7 @@ const ContentLibrary = ({
         return next;
       });
     },
-    [draftKey],
+    [draftKey, activeEditor, section],
   );
   const sectionTitle = librarySections[section].label;
   const locked = busy || saving;
@@ -106,7 +150,12 @@ const ContentLibrary = ({
     setBusy(true);
     setError("");
     try {
-      setEntries(await loadLibrary(showArchived));
+      if (showArchived === archived)
+        await client.invalidateQueries({
+          queryKey: queryKeys.libraryList(showArchived),
+          refetchType: "none",
+        });
+      await client.fetchQuery(libraryListQuery(showArchived));
       setArchived(showArchived);
       setBlocked(false);
       setEditor(undefined);
@@ -127,11 +176,44 @@ const ContentLibrary = ({
         title: "Untitled resume",
       });
       notifyAfterNavigation("Resume created.");
-      window.location.assign(
-        new URL("/resumes/" + resume.id, window.location.origin),
-      );
+      await cacheResumeSummary(client, resume);
+      router.push(`/resumes/${resume.id}`);
     } catch {
       toast.error("Couldn’t create a resume. Try again.");
+      setBusy(false);
+    }
+  };
+
+  const discardAndReloadSection = async () => {
+    setBusy(true);
+    try {
+      const queryKey = queryKeys.libraryList(false);
+      await client.cancelQueries({ queryKey });
+      await client.invalidateQueries({ queryKey, refetchType: "none" });
+      const fresh = await client.fetchQuery(libraryListQuery(false));
+      const prefix = `${section}:`;
+      setDraftEditors(
+        (current) =>
+          new Map([...current].filter(([key]) => !key.startsWith(prefix))),
+      );
+      setDrafts(
+        (current) =>
+          new Map([...current].filter(([key]) => !key.startsWith(prefix))),
+      );
+      for (const key of createIds.current.keys()) {
+        if (key.startsWith(prefix)) createIds.current.delete(key);
+      }
+      const entry = fresh.find(({ content }) => content.kind === section);
+      setEditor(entry ? { id: entry.id, entry } : undefined);
+      setEditorReset((current) => current + 1);
+      setBlocked(false);
+      setError("");
+      toast.success("Loaded the saved section.");
+    } catch {
+      throw new Error(
+        "Couldn’t reload this section. Your unsaved edits are still here. Try again.",
+      );
+    } finally {
       setBusy(false);
     }
   };
@@ -171,10 +253,10 @@ const ContentLibrary = ({
           )}
         </div>
       </header>
-      {error && (
+      {(error || list.isError) && (
         <div className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-paper p-3">
           <p role="alert" className="text-sm text-red-800">
-            {error}
+            {error || "Couldn’t refresh your Library. Try again."}
           </p>
           <button
             type="button"
@@ -305,10 +387,8 @@ const ContentLibrary = ({
                       confirmLabel={label}
                       action={async () => {
                         try {
-                          await archiveLibraryEntry(entry);
-                          setEntries((current) =>
-                            current.filter(({ id }) => id !== entry.id),
-                          );
+                          const updated = await archiveLibraryEntry(entry);
+                          await cacheLibraryEntry(client, updated);
                           if (editor?.id === entry.id) setEditor(undefined);
                           toast.success(
                             archived
@@ -345,9 +425,7 @@ const ContentLibrary = ({
                         action={async () => {
                           try {
                             await deleteLibraryEntry(entry);
-                            setEntries((current) =>
-                              current.filter(({ id }) => id !== entry.id),
-                            );
+                            await removeCachedLibraryEntry(client, entry.id);
                             toast.success("Entry deleted.");
                           } catch {
                             throw new Error(
@@ -376,7 +454,9 @@ const ContentLibrary = ({
                 ":" +
                 (activeEditor.id ?? "new") +
                 ":" +
-                (activeEditor.entry?.revision ?? 0)
+                (activeEditor.entry?.revision ?? 0) +
+                ":" +
+                editorReset
               }
               locked={busy}
               cachedDraft={drafts.get(draftKey)}
@@ -408,40 +488,59 @@ const ContentLibrary = ({
                   : undefined
               }
               actions={
-                singleton && activeEditor.entry ? (
-                  <ConfirmationDialog
-                    trigger={
-                      <button
-                        type="button"
-                        disabled={locked}
-                        className={secondary}
-                      >
-                        <LuArchive aria-hidden="true" className="size-4" />
-                        Archive this entry
-                      </button>
-                    }
-                    title="Archive this entry?"
-                    description="Move the saved entry to the archive and start with a blank form. Unsaved edits will be discarded. You can restore the saved entry later."
-                    confirmLabel="Archive entry"
-                    action={async () => {
-                      const entry = activeEditor.entry;
-                      if (!entry) return;
-                      try {
-                        await archiveLibraryEntry(entry);
-                        rememberDraft(undefined);
-                        createIds.current.delete(draftKey);
-                        setEntries((current) =>
-                          current.filter(({ id }) => id !== entry.id),
-                        );
-                        setEditor(undefined);
-                        toast.success("Entry moved to the archive.");
-                      } catch {
-                        throw new Error(
-                          "Couldn’t archive this entry. Reload the Library and try again.",
-                        );
-                      }
-                    }}
-                  />
+                singleton ? (
+                  <>
+                    {drafts.has(draftKey) && (
+                      <ConfirmationDialog
+                        trigger={
+                          <button
+                            type="button"
+                            disabled={locked}
+                            className={secondary}
+                          >
+                            Discard and reload
+                          </button>
+                        }
+                        title={`Reload ${sectionTitle.toLowerCase()}?`}
+                        description="Discard unsaved changes in this section and load its latest saved entry. Drafts in other sections are kept."
+                        confirmLabel="Discard and reload"
+                        action={discardAndReloadSection}
+                      />
+                    )}
+                    {activeEditor.entry && (
+                      <ConfirmationDialog
+                        trigger={
+                          <button
+                            type="button"
+                            disabled={locked}
+                            className={secondary}
+                          >
+                            <LuArchive aria-hidden="true" className="size-4" />
+                            Archive this entry
+                          </button>
+                        }
+                        title="Archive this entry?"
+                        description="Move the saved entry to the archive and start with a blank form. Unsaved edits will be discarded. You can restore the saved entry later."
+                        confirmLabel="Archive entry"
+                        action={async () => {
+                          const entry = activeEditor.entry;
+                          if (!entry) return;
+                          try {
+                            const updated = await archiveLibraryEntry(entry);
+                            rememberDraft(undefined);
+                            createIds.current.delete(draftKey);
+                            await cacheLibraryEntry(client, updated);
+                            setEditor(undefined);
+                            toast.success("Entry moved to the archive.");
+                          } catch {
+                            throw new Error(
+                              "Couldn’t archive this entry. Reload the Library and try again.",
+                            );
+                          }
+                        }}
+                      />
+                    )}
+                  </>
                 ) : undefined
               }
               onSave={async (id, content) => {
@@ -456,11 +555,7 @@ const ContentLibrary = ({
                   );
                   rememberDraft(undefined);
                   createIds.current.delete(draftKey);
-                  setEntries((current) =>
-                    entry.archived
-                      ? current.filter(({ id }) => id !== entry.id)
-                      : [entry, ...current.filter(({ id }) => id !== entry.id)],
-                  );
+                  await cacheLibraryEntry(client, entry);
                   setEditor(
                     entry.archived ? undefined : { id: entry.id, entry },
                   );

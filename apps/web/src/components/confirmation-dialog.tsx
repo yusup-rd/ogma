@@ -23,12 +23,27 @@ const ConfirmationDialog = ({
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [confirmation, setConfirmation] = useState({
+    title,
+    description,
+    confirmLabel,
+    destructive,
+    action,
+  });
 
   return (
     <Dialog.Root
       open={open}
       onOpenChange={(next) => {
         if (pending) return;
+        if (next)
+          setConfirmation({
+            title,
+            description,
+            confirmLabel,
+            destructive,
+            action,
+          });
         setOpen(next);
         setError("");
       }}
@@ -38,10 +53,10 @@ const ConfirmationDialog = ({
         <Dialog.Overlay className="fixed inset-0 z-40 bg-ink/35" />
         <Dialog.Content className="fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 flex-col gap-3 overflow-auto rounded-2xl border border-line bg-paper p-5 shadow-xl">
           <Dialog.Title className="text-lg font-semibold tracking-tight">
-            {title}
+            {confirmation.title}
           </Dialog.Title>
           <Dialog.Description className="text-sm leading-relaxed text-muted">
-            {description}
+            {confirmation.description}
           </Dialog.Description>
           {error && (
             <p role="alert" className="text-sm text-red-800">
@@ -57,7 +72,7 @@ const ConfirmationDialog = ({
               setPending(true);
               setError("");
               try {
-                await action();
+                await confirmation.action();
                 setOpen(false);
               } catch (error) {
                 setError(
@@ -82,9 +97,9 @@ const ConfirmationDialog = ({
             <button
               type="submit"
               disabled={pending}
-              className={`min-h-11 rounded-lg px-3 text-sm font-semibold text-white disabled:opacity-60 ${destructive ? "bg-red-700 hover:bg-red-800" : "bg-accent hover:bg-accent-hover"}`}
+              className={`min-h-11 rounded-lg px-3 text-sm font-semibold text-white disabled:opacity-60 ${confirmation.destructive ? "bg-red-700 hover:bg-red-800" : "bg-accent hover:bg-accent-hover"}`}
             >
-              {confirmLabel}
+              {confirmation.confirmLabel}
             </button>
           </form>
         </Dialog.Content>

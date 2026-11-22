@@ -49,8 +49,9 @@ export async function requestResume<T>(
   path: string,
   schema: z.ZodType<T>,
   options?: ResumeMutation,
+  signal?: AbortSignal,
 ) {
-  const response = await fetchResume(path, options);
+  const response = await fetchResume(path, options, signal);
   return schema.parse(await response.json());
 }
 

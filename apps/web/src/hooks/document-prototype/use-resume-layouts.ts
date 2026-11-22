@@ -1,29 +1,72 @@
 "use client";
+import { useQuery } from "@tanstack/react-query";
+import { catalogQuery } from "@/lib/queries/resume-queries";
 import { toast } from "sonner";
 
 import type { PhotoCrop } from "@ogma/contracts/resume-content-schema";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ResumeDocument } from "@ogma/contracts/resume-workspace";
-import { defaultStyle, resolveResume } from "@ogma/contracts/resolve-resume";
+import {
+  defaultStyle,
+  resolveResume,
+  resolveStyle,
+} from "@ogma/contracts/resolve-resume";
+import type { SectionPreview } from "@/lib/document-prototype/content-preview";
 import {
   defaultSectionOrder,
   type EditorSectionId,
 } from "@/lib/document-prototype/content-presentation";
 import {
-  templateCatalogSchema,
   type DraftContent,
   type ResumeDraft,
-  type TemplateCatalog,
   type TemplateOption,
   type TemplateStyle,
 } from "@/lib/document-prototype/resume-layout-model";
 
 import { pruneLibrarySources } from "@/lib/content-library/resume-library";
 
+function renameSection(
+  document: ResumeDocument,
+  section: Exclude<EditorSectionId, "personal">,
+  title: string,
+) {
+  const sectionTitles = { ...document.sectionTitles };
+  if (title.trim()) sectionTitles[section] = title.trim();
+  else delete sectionTitles[section];
+  const settings = Object.fromEntries(
+    Object.entries(document.settings).map(([id, style]) => {
+      if (style.sectionOverrides?.[section]?.title === undefined)
+        return [id, style];
+      const sectionOverrides = { ...style.sectionOverrides };
+      const override = { ...sectionOverrides[section] };
+      delete override.title;
+      sectionOverrides[section] = override;
+      return [id, { ...style, sectionOverrides }];
+    }),
+  );
+  return { ...document, sectionTitles, settings };
+}
+
 export function useResumeLayouts(initialDocument: ResumeDocument) {
-  const [catalog, setCatalog] = useState<TemplateCatalog | null>(null);
+  const catalogResult = useQuery(catalogQuery());
+  const catalog = catalogResult.data ?? null;
   const [editedDocument, setEditedDocument] = useState<ResumeDocument>();
+  const [sectionPreviews, setSectionPreviews] = useState<
+    Partial<Record<EditorSectionId, SectionPreview>>
+  >({});
+  const onPreviewChange = useCallback(
+    (section: EditorSectionId, preview?: SectionPreview) => {
+      setSectionPreviews((current) => {
+        if (current[section] === preview) return current;
+        const next = { ...current };
+        if (preview) next[section] = preview;
+        else delete next[section];
+        return next;
+      });
+    },
+    [],
+  );
   const [preview, setPreview] = useState<{
     html: string;
     pages: number;
@@ -31,37 +74,36 @@ export function useResumeLayouts(initialDocument: ResumeDocument) {
     templateName?: string;
   }>();
   const [error, setError] = useState("");
-  const [reload, setReload] = useState(0);
   const [previewRetry, setPreviewRetry] = useState(0);
 
-  useEffect(() => {
-    const request = new AbortController();
-    fetch("/api/resume-layouts", { signal: request.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Catalog unavailable");
-        const next: TemplateCatalog = templateCatalogSchema.parse(
-          await response.json(),
-        );
-        if (request.signal.aborted) return;
-        setCatalog(next);
-      })
-      .catch(() => {
-        if (!request.signal.aborted)
-          setError("Couldn’t load the template gallery. Is the API running?");
-      });
-    return () => request.abort();
-  }, [reload]);
-
   const document = editedDocument ?? initialDocument;
-  const { content, settings, photo, sectionOrder: customOrder } = document;
+  const { content, photo, sectionOrder: customOrder } = document;
   const hidden = useMemo(() => new Set(document.hidden), [document.hidden]);
   const template =
     catalog?.layouts.find(({ id }) => id === document.layoutId) ?? null;
-  const order = customOrder ?? defaultSectionOrder(template);
-  const style = useMemo(
-    () => (template ? (settings[template.id] ?? defaultStyle(template)) : null),
-    [template, settings],
+  const order = useMemo(
+    () => customOrder ?? defaultSectionOrder(template),
+    [customOrder, template],
   );
+  const style = useMemo(
+    () => (template ? resolveStyle(document, template) : null),
+    [template, document],
+  );
+  const previewDraft = useMemo<ResumeDraft | null>(() => {
+    if (!template) return null;
+    let previewDocument = document;
+    for (const section of order) {
+      const preview = sectionPreviews[section];
+      if (!preview) continue;
+      const { content, ...assets } = preview;
+      previewDocument = {
+        ...previewDocument,
+        ...assets,
+        content: { ...previewDocument.content, ...content },
+      };
+    }
+    return resolveResume(previewDocument, template);
+  }, [template, document, order, sectionPreviews]);
   const exportDraft = useMemo<ResumeDraft | null>(
     () => (template ? resolveResume(document, template) : null),
     [template, document],
@@ -81,9 +123,9 @@ export function useResumeLayouts(initialDocument: ResumeDocument) {
   }, []);
 
   useEffect(() => {
-    if (!exportDraft) return;
+    if (!previewDraft) return;
     const queue = previewQueue.current;
-    queue.pending = exportDraft;
+    queue.pending = previewDraft;
     if (queue.running) return;
 
     // A slider can outpace pagination. Render the newest pending value next.
@@ -104,11 +146,7 @@ export function useResumeLayouts(initialDocument: ResumeDocument) {
             if (!response.ok) throw new Error("Preview failed");
             const html = await response.text();
             const pending = previewQueue.current.pending;
-            if (
-              request.signal.aborted ||
-              (pending && pending.layoutId !== draft.layoutId)
-            )
-              continue;
+            if (request.signal.aborted || pending) continue;
             const marker = new DOMParser()
               .parseFromString(html, "text/html")
               .querySelector(".workspace");
@@ -131,7 +169,7 @@ export function useResumeLayouts(initialDocument: ResumeDocument) {
         if (queue.running === request) queue.running = undefined;
       }
     })();
-  }, [exportDraft, previewRetry]);
+  }, [previewDraft, previewRetry]);
 
   const setDocument = (update: (current: ResumeDocument) => ResumeDocument) => {
     setEditedDocument((current) => update(current ?? initialDocument));
@@ -139,16 +177,28 @@ export function useResumeLayouts(initialDocument: ResumeDocument) {
 
   const updateStyle = (changes: Partial<TemplateStyle>) => {
     if (!template) return;
-    setDocument((current) => ({
-      ...current,
-      settings: {
-        ...current.settings,
-        [template.id]: {
-          ...(current.settings[template.id] ?? defaultStyle(template)),
-          ...changes,
+    setDocument((current) => {
+      let next: ResumeDocument = {
+        ...current,
+        settings: {
+          ...current.settings,
+          [template.id]: {
+            ...(current.settings[template.id] ?? defaultStyle(template)),
+            ...changes,
+          },
         },
-      },
-    }));
+      };
+      if (changes.sectionOverrides) {
+        const previous = resolveStyle(current, template).sectionOverrides;
+        for (const section of order) {
+          if (section === "personal") continue;
+          const title = changes.sectionOverrides[section]?.title;
+          if (title !== previous?.[section]?.title)
+            next = renameSection(next, section, title ?? "");
+        }
+      }
+      return next;
+    });
   };
 
   return {
@@ -159,10 +209,26 @@ export function useResumeLayouts(initialDocument: ResumeDocument) {
     style,
     exportDraft,
     preview,
-    error,
+    error:
+      error ||
+      (catalogResult.isError
+        ? "Couldn’t load the template gallery. Try again."
+        : ""),
     order,
     hidden,
     photo,
+    onPreviewChange,
+    sectionTitles:
+      style?.sectionOverrides &&
+      Object.fromEntries(
+        Object.entries(style.sectionOverrides)
+          .filter(([, value]) => value?.title)
+          .map(([id, value]) => [id, value?.title]),
+      ),
+    setSectionTitle: (
+      section: Exclude<EditorSectionId, "personal">,
+      title: string,
+    ) => setDocument((current) => renameSection(current, section, title)),
     setDocument,
     setContent: (content: DraftContent) =>
       setDocument((current) => pruneLibrarySources({ ...current, content })),
@@ -206,8 +272,8 @@ export function useResumeLayouts(initialDocument: ResumeDocument) {
     },
     retry: () => {
       setError("");
-      if (catalog) setPreviewRetry((value) => value + 1);
-      else setReload((value) => value + 1);
+      if (catalogResult.isError || !catalog) void catalogResult.refetch();
+      else setPreviewRetry((value) => value + 1);
     },
   };
 }
