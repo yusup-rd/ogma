@@ -229,6 +229,7 @@ const resumeSummarySchema = z.object({
   templateName: z.string().min(1),
   paper: z.enum(["A4", "Letter"]),
   archived: z.boolean(),
+  locked: z.boolean().default(false),
   pageCount: z.int().positive().nullable(),
 });
 const savedResumeSchema = resumeSummarySchema.extend({

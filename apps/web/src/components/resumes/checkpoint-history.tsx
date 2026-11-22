@@ -16,6 +16,7 @@ import { requestResume, ResumeRequestError } from "@/lib/resumes/resume-api";
 
 interface CheckpointHistoryProps {
   resumeId: string;
+  locked?: boolean;
   beforeAction: () => Promise<number | null>;
   onConflict: () => void;
   onRestored: () => void;
@@ -28,6 +29,7 @@ const secondary =
 
 const CheckpointHistory = ({
   resumeId,
+  locked = false,
   beforeAction,
   onConflict,
   onRestored,
@@ -156,7 +158,9 @@ const CheckpointHistory = ({
             Checkpoint history
           </Dialog.Title>
           <Dialog.Description className="text-sm text-muted">
-            Save a named version of this resume to revisit later.
+            {locked
+              ? "This CV is locked. You can save or view checkpoints, but must unlock it before restoring one."
+              : "Save a named version of this resume to revisit later."}
           </Dialog.Description>
           <form
             className="flex flex-wrap items-end gap-2"
@@ -226,7 +230,7 @@ const CheckpointHistory = ({
                       trigger={
                         <button
                           type="button"
-                          disabled={busy}
+                          disabled={busy || locked}
                           className={secondary}
                           aria-label={`Restore ${row.name}`}
                         >

@@ -19,6 +19,7 @@ import { getResumeLayout } from "../resume-layouts/layout-catalog";
 import { layoutDraftSchema } from "../resume-layouts/layout-draft";
 import { paginateResume } from "../resume-layouts/paginate-resume";
 import { renderResumeLayout } from "../resume-layouts/render-resume-layout";
+import { assertResumeUnlocked } from "./resume-lock";
 
 const blankDocument: ResumeDocument = {
   schemaVersion: 1,
@@ -72,6 +73,7 @@ function summary(resume: Resume, document: ResumeDocument): ResumeSummary {
     draftRevision: resume.draftRevision,
     updatedAt: resume.updatedAt.toISOString(),
     archived: Boolean(resume.archivedAt),
+    locked: resume.locked,
     pageCount: resume.pageCount ?? (isBlankResume(document) ? 1 : null),
     templateName:
       getResumeLayout(document.layoutId)?.name ?? "Unknown template",
@@ -232,7 +234,13 @@ export class ResumesService {
   ) {
     validateLayouts(document);
     const [updated] = await this.database.resume.updateManyAndReturn({
-      where: { id, ownerId, archivedAt: null, draftRevision: expectedRevision },
+      where: {
+        id,
+        ownerId,
+        archivedAt: null,
+        locked: false,
+        draftRevision: expectedRevision,
+      },
       data: {
         title,
         document: JSON.parse(JSON.stringify(document)),
@@ -243,11 +251,58 @@ export class ResumesService {
     if (updated) return summary(updated, document);
 
     const current = await this.findActive(ownerId, id);
+    assertResumeUnlocked(current);
     if (
       current.title === title &&
       isDeepStrictEqual(resumeDocumentSchema.parse(current.document), document)
     )
       return summary(current, document);
+    throw new ConflictException("This resume changed elsewhere.");
+  }
+
+  async setLocked(
+    ownerId: string,
+    id: string,
+    expectedRevision: number,
+    locked: boolean,
+    changes?: { title: string; document: ResumeDocument },
+  ) {
+    if (changes) validateLayouts(changes.document);
+    const [updated] = await this.database.resume.updateManyAndReturn({
+      where: {
+        id,
+        ownerId,
+        archivedAt: null,
+        draftRevision: expectedRevision,
+        locked: !locked,
+      },
+      data: {
+        locked,
+        draftRevision: { increment: 1 },
+        ...(changes
+          ? {
+              title: changes.title,
+              document: JSON.parse(JSON.stringify(changes.document)),
+              pageCount: null,
+            }
+          : {}),
+      },
+    });
+    if (updated)
+      return summary(updated, resumeDocumentSchema.parse(updated.document));
+    const current = await this.findActive(ownerId, id);
+    if (
+      current.locked === locked &&
+      (current.draftRevision === expectedRevision ||
+        current.draftRevision === expectedRevision + 1) &&
+      (!changes ||
+        (current.title === changes.title &&
+          isDeepStrictEqual(
+            resumeDocumentSchema.parse(current.document),
+            changes.document,
+          )))
+    )
+      return summary(current, resumeDocumentSchema.parse(current.document));
     throw new ConflictException("This resume changed elsewhere.");
   }
 

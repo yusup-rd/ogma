@@ -17,6 +17,9 @@
 
 ## API and consistency
 
+- Store the CV lock independently of document checkpoints. Enforce it in conditional draft writes and checkpoint restoration. Lock changes use the expected draft revision; unlocking and saving the applied preview is one atomic write. Keep locked preview changes in memory and leave saved content unchanged until explicit unlock. Duplicate CVs start unlocked.
+- Cache at most four saved thumbnail renders in server memory for five minutes, with a three-megabyte limit per render. Validate ownership and the current revision before cache access. Keep HTTP responses private with no browser storage, and retain a skeleton until fonts and images finish loading in the thumbnail frame.
+
 - Store renamed section titles at CV level in `sectionTitles`, and merge them into the resolved style for preview and exports. Preserve older per-template titles as a fallback until a user renames that section. Keep unsaved Content drafts in a separate preview layer; only Save updates persisted content. Cancel removes that section’s preview draft without affecting other edited sections. Require saved sections before exports and checkpoint actions.
 
 - Provide REST resources under `/api` for the library, CVs, checkpoints, assets, imports, exports, and analysis. Add explicit actions for duplicate, restore, and sync so each action checks authorization and runs atomically. Model links between related records with foreign keys and enforce ownership at the API boundary.

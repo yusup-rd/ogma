@@ -48,6 +48,10 @@ const saveSchema = z.object({
   title: titleSchema,
   document: resumeDocumentSchema,
 });
+const lockSchema = z.discriminatedUnion("locked", [
+  z.object({ locked: z.literal(true), expectedRevision: revisionSchema }),
+  saveSchema.extend({ locked: z.literal(false) }),
+]);
 
 function readBody<T>(schema: z.ZodType<T>, body: unknown) {
   const result = schema.safeParse(body);
@@ -62,6 +66,10 @@ function ownerIdFor(request: OwnerRequest) {
 
 @Controller("resumes")
 export class ResumesController {
+  private readonly thumbnails = new Map<
+    string,
+    { html: string; expiresAt: number }
+  >();
   constructor(
     private readonly resumes: ResumesService,
     private readonly documents: DocumentPrototypeService,
@@ -123,14 +131,24 @@ export class ResumesController {
     @Req() request: OwnerRequest,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    const { draft, layout } = await this.resumes.getRenderSnapshot(
+    const { draft, layout, revision } = await this.resumes.getRenderSnapshot(
       ownerIdFor(request),
       id,
     );
-    return this.documents.prepareHtml(
+    const key = `${ownerIdFor(request)}:${id}:${revision}`;
+    const cached = this.thumbnails.get(key);
+    if (cached && cached.expiresAt > Date.now()) return cached.html;
+    this.thumbnails.delete(key);
+    const html = await this.documents.prepareHtml(
       renderResumeLayout(draft, layout, true),
       paginateResume,
     );
+    if (Buffer.byteLength(html) <= 3_000_000) {
+      this.thumbnails.set(key, { html, expiresAt: Date.now() + 300_000 });
+      while (this.thumbnails.size > 4)
+        this.thumbnails.delete(this.thumbnails.keys().next().value!);
+    }
+    return html;
   }
 
   @Patch(":id")
@@ -146,6 +164,24 @@ export class ResumesController {
       expectedRevision,
       title,
       document,
+    );
+  }
+
+  @Post(":id/lock")
+  setLocked(
+    @Req() request: OwnerRequest,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const parsed = readBody(lockSchema, body);
+    return this.resumes.setLocked(
+      ownerIdFor(request),
+      id,
+      parsed.expectedRevision,
+      parsed.locked,
+      parsed.locked
+        ? undefined
+        : { title: parsed.title, document: parsed.document },
     );
   }
 

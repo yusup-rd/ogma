@@ -9,6 +9,7 @@ import { ResumeLibraryDialog } from "@/components/content-library/resume-library
 import { SignOutDialog } from "@/components/owner-auth/sign-out-dialog";
 import { ResumeConflictDialog } from "@/components/resumes/resume-conflict-dialog";
 import { CheckpointHistory } from "@/components/resumes/checkpoint-history";
+import { ResumeLockDialog } from "@/components/resumes/resume-lock-dialog";
 import { useResumeLayouts } from "@/hooks/document-prototype/use-resume-layouts";
 import { useResumeAutosave } from "@/hooks/resumes/use-resume-autosave";
 import type { EditorSectionId } from "@/lib/document-prototype/content-presentation";
@@ -57,8 +58,17 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
   const [screen, setScreen] = useState<"Content" | "Design">("Content");
   const [mobileView, setMobileView] = useState<"Edit" | "Preview">("Edit");
   const [leaving, setLeaving] = useState(false);
+  const [leaveAfterPreview, setLeaveAfterPreview] = useState(false);
+  const [previewReset, setPreviewReset] = useState(0);
   const draftNotice = useRef<HTMLParagraphElement>(null);
   const requireSavedSections = async () => {
+    if (
+      autosave.locked &&
+      (autosave.previewChanged || sectionDraftsRef.current.size > 0)
+    ) {
+      autosave.setLockPromptOpen(true);
+      return null;
+    }
     const revealDrafts = () => {
       if (sectionDraftsRef.current.size === 0) return false;
       setScreen("Content");
@@ -71,6 +81,14 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
     return revealDrafts() ? null : revision;
   };
   const backToResumes = async () => {
+    if (
+      autosave.locked &&
+      (autosave.previewChanged || sectionDraftsRef.current.size > 0)
+    ) {
+      setLeaveAfterPreview(true);
+      autosave.setLockPromptOpen(true);
+      return;
+    }
     if (sectionDraftsRef.current.size > 0) {
       setScreen("Content");
       setMobileView("Edit");
@@ -95,7 +113,10 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
 
   return (
     <main className="flex min-h-dvh flex-col bg-canvas text-ink lg:h-dvh">
-      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-paper px-4 py-3 lg:min-h-19 lg:gap-5 lg:px-6">
+      <header
+        inert={autosave.lockBusy}
+        className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-paper px-4 py-3 lg:min-h-19 lg:gap-5 lg:px-6"
+      >
         <Image
           src="/icon.svg"
           alt="Ogma"
@@ -127,15 +148,19 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
           />
           <div className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted">
             <p role="status">
-              {autosave.phase === "saved"
-                ? hasSectionDrafts
-                  ? "Unsaved section edits"
-                  : "Saved"
-                : autosave.phase === "saving"
-                  ? "Saving…"
-                  : autosave.phase === "conflict"
-                    ? "Save conflict"
-                    : "Save failed"}
+              {autosave.phase === "conflict"
+                ? "Save conflict"
+                : autosave.locked
+                  ? autosave.previewChanged || hasSectionDrafts
+                    ? "Locked · Unsaved preview changes"
+                    : "Locked · Saved CV protected"
+                  : autosave.phase === "saved"
+                    ? hasSectionDrafts
+                      ? "Unsaved section edits"
+                      : "Saved"
+                    : autosave.phase === "saving"
+                      ? "Saving…"
+                      : "Save failed"}
             </p>
             {autosave.phase === "error" && (
               <button
@@ -157,8 +182,39 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
             )}
           </div>
         </div>
+        <ResumeLockDialog
+          open={autosave.lockPromptOpen}
+          onOpenChange={(open) => {
+            autosave.setLockPromptOpen(open);
+            setLeaveAfterPreview(false);
+          }}
+          locked={autosave.locked}
+          changed={autosave.previewChanged || hasSectionDrafts}
+          hasSectionDrafts={hasSectionDrafts}
+          busy={autosave.lockBusy}
+          error={autosave.lockError}
+          leaving={leaveAfterPreview}
+          onConfirm={() => {
+            void autosave.changeLock(!autosave.locked).then((changed) => {
+              if (changed && leaveAfterPreview)
+                window.location.assign(new URL("/", window.location.origin));
+            });
+          }}
+          onDiscard={() => {
+            model.setDocument(() => autosave.savedSnapshot.document);
+            setTitle(autosave.savedSnapshot.title);
+            setPreviewReset((current) => current + 1);
+            autosave.setLockPromptOpen(false);
+            if (leaveAfterPreview) {
+              autosave.leaveWithoutChanges();
+              window.location.assign(new URL("/", window.location.origin));
+            }
+            setLeaveAfterPreview(false);
+          }}
+        />
         <CheckpointHistory
           resumeId={resume.id}
+          locked={autosave.locked}
           beforeAction={requireSavedSections}
           onConflict={autosave.reportConflict}
           onRestored={autosave.reloadFromServer}
@@ -171,6 +227,14 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
         />
         <SignOutDialog
           beforeSignOut={() => {
+            if (
+              autosave.locked &&
+              (autosave.previewChanged || sectionDraftsRef.current.size > 0)
+            ) {
+              throw new Error(
+                "This CV is locked. Cancel sign-out, then discard the preview or unlock and save your changes.",
+              );
+            }
             if (sectionDraftsRef.current.size > 0) {
               setScreen("Content");
               setMobileView("Edit");
@@ -182,6 +246,27 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
           }}
         />
       </header>
+      {autosave.locked && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-accent-soft px-5 py-3 text-sm text-accent"
+        >
+          <p>
+            {autosave.previewChanged || hasSectionDrafts
+              ? "Preview changes are not saved. Unlock this CV to keep them, or discard them to return to the saved design."
+              : "This CV is locked. You can experiment with content and design without changing the saved CV."}
+          </p>
+          {(autosave.previewChanged || hasSectionDrafts) && (
+            <button
+              type="button"
+              onClick={() => autosave.setLockPromptOpen(true)}
+              className="min-h-10 shrink-0 rounded-lg border border-accent/25 px-3 text-sm font-semibold hover:bg-paper active:bg-paper"
+            >
+              Review preview changes
+            </button>
+          )}
+        </div>
+      )}
       <ResumeConflictDialog
         open={autosave.conflictOpen}
         onOpenChange={(open) => {
@@ -229,7 +314,7 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
       )}
 
       <div
-        inert={leaving}
+        inert={leaving || autosave.lockBusy}
         className="min-h-0 flex-1 lg:grid lg:grid-cols-[minmax(21rem,34.3%)_minmax(0,1fr)]"
       >
         <section
@@ -263,8 +348,9 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
                 tabIndex={-1}
                 className="rounded-lg border border-line bg-canvas p-3 text-sm text-muted"
               >
-                Choose Save or Cancel in each edited section before leaving the
-                editor.
+                {autosave.locked
+                  ? "Apply each edited section to the preview or Cancel it before unlocking."
+                  : "Choose Save or Cancel in each edited section before leaving the editor."}
               </p>
             )}
             {!model.catalog && !model.error && (
@@ -294,6 +380,8 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
                   onChange={model.setDocument}
                 />
                 <ResumeContentForm
+                  key={previewReset}
+                  locked={autosave.locked}
                   content={model.content}
                   photo={model.photo}
                   photoCrop={model.document.photoCrop}
@@ -334,6 +422,7 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
                 </div>
                 {model.template && model.style ? (
                   <TemplateDesignForm
+                    key={previewReset}
                     sectionOrder={model.order}
                     gallery={gallery}
                     template={model.template}
@@ -359,7 +448,9 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
           }
           templateName={model.preview?.templateName ?? model.template?.name}
           mobileVisible={mobileView === "Preview"}
-          hasUnsavedChanges={hasSectionDrafts}
+          hasUnsavedChanges={
+            hasSectionDrafts || (autosave.locked && autosave.previewChanged)
+          }
         />
       </div>
     </main>

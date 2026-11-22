@@ -60,6 +60,7 @@ export interface ResumeSummary {
   templateName: string;
   paper: "A4" | "Letter";
   archived: boolean;
+  locked: boolean;
   pageCount: number | null;
 }
 

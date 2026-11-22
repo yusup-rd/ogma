@@ -19,6 +19,7 @@ import {
 } from "@/lib/document-prototype/content-presentation";
 
 export interface SectionControls {
+  locked?: boolean;
   hidden: ReadonlySet<string>;
   onToggle: (key: string) => void;
   onDraftChange: (section: EditorSectionId, hasDraft: boolean) => void;
@@ -85,6 +86,7 @@ const SectionCard = <Value,>({
   onRename,
   onPreviewChange,
   previewValue,
+  locked = false,
   children,
 }: SectionCardProps<Value>) => {
   const [open, setOpen] = useState(initialOpen);
@@ -217,15 +219,18 @@ const SectionCard = <Value,>({
                 onClick={() => {
                   if (draft !== undefined) {
                     onSave(draft);
-                    toast.success(title + " updated.", {
-                      id: "section-updated",
-                    });
+                    toast.success(
+                      title + (locked ? " applied to preview." : " updated."),
+                      {
+                        id: "section-updated",
+                      },
+                    );
                   }
                   clearDraft();
                 }}
                 className="min-h-10 rounded-lg bg-accent px-3 text-sm font-semibold text-white enabled:hover:bg-accent-hover disabled:opacity-45"
               >
-                Save
+                {locked ? "Apply to preview" : "Save"}
               </button>
             </div>
           </div>

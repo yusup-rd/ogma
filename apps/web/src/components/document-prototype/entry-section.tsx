@@ -42,6 +42,7 @@ const EntrySection = <Entry extends { id: string; description?: RichText }>({
   titles,
   onRename,
   onPreviewChange,
+  locked,
 }: EntrySectionProps<Entry>) => {
   const [expanded, setExpanded] = useState<string[]>([]);
   const id = useId();
@@ -52,6 +53,7 @@ const EntrySection = <Entry extends { id: string; description?: RichText }>({
   return (
     <SectionCard
       section={section}
+      locked={locked}
       hidden={hidden}
       onToggle={onToggle}
       onDraftChange={onDraftChange}

@@ -9,6 +9,7 @@ import {
   LuChevronRight,
   LuCopy,
   LuFileText,
+  LuLockKeyhole,
   LuTrash2,
 } from "react-icons/lu";
 import {
@@ -19,6 +20,7 @@ import {
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { LibraryOnboarding } from "@/components/content-library/library-onboarding";
 import { WorkspaceShell } from "@/components/workspace-shell";
+import { SavedResumeThumbnail } from "./saved-resume-thumbnail";
 import { getLibraryStatus } from "@/lib/content-library/library-api";
 import { useResumePageCounts } from "@/hooks/resumes/use-resume-page-counts";
 import {
@@ -254,14 +256,11 @@ const ResumesDashboard = ({
             aria-hidden="true"
             className="hidden h-54 w-1/3 shrink-0 justify-items-center overflow-hidden rounded-lg bg-accent-soft pt-7 lg:grid"
           >
-            <iframe
-              title="Saved resume thumbnail"
-              src={`/api/resumes/${latest.id}/thumbnail?revision=${latest.draftRevision}`}
-              loading="lazy"
-              sandbox=""
-              referrerPolicy="no-referrer"
-              tabIndex={-1}
-              className={`pointer-events-none w-54 max-w-[78%] rounded-t-sm border-0 bg-paper shadow-lg ${latest.paper === "Letter" ? "aspect-[8.5/11]" : "aspect-[210/297]"}`}
+            <SavedResumeThumbnail
+              key={`${latest.id}:${latest.draftRevision}`}
+              id={latest.id}
+              revision={latest.draftRevision}
+              paper={latest.paper}
             />
           </div>
         </section>
@@ -307,6 +306,15 @@ const ResumesDashboard = ({
                     <LuFileText aria-hidden="true" className="size-4" />
                   </span>
                   <div className="min-w-0">
+                    {row.locked && (
+                      <span className="mb-1 flex items-center gap-1 text-xs font-semibold text-accent">
+                        <LuLockKeyhole
+                          aria-hidden="true"
+                          className="size-3.5"
+                        />
+                        Locked
+                      </span>
+                    )}
                     {row.archived ? (
                       <span className="text-sm font-semibold break-words">
                         {row.title}

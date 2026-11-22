@@ -9,6 +9,7 @@ import { resumeDocumentSchema } from "@ogma/contracts/resume-workspace";
 import { DatabaseService } from "../database/database.service";
 import { getResumeLayout } from "../resume-layouts/layout-catalog";
 import { layoutDraftSchema } from "../resume-layouts/layout-draft";
+import { assertResumeUnlocked } from "./resume-lock";
 
 const checkpointFields = {
   id: true,
@@ -111,6 +112,7 @@ export class ResumeCheckpointsService {
           ownerId,
           archivedAt: null,
           draftRevision: expectedRevision,
+          locked: false,
         },
         data: {
           title: checkpoint.resumeTitle,
@@ -121,8 +123,13 @@ export class ResumeCheckpointsService {
           pageCount: null,
         },
       });
-      if (!result.count)
+      if (!result.count) {
+        const current = await transaction.resume.findUnique({
+          where: { id: resumeId, ownerId, archivedAt: null },
+        });
+        if (current) assertResumeUnlocked(current);
         throw new ConflictException("This resume changed elsewhere.");
+      }
       return { draftRevision };
     });
   }

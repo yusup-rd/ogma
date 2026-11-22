@@ -81,6 +81,7 @@ const ResumeContentForm = ({
   titles,
   onRename,
   onPreviewChange,
+  locked,
 }: ResumeContentFormProps) => {
   const field = <Key extends keyof DraftContent>(
     key: Key,
@@ -94,6 +95,7 @@ const ResumeContentForm = ({
     }),
   );
   const controls = {
+    locked,
     hidden,
     onToggle,
     onDraftChange,
@@ -402,8 +404,9 @@ const ResumeContentForm = ({
       <div className="flex flex-col gap-1.5">
         <h2 className="text-2xl font-semibold tracking-tight">Content</h2>
         <p className="text-sm text-muted">
-          Edits appear in the preview. Save each section to keep them, or Cancel
-          to undo.
+          {locked
+            ? "This CV is locked. Apply section edits to the preview, then unlock to save them."
+            : "Edits appear in the preview. Save each section to keep them, or Cancel to undo."}
         </p>
       </div>
       <DndContext
