@@ -1,4 +1,8 @@
 import { useState, type ReactNode } from "react";
+import {
+  templatePhotoSize,
+  templateHeaderPadding,
+} from "@ogma/contracts/resolve-resume";
 import { LuCheck } from "react-icons/lu";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { ratioToPercent } from "@/lib/formatUtil";
@@ -245,6 +249,7 @@ const TemplateDesignForm = ({
     "Classic Settings",
   );
   const defaults = template.designDefaults;
+  const headerPadding = templateHeaderPadding(style, template);
   const workDefaults = defaults.workExperience;
   const defaultIndicator =
     defaults.proficiencyIndicator === "none"
@@ -581,11 +586,23 @@ const TemplateDesignForm = ({
               onChange={(showSectionIcons) => onChange({ showSectionIcons })}
             />
             {template.photo !== "none" && (
-              <ToggleSetting
-                label="Show profile photo"
-                checked={style.showPhoto}
-                onChange={(showPhoto) => onChange({ showPhoto })}
-              />
+              <>
+                <ToggleSetting
+                  label="Show profile photo"
+                  checked={style.showPhoto}
+                  onChange={(showPhoto) => onChange({ showPhoto })}
+                />
+                <NumberSetting
+                  className="col-span-2"
+                  label="Photo size"
+                  value={style.photoSize}
+                  fallback={templatePhotoSize(style, template)}
+                  min={10}
+                  max={50}
+                  unit="mm"
+                  onChange={(photoSize) => onChange({ photoSize })}
+                />
+              </>
             )}
           </SettingsGroup>
           <SettingsGroup title="Projects">
@@ -666,6 +683,28 @@ const TemplateDesignForm = ({
                 options={weightOptions}
                 onChange={(value) =>
                   onChange({ weights: { ...style.weights, [role]: value } })
+                }
+              />
+            ))}
+          </SettingsGroup>
+          <SettingsGroup title="Header padding">
+            {(["top", "right", "bottom", "left"] as const).map((edge) => (
+              <NumberSetting
+                key={edge}
+                label={
+                  edge.charAt(0).toUpperCase() +
+                  edge.slice(1) +
+                  " header padding"
+                }
+                value={style.headerPadding?.[edge]}
+                fallback={headerPadding[edge]}
+                min={0}
+                max={Math.max(20, headerPadding[edge])}
+                unit="mm"
+                onChange={(value) =>
+                  onChange({
+                    headerPadding: { ...style.headerPadding, [edge]: value },
+                  })
                 }
               />
             ))}

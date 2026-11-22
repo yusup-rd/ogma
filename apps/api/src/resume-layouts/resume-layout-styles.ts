@@ -95,6 +95,10 @@ a { color:inherit; text-decoration:none; }
 .awards .section-copy > .entry { margin:0 }
 .skill-list { list-style:none; padding:0; display:flex; flex-wrap:wrap; gap:.3em .66em; }
 .portrait { display:block; width:var(--portrait-size, 11.5cqw); aspect-ratio:1; border-radius:50%; object-fit:cover; }
+.custom-photo-size .portrait { width:var(--custom-photo-size); max-width:100%; height:auto; }
+.custom-photo-size.photo-right header { grid-template-columns:minmax(0,1fr) minmax(0,min(var(--custom-photo-size),40%)); }
+.custom-photo-size.photo-right header .portrait { width:100%; }
+.custom-photo-size.head-badge .rail-portrait { width:min(100%,calc(var(--custom-photo-size) + 4.7cqw)); }
 .portrait-placeholder { display:grid; place-items:center; background:#e6e6e6; color:#686868; }
 .portrait-placeholder svg { width:52%; height:auto; }
 .photo-right header { grid-template-columns:minmax(0,1fr) auto; align-items:start; column-gap:2em }

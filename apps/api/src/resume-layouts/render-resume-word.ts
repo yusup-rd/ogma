@@ -1,3 +1,4 @@
+import { templateHeaderPadding } from "@ogma/contracts/resolve-resume";
 import { maxPicturePixels } from "@ogma/contracts/resume-content-schema";
 import { BadRequestException } from "@nestjs/common";
 import sharp from "sharp";
@@ -22,6 +23,7 @@ import {
   Table,
   TableCell,
   TableRow,
+  TableLayoutType,
   WidthType,
   TabStopType,
   type INumberingOptions,
@@ -901,7 +903,15 @@ export async function renderResumeWord(
               layout.photo === "top"
                 ? AlignmentType.CENTER
                 : AlignmentType.RIGHT,
-            children: [image(draft.photo, 66, converted)],
+            children: [
+              image(
+                draft.photo,
+                style.photoSize === undefined
+                  ? 66
+                  : (style.photoSize * 96) / 25.4,
+                converted,
+              ),
+            ],
           }),
         ]
       : []),
@@ -983,6 +993,51 @@ export async function renderResumeWord(
       : []),
   ];
 
+  const hasHeaderPadding = Object.values(style.headerPadding ?? {}).some(
+    (value) => value !== undefined,
+  );
+  const padding = templateHeaderPadding(style, layout);
+  for (const edge of ["top", "right", "bottom", "left"] as const) {
+    const value = style.headerPadding?.[edge];
+    if (value !== undefined) padding[edge] = value;
+  }
+  const headerBorders = {
+    top: { style: BorderStyle.NONE },
+    bottom: { style: BorderStyle.NONE },
+    left: { style: BorderStyle.NONE },
+    right: { style: BorderStyle.NONE },
+    insideHorizontal: { style: BorderStyle.NONE },
+    insideVertical: { style: BorderStyle.NONE },
+  };
+  const header =
+    hasHeaderPadding && identity.length
+      ? [
+          new Table({
+            width: { size: farRight, type: WidthType.DXA },
+            layout: TableLayoutType.FIXED,
+            columnWidths: [farRight],
+            borders: headerBorders,
+            rows: [
+              new TableRow({
+                cantSplit: true,
+                children: [
+                  new TableCell({
+                    margins: {
+                      top: mmTwips(padding.top),
+                      right: mmTwips(padding.right),
+                      bottom: mmTwips(padding.bottom),
+                      left: mmTwips(padding.left),
+                    },
+                    borders: headerBorders,
+                    children: identity,
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ]
+      : identity;
+
   return Packer.toBuffer(
     new Document({
       title: name || "Resume",
@@ -1013,7 +1068,7 @@ export async function renderResumeWord(
               },
             },
           },
-          children: [...identity, ...contents],
+          children: [...header, ...contents],
         },
       ],
     }),

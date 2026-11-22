@@ -107,6 +107,42 @@ function defaultStyle(template) {
   };
 }
 
+// Match the existing template measurements so clearing a control restores its design.
+function templatePhotoSize(style, template) {
+  const scale =
+    template.header === "badge"
+      ? 14.5
+      : ["polished", "elegant"].includes(template.id)
+        ? 12.6
+        : template.id === "creative"
+          ? 10
+          : template.id === "modern" || template.photo === "top"
+            ? 10.5
+            : 11.5;
+  return (scale * (style.paperSize === "letter" ? 215.9 : 210)) / 100;
+}
+
+function templateHeaderPadding(style, template) {
+  const top = style.margins?.top ?? template.margins?.top ?? style.margin;
+  return {
+    top: template.header === "banner" ? top * 0.8 : 0,
+    right:
+      template.header === "banner"
+        ? (style.margins?.right ?? template.margins?.right ?? style.margin)
+        : 0,
+    bottom:
+      template.header === "banner"
+        ? top * 0.8
+        : template.id === "imprint"
+          ? (style.bodySize * 1.3 * 25.4) / 72
+          : 0,
+    left:
+      template.header === "banner"
+        ? (style.margins?.left ?? template.margins?.left ?? style.margin)
+        : 0,
+  };
+}
+
 function resolveResume(document, template) {
   const hidden = new Set(normalizeHiddenKeys(document));
   const style = document.settings[template.id] ?? defaultStyle(template);
@@ -132,5 +168,7 @@ module.exports = {
   visibleBulletIds,
   normalizeHiddenKeys,
   defaultStyle,
+  templatePhotoSize,
+  templateHeaderPadding,
   resolveResume,
 };

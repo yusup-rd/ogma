@@ -36,6 +36,16 @@ const resumeStyleSchema = z.object({
   margin: z.number().min(8).max(27),
   lineHeight: z.number().min(0.9).max(2.5),
   showPhoto: z.boolean(),
+  photoSize: z.number().min(10).max(50).optional(),
+  headerPadding: z
+    .object({
+      top: z.number().min(0).max(45),
+      right: z.number().min(0).max(45),
+      bottom: z.number().min(0).max(45),
+      left: z.number().min(0).max(45),
+    })
+    .partial()
+    .optional(),
   sectionOverrides: z
     .partialRecord(
       z.enum([

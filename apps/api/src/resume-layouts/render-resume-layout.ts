@@ -551,6 +551,7 @@ export function renderResumeLayout(
     "rail-" + layout.rail,
     showPhoto ? "photo-" + layout.photo : "",
     "portrait-" + layout.photoShape,
+    style.photoSize !== undefined && showPhoto ? "custom-photo-size" : "",
     layout.timeline ? "timeline" : "",
     "logos-" + layout.logos,
     side.length ? "two-columns" : "",
@@ -595,6 +596,7 @@ html { --paper-width:${paper.width}; --paper-height:${paper.height}; }
   --margin-top:${toWidth(margins.top)}; --margin-right:${toWidth(margins.right)};
   --margin-bottom:${toWidth(margins.bottom)}; --margin-left:${toWidth(margins.left)};
   --gap:${toWidth(style.sectionGap)};
+  ${style.photoSize === undefined ? "" : `--custom-photo-size:${toWidth(style.photoSize)};`}
   --body:${toPoints(style.bodySize)};
   --leading:${style.lineHeight}; --font:${fontChoices[style.font].css};
   --ach-columns:${layout.achievementColumns};
@@ -605,6 +607,13 @@ html { --paper-width:${paper.width}; --paper-height:${paper.height}; }
 ${resumeLayoutStyles}
 ${formattingRules(effectiveStyle, toPoints, style.spacing?.titleContent !== undefined, essential ? { size: style.sizes?.secondary, weight: style.weights?.secondary } : undefined)}
 ${fontStyles(style.font)}
+${Object.entries(style.headerPadding ?? {})
+  .map(([edge, padding]) =>
+    padding === undefined
+      ? ""
+      : `.resume-page header{--header-padding-${edge}:${toWidth(padding)};padding-${edge}:var(--header-padding-${edge});}`,
+  )
+  .join("\n")}
 ${Object.entries(style.sectionOverrides ?? {})
   .map(([id, override]) => {
     const selector =
