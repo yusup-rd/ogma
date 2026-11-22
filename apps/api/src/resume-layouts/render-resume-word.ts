@@ -255,7 +255,7 @@ export async function renderResumeWord(
     });
   }
 
-  function skillParagraphs(skills: string[]): Paragraph[] {
+  function skillParagraphs(skills: string[], rowSpacing?: number): Paragraph[] {
     const spacing = {
       line: Math.round((style.listLineHeight ?? layout.lineHeight) * 240),
     };
@@ -264,7 +264,12 @@ export async function renderResumeWord(
       const second = skills[index + 1];
       return [
         new Paragraph({
-          spacing,
+          spacing: {
+            ...spacing,
+            ...(index > 0 && rowSpacing !== undefined
+              ? { before: pointTwips(rowSpacing) }
+              : {}),
+          },
           tabStops: [
             { type: TabStopType.LEFT, position: Math.round(farRight / 2) },
           ],
@@ -755,7 +760,15 @@ export async function renderResumeWord(
                     ],
                   }),
                 ),
-                ...(inlineSkills ? [] : skillParagraphs(skills)),
+                ...(inlineSkills
+                  ? []
+                  : skillParagraphs(
+                      skills,
+                      skillMode === "columns" &&
+                        override?.bulletSpacing !== undefined
+                        ? style.spacing?.listItems
+                        : undefined,
+                    )),
                 ...richParagraphs(
                   entry.description,
                   (layout.header === "center" &&

@@ -377,8 +377,8 @@ function renderSections(
       return [
         section,
         ...skills.proficiency.map(
-          (group) =>
-            `<section class="section proficiency" data-preview-anchor="proficiency:${escapeText(group.id)}"><h2>${escapeText(group.title)}</h2><div class="section-copy">${renderSkills({ ...group, title: "" }, defaults, { ...draft.style, skillsLayout: "columns" })}</div></section>`,
+          (group, index) =>
+            `<section class="section proficiency" data-break-before="${index === 0 && skills.regular.length === 0 && (draft.style.sectionOverrides?.skills?.breakBefore ?? false)}" data-preview-anchor="proficiency:${escapeText(group.id)}"><h2>${escapeText(group.title)}</h2><div class="section-copy">${renderSkills({ ...group, title: "" }, defaults, { ...draft.style, skillsLayout: "columns" })}</div></section>`,
         ),
       ];
     })

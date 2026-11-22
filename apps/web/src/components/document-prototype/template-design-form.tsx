@@ -702,7 +702,7 @@ const TemplateDesignForm = ({
                 value={style.headerPadding?.[edge]}
                 fallback={headerPadding[edge]}
                 min={0}
-                max={Math.max(20, headerPadding[edge])}
+                max={45}
                 unit="mm"
                 onChange={(value) =>
                   onChange({
