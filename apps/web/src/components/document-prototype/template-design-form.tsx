@@ -165,10 +165,7 @@ const NumberSetting = ({
               const next = event.currentTarget.valueAsNumber;
               setTyped(null);
               if (!event.currentTarget.value) onChange(undefined);
-              else if (
-                Number.isFinite(next) &&
-                (next !== effective || (!inheritDefault && typed !== null))
-              )
+              else if (Number.isFinite(next) && next !== effective)
                 update(Math.max(min, Math.min(max, next)));
             }}
             onKeyDown={(event) => {
