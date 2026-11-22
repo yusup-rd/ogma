@@ -16,7 +16,7 @@ import {
 interface EntrySectionProps<
   Entry extends { id: string; description?: RichText },
 > extends SectionControls {
-  section: EditorSectionId;
+  section: Exclude<EditorSectionId, "personal" | "summary">;
   singular: string;
   entries: Entry[];
   makeEntry: () => Entry;
@@ -39,6 +39,9 @@ const EntrySection = <Entry extends { id: string; description?: RichText }>({
   hidden,
   onToggle,
   onDraftChange,
+  titles,
+  onRename,
+  onPreviewChange,
 }: EntrySectionProps<Entry>) => {
   const [expanded, setExpanded] = useState<string[]>([]);
   const id = useId();
@@ -52,6 +55,10 @@ const EntrySection = <Entry extends { id: string; description?: RichText }>({
       hidden={hidden}
       onToggle={onToggle}
       onDraftChange={onDraftChange}
+      titles={titles}
+      onRename={onRename}
+      onPreviewChange={onPreviewChange}
+      previewValue={(value) => ({ content: { [section]: value } })}
       value={entries}
       onSave={update}
       subtitle={`${count} of ${entries.length} entries included`}

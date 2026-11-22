@@ -1,8 +1,17 @@
 import { toast } from "sonner";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useId, useLayoutEffect, useState, type ReactNode } from "react";
+import {
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { LuCheck, LuChevronRight, LuGripVertical } from "react-icons/lu";
+import type { ResumeDocument } from "@ogma/contracts/resume-workspace";
+import type { SectionPreview } from "@/lib/document-prototype/content-preview";
+import { SectionTitleEditor } from "./section-title-editor";
 import {
   sectionKey,
   sectionTitles,
@@ -13,6 +22,12 @@ export interface SectionControls {
   hidden: ReadonlySet<string>;
   onToggle: (key: string) => void;
   onDraftChange: (section: EditorSectionId, hasDraft: boolean) => void;
+  titles: ResumeDocument["sectionTitles"];
+  onRename: (
+    section: Exclude<EditorSectionId, "personal">,
+    title: string,
+  ) => void;
+  onPreviewChange: (section: EditorSectionId, preview?: SectionPreview) => void;
 }
 
 interface VisibilityCheckboxProps {
@@ -47,6 +62,7 @@ interface SectionCardProps<Value> extends SectionControls {
   section: EditorSectionId;
   value: Value;
   onSave: (value: Value) => void;
+  previewValue: (value: Value) => SectionPreview;
   subtitle?: string;
   initialOpen?: boolean;
   children: (
@@ -65,6 +81,10 @@ const SectionCard = <Value,>({
   hidden,
   onToggle,
   onDraftChange,
+  titles,
+  onRename,
+  onPreviewChange,
+  previewValue,
   children,
 }: SectionCardProps<Value>) => {
   const [open, setOpen] = useState(initialOpen);
@@ -74,6 +94,20 @@ const SectionCard = <Value,>({
     resetCount: number;
   }>({ revision: 0, resetCount: 0 });
   const hasDraft = draft !== undefined;
+  const previewMapper = useRef(previewValue);
+  useLayoutEffect(() => {
+    previewMapper.current = previewValue;
+  }, [previewValue]);
+  useLayoutEffect(() => {
+    onPreviewChange(
+      section,
+      draft === undefined ? undefined : previewMapper.current(draft),
+    );
+  }, [draft, onPreviewChange, section]);
+  useLayoutEffect(
+    () => () => onPreviewChange(section, undefined),
+    [onPreviewChange, section],
+  );
   useLayoutEffect(() => {
     if (!hasDraft) return;
     onDraftChange(section, true);
@@ -92,7 +126,8 @@ const SectionCard = <Value,>({
       resetCount: current.resetCount + Number(resetForm),
     }));
   const bodyId = useId();
-  const title = sectionTitles[section];
+  const title =
+    (section !== "personal" && titles?.[section]) || sectionTitles[section];
   const sortable = section !== "personal" && section !== "summary";
   const {
     setNodeRef,
@@ -138,7 +173,7 @@ const SectionCard = <Value,>({
           className="mr-1 flex min-h-12 min-w-0 flex-1 items-center justify-between gap-2 rounded-lg px-2 pr-2 text-left hover:bg-canvas"
         >
           <span className="flex min-w-0 flex-col gap-0.5">
-            <span className="text-sm font-semibold">{title}</span>
+            <span className="text-sm font-semibold wrap-anywhere">{title}</span>
             {subtitle && <span className="text-xs text-muted">{subtitle}</span>}
             {hasDraft && (
               <span className="text-xs text-accent">Unsaved changes</span>
@@ -149,6 +184,13 @@ const SectionCard = <Value,>({
             className={`size-4 shrink-0 text-muted ${open ? "rotate-90" : ""}`}
           />
         </button>
+        {section !== "personal" && (
+          <SectionTitleEditor
+            section={section}
+            title={title}
+            onRename={onRename}
+          />
+        )}
       </div>
       <div id={bodyId} hidden={!open}>
         {open && (

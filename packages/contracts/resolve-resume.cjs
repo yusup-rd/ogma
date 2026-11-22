@@ -143,9 +143,19 @@ function templateHeaderPadding(style, template) {
   };
 }
 
+function resolveStyle(document, template) {
+  const style = document.settings[template.id] ?? defaultStyle(template);
+  if (!document.sectionTitles) return style;
+  const sectionOverrides = { ...style.sectionOverrides };
+  for (const [id, title] of Object.entries(document.sectionTitles)) {
+    sectionOverrides[id] = { ...sectionOverrides[id], title };
+  }
+  return { ...style, sectionOverrides };
+}
+
 function resolveResume(document, template) {
   const hidden = new Set(normalizeHiddenKeys(document));
-  const style = document.settings[template.id] ?? defaultStyle(template);
+  const style = resolveStyle(document, template);
   return {
     layoutId: template.id,
     sectionOrder: document.sectionOrder?.filter(
@@ -168,6 +178,7 @@ module.exports = {
   visibleBulletIds,
   normalizeHiddenKeys,
   defaultStyle,
+  resolveStyle,
   templatePhotoSize,
   templateHeaderPadding,
   resolveResume,

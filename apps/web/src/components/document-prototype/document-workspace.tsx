@@ -57,6 +57,15 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
   const [mobileView, setMobileView] = useState<"Edit" | "Preview">("Edit");
   const [leaving, setLeaving] = useState(false);
   const draftNotice = useRef<HTMLParagraphElement>(null);
+  const requireSavedSections = async () => {
+    if (hasSectionDrafts) {
+      setScreen("Content");
+      setMobileView("Edit");
+      requestAnimationFrame(() => draftNotice.current?.focus());
+      return null;
+    }
+    return autosave.flush();
+  };
   const backToResumes = async () => {
     if (hasSectionDrafts) {
       setScreen("Content");
@@ -146,14 +155,14 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
         </div>
         <CheckpointHistory
           resumeId={resume.id}
-          beforeAction={autosave.flush}
+          beforeAction={requireSavedSections}
           onConflict={autosave.reportConflict}
           onRestored={autosave.reloadFromServer}
         />
         <ExportDialog
           resumeId={resume.id}
           ready={Boolean(model.template)}
-          beforeExport={autosave.flush}
+          beforeExport={requireSavedSections}
           onConflict={autosave.reportConflict}
         />
         <SignOutDialog
@@ -303,6 +312,9 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
                   hidden={model.hidden}
                   onToggle={model.toggleVisibility}
                   onDraftChange={onDraftChange}
+                  titles={model.sectionTitles}
+                  onRename={model.setSectionTitle}
+                  onPreviewChange={model.onPreviewChange}
                 />
               </div>
             )}
@@ -343,6 +355,7 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
           }
           templateName={model.preview?.templateName ?? model.template?.name}
           mobileVisible={mobileView === "Preview"}
+          hasUnsavedChanges={hasSectionDrafts}
         />
       </div>
     </main>

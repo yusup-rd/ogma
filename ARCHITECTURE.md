@@ -17,6 +17,8 @@
 
 ## API and consistency
 
+- Store renamed section titles at CV level in `sectionTitles`, and merge them into the resolved style for preview and exports. Preserve older per-template titles as a fallback until a user renames that section. Keep unsaved Content drafts in a separate preview layer; only Save updates persisted content. Cancel removes that section’s preview draft without affecting other edited sections. Require saved sections before exports and checkpoint actions.
+
 - Provide REST resources under `/api` for the library, CVs, checkpoints, assets, imports, exports, and analysis. Add explicit actions for duplicate, restore, and sync so each action checks authorization and runs atomically. Model links between related records with foreign keys and enforce ownership at the API boundary.
 - Apply edits locally as the user types. Debounce persistence, serialize saves, and send the expected draft revision with each write. Reject stale writes with a conflict response and offer to reload the current copy or preserve the local draft as a separate CV. Keep unsaved fields recoverable in memory on transient failures and expose retry. Confirm the draft revision before starting an export or analysis.
 - Use idempotency keys on retryable create, duplicate, restore, and import-commit actions. Commit multi-record changes in transactions. Render jobs take immutable input snapshots and report the analyzed/exported revision even if another device edits the CV while the work runs.

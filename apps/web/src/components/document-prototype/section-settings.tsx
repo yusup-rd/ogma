@@ -49,7 +49,7 @@ export const SectionSettings = ({
           type="button"
           className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-line px-3 text-left text-sm hover:bg-canvas active:bg-accent-soft"
         >
-          <span>
+          <span className="min-w-0 wrap-anywhere">
             {style.sectionOverrides?.[section]?.title ?? sectionTitles[section]}
           </span>
           <LuSettings2
@@ -77,7 +77,8 @@ export const SectionSettings = ({
           </div>
           <Dialog.Description className="text-sm text-muted">
             Customize {sectionTitles[section].toLowerCase()}. Empty fields
-            follow the current template settings.
+            follow the current template settings. Section titles apply across
+            this CV’s templates.
           </Dialog.Description>
           <form
             key={resetCount}

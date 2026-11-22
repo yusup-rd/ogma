@@ -78,6 +78,9 @@ const ResumeContentForm = ({
   hidden,
   onToggle,
   onDraftChange,
+  titles,
+  onRename,
+  onPreviewChange,
 }: ResumeContentFormProps) => {
   const field = <Key extends keyof DraftContent>(
     key: Key,
@@ -90,7 +93,14 @@ const ResumeContentForm = ({
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
-  const controls = { hidden, onToggle, onDraftChange };
+  const controls = {
+    hidden,
+    onToggle,
+    onDraftChange,
+    titles,
+    onRename,
+    onPreviewChange,
+  };
   const sections = {
     personal: (
       <SectionCard<PersonalDetailsDraft>
@@ -104,6 +114,11 @@ const ResumeContentForm = ({
           photo,
           photoCrop,
         }}
+        previewValue={({ photo, photoCrop, ...details }) => ({
+          content: details,
+          photo,
+          photoCrop,
+        })}
         onSave={({ photo, photoCrop, ...details }) => {
           onChange({ ...content, ...details });
           onPhoto(photo, photoCrop);
@@ -177,6 +192,7 @@ const ResumeContentForm = ({
         section="summary"
         {...controls}
         value={content.summary}
+        previewValue={(summary) => ({ content: { summary } })}
         onSave={(value) => field("summary", value)}
       >
         {(value, update) => (
@@ -385,7 +401,10 @@ const ResumeContentForm = ({
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
         <h2 className="text-2xl font-semibold tracking-tight">Content</h2>
-        <p className="text-sm text-muted">Choose what this resume includes.</p>
+        <p className="text-sm text-muted">
+          Edits appear in the preview. Save each section to keep them, or Cancel
+          to undo.
+        </p>
       </div>
       <DndContext
         id={contextId}

@@ -31,6 +31,10 @@ export function projectBulletKey(
 ): string;
 export function bulletKey(entryId: string, bulletId: string): string;
 export function defaultStyle(template: TemplateDefaults): WorkspaceStyle;
+export function resolveStyle(
+  document: ResumeDocument,
+  template: TemplateDefaults,
+): WorkspaceStyle;
 // Measurements are in millimetres.
 type TemplateGeometry = Pick<TemplateDefaults, "id" | "photo"> & {
   header: string;

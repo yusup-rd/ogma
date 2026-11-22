@@ -25,6 +25,7 @@ Ogma is a private, single-owner resume builder. The name comes from Ogma, a figu
 - Include a 24th template, **Essential**, based on the supplied CV. Use a single column, Poppins, compact entries, and numeric dates with a hyphen separator. Make contact and document links interactive in the live preview.
 - Include palette presets and custom accent colors, curated fonts, body and heading sizes, weight, line height, letter spacing, four-sided page margins, header padding, section and item gaps, bullet spacing, and photo size and crop on supported templates. Offer per-section typography and spacing overrides plus a break-before control for sections. Use automatic pagination with visible page boundaries and intentional splitting of long content.
 - Preserve Unicode input and editable section titles, including Russian examples such as `Проекты`. Ship English copy and English text heuristics. Test Cyrillic rendering and extraction in both exports.
+- Put section renaming beside Content headings. Keep renamed titles with the CV across template changes. Preview unsaved Content edits immediately; Save commits a section and Cancel restores it. Require saved sections before exports and checkpoint actions.
 
 ## Resume Check and job matching
 

@@ -183,6 +183,9 @@ const resumeDocumentInputSchema = z.object({
     })
     .optional(),
   content: draftContentSchema,
+  sectionTitles: z
+    .partialRecord(editorSectionSchema.exclude(["personal"]), titleSchema)
+    .optional(),
   experienceSources: z
     .array(librarySource.refine(({ content }) => content.kind === "experience"))
     .max(50)

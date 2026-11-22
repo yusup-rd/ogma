@@ -41,6 +41,7 @@ export interface ResumeDocument {
   layoutId: string;
   sectionOrder?: ("personal" | ResumeSectionId)[];
   content: DraftContent;
+  sectionTitles?: Partial<Record<ResumeSectionId, string>>;
   experienceSources?: ResumeLibrarySource[];
   librarySources?: ResumeLibrarySource[];
   settings: Record<string, WorkspaceStyle>;
