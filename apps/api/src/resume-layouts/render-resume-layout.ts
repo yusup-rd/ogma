@@ -376,10 +376,13 @@ function renderSections(
       if (id !== layout.proficiencyAfter) return [section];
       return [
         section,
-        ...skills.proficiency.map(
-          (group, index) =>
-            `<section class="section proficiency" data-break-before="${index === 0 && skills.regular.length === 0 && (draft.style.sectionOverrides?.skills?.breakBefore ?? false)}" data-preview-anchor="proficiency:${escapeText(group.id)}"><h2>${escapeText(group.title)}</h2><div class="section-copy">${renderSkills({ ...group, title: "" }, defaults, { ...draft.style, skillsLayout: "columns" })}</div></section>`,
-        ),
+        ...skills.proficiency.map((group, index) => {
+          const firstSkillsGroup = index === 0 && skills.regular.length === 0;
+          const title = firstSkillsGroup
+            ? draft.style.sectionOverrides?.skills?.title
+            : undefined;
+          return `<section class="section proficiency" data-break-before="${firstSkillsGroup && (draft.style.sectionOverrides?.skills?.breakBefore ?? false)}" data-preview-anchor="proficiency:${escapeText(group.id)}"><h2>${escapeText(title || group.title)}</h2><div class="section-copy">${renderSkills({ ...group, title: title ? group.title : "" }, defaults, { ...draft.style, skillsLayout: "columns" })}</div></section>`;
+        }),
       ];
     })
     .join("");
