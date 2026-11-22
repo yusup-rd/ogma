@@ -207,22 +207,26 @@ export function includeLibraryEntry(
     return document;
   const incoming = libraryValue(entry.id, entry.content);
   const current = readValue(document, incoming);
+  const sources = librarySources(document);
+  const replacesSource = (source: ResumeLibrarySource) =>
+    Boolean(
+      activeLibraryIds &&
+      singletonLibraryKinds.includes(entry.content.kind) &&
+      source.content.kind === entry.content.kind &&
+      !activeLibraryIds.has(source.libraryId),
+    );
+  const replacingArchivedSingleton = sources.some(replacesSource);
+  // First Add fills unused blanks; relinking preserves the existing CV snapshot.
   const patch = Object.fromEntries(
-    Object.entries(current?.value ?? {}).filter(([, value]) => Boolean(value)),
+    Object.entries(current?.value ?? {}).filter(([, value]) =>
+      replacingArchivedSingleton ? value !== undefined : Boolean(value),
+    ),
   );
   if (current?.kind === "personal" && current.value.photo)
     patch.photoCrop = current.value.photoCrop;
   const next = writeValue(document, incoming, patch);
   return withSources(next, [
-    ...librarySources(document).filter(
-      (source) =>
-        !(
-          activeLibraryIds &&
-          singletonLibraryKinds.includes(entry.content.kind) &&
-          source.content.kind === entry.content.kind &&
-          !activeLibraryIds.has(source.libraryId)
-        ),
-    ),
+    ...sources.filter((source) => !replacesSource(source)),
     {
       entryId: entry.id,
       libraryId: entry.id,
