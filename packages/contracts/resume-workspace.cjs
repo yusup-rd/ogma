@@ -36,6 +36,32 @@ const resumeStyleSchema = z.object({
   margin: z.number().min(8).max(27),
   lineHeight: z.number().min(0.9).max(2.5),
   showPhoto: z.boolean(),
+  sectionOverrides: z
+    .partialRecord(
+      z.enum([
+        "summary",
+        "experience",
+        "education",
+        "skills",
+        "languages",
+        "certifications",
+        "awards",
+        "projects",
+        "volunteering",
+        "publications",
+      ]),
+      z.object({
+        title: z.string().trim().min(1).max(120).optional(),
+        headingSize: textSize.optional(),
+        headingWeight: textWeight.optional(),
+        letterSpacing: z.number().min(-1).max(5).optional(),
+        bulletSpacing: z.number().min(0).max(15).optional(),
+        sectionGap: z.number().min(0).max(20).optional(),
+        lineHeight: z.number().min(0.9).max(2.5).optional(),
+        breakBefore: z.boolean().optional(),
+      }),
+    )
+    .optional(),
   paperSize: z.enum(["a4", "letter"]).optional(),
   listLineHeight: z.number().min(0.9).max(2.5).optional(),
   dateFormat: z.enum(["numeric", "year", "short", "long"]).optional(),

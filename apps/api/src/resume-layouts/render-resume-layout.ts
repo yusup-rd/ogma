@@ -371,7 +371,7 @@ function renderSections(
           : "";
       const section =
         body || summaryTitle
-          ? `<section class="section ${id}" data-preview-anchor="section:${id}"><h2${summaryTitle ? ' class="summary-title"' : ""}>${icon}${escapeText(summaryTitle || sectionName(id, layout))}</h2><div class="section-copy">${body || "<div></div>"}</div></section>`
+          ? `<section class="section ${id}" data-break-before="${draft.style.sectionOverrides?.[id]?.breakBefore ?? false}" data-preview-anchor="section:${id}"><h2${summaryTitle ? ' class="summary-title"' : ""}>${icon}${escapeText(draft.style.sectionOverrides?.[id]?.title || summaryTitle || sectionName(id, layout))}</h2><div class="section-copy">${body || "<div></div>"}</div></section>`
           : "";
       if (id !== layout.proficiencyAfter) return [section];
       return [
@@ -605,6 +605,16 @@ html { --paper-width:${paper.width}; --paper-height:${paper.height}; }
 ${resumeLayoutStyles}
 ${formattingRules(effectiveStyle, toPoints, style.spacing?.titleContent !== undefined, essential ? { size: style.sizes?.secondary, weight: style.weights?.secondary } : undefined)}
 ${fontStyles(style.font)}
+${Object.entries(style.sectionOverrides ?? {})
+  .map(([id, override]) => {
+    const selector = `.resume-page .column section.section.${id}`;
+    return `${selector}{${override.sectionGap === undefined ? "" : `--gap:${toWidth(override.sectionGap)};`}${override.lineHeight === undefined ? "" : `line-height:${override.lineHeight};--leading:${override.lineHeight};`}}
+${override.sectionGap === undefined ? "" : `${selector}:not(:last-child){margin-bottom:${toWidth(override.sectionGap)} !important;}`}
+${selector} h2{${override.headingSize === undefined ? "" : `font-size:${toPoints(override.headingSize)} !important;`}${override.headingWeight === undefined ? "" : `font-weight:${override.headingWeight} !important;`}${override.letterSpacing === undefined ? "" : `letter-spacing:${toPoints(override.letterSpacing)} !important;`}}
+${override.lineHeight === undefined ? "" : `${selector} .section-copy,${selector} .section-copy :is(p,li){line-height:${override.lineHeight} !important;}`}
+${override.bulletSpacing === undefined ? "" : `${selector} .rich-text :is(ul,ol)>li+li{margin-top:${toWidth(override.bulletSpacing)} !important;}${selector} .skill-list{row-gap:${toWidth(override.bulletSpacing)} !important;}`}`;
+  })
+  .join("\n")}
 ${
   thumbnail
     ? `

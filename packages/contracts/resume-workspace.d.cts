@@ -7,7 +7,19 @@ import type {
   ResumeSectionId,
 } from "./resume-content";
 
+export interface SectionStyle {
+  title?: string;
+  headingSize?: number;
+  headingWeight?: 200 | 300 | 400 | 600 | 700;
+  letterSpacing?: number;
+  bulletSpacing?: number;
+  sectionGap?: number;
+  lineHeight?: number;
+  breakBefore?: boolean;
+}
+
 export interface WorkspaceStyle extends DesignOptions {
+  sectionOverrides?: Partial<Record<ResumeSectionId, SectionStyle>>;
   font: "sans" | "humanist" | "serif" | "editorial" | "inter" | "poppins";
   accent: string;
   bodySize: number;

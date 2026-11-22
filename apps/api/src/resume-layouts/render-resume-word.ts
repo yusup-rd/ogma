@@ -25,6 +25,7 @@ import {
   WidthType,
   TabStopType,
   type INumberingOptions,
+  type IParagraphOptions,
 } from "docx";
 import type {
   RichBlock,
@@ -129,7 +130,9 @@ export async function renderResumeWord(
   draft: LayoutDraft,
   layout: ResumeLayout,
 ) {
-  const { content, style } = draft;
+  const { content, style: baseStyle } = draft;
+  // Rendering is synchronous after image preparation; helpers use each section's style.
+  let style = baseStyle;
   const converted = new Map<string, Buffer>();
   const logos = new Map<string, Buffer>();
   if (
@@ -270,13 +273,31 @@ export async function renderResumeWord(
     });
   }
 
+  function sectionParagraph(options: IParagraphOptions | string) {
+    const properties =
+      typeof options === "string" ? { text: options } : options;
+    return new Paragraph({
+      ...properties,
+      spacing: {
+        ...(properties.heading
+          ? {}
+          : { line: Math.round(style.lineHeight * 240) }),
+        ...properties.spacing,
+      },
+    });
+  }
+
   function richParagraphs(value: RichText | undefined, dash: boolean) {
     function block(node: RichBlock, depth = 0): Paragraph[] {
       if (node.type === "paragraph")
         return [
-          new Paragraph({
+          sectionParagraph({
             children: runs(node),
-            spacing: { before: pointTwips(style.spacing?.blocks), after: 0 },
+            spacing: {
+              before: pointTwips(style.spacing?.blocks),
+              after: 0,
+              line: Math.round(style.lineHeight * 240),
+            },
           }),
         ];
 
@@ -314,7 +335,7 @@ export async function renderResumeWord(
       return node.content.flatMap((item, index) => {
         const [first, ...following] = item.content;
         return [
-          new Paragraph({
+          sectionParagraph({
             children: runs(first),
             numbering: { reference, level },
             spacing: {
@@ -343,7 +364,7 @@ export async function renderResumeWord(
             width: { size: widths[index], type: WidthType.PERCENTAGE },
             shading: { fill: colors.tablePaper.slice(1) },
             children: [
-              new Paragraph({
+              sectionParagraph({
                 children: [
                   new TextRun({
                     text,
@@ -363,15 +384,15 @@ export async function renderResumeWord(
           new TableCell({
             width: { size: widths[0], type: WidthType.PERCENTAGE },
             children: [
-              new Paragraph(entry.title),
+              sectionParagraph(entry.title),
               ...[entry.subtitle, entry.date].flatMap((text) =>
-                text ? [new Paragraph(text)] : [],
+                text ? [sectionParagraph(text)] : [],
               ),
             ],
           }),
           new TableCell({
             width: { size: widths[1], type: WidthType.PERCENTAGE },
-            children: description.length ? description : [new Paragraph("")],
+            children: description.length ? description : [sectionParagraph("")],
           }),
         ],
       });
@@ -384,13 +405,60 @@ export async function renderResumeWord(
     ];
   }
 
+  let hasWordContent = Boolean(
+    name ||
+    pronouns.trim() ||
+    (!essential && title.trim()) ||
+    details.length ||
+    (layout.photo !== "none" && style.showPhoto && draft.photo),
+  );
+  let previousSectionGap: number | undefined;
   const contents = [...main, ...side].flatMap((id) => {
+    const override = baseStyle.sectionOverrides?.[id];
+    style = {
+      ...baseStyle,
+      lineHeight: override?.lineHeight ?? baseStyle.lineHeight,
+      listLineHeight: override?.lineHeight ?? baseStyle.listLineHeight,
+      sizes: {
+        ...baseStyle.sizes,
+        ...(override?.headingSize === undefined
+          ? {}
+          : {
+              section: override.headingSize,
+              ...(essential && id === "summary"
+                ? { primary: override.headingSize }
+                : {}),
+            }),
+      },
+      weights: {
+        ...baseStyle.weights,
+        ...(override?.headingWeight === undefined
+          ? {}
+          : {
+              section: override.headingWeight,
+              ...(essential && id === "summary"
+                ? { primary: override.headingWeight }
+                : {}),
+            }),
+      },
+      spacing: {
+        ...baseStyle.spacing,
+        ...(override?.bulletSpacing === undefined
+          ? {}
+          : { listItems: (override.bulletSpacing * 72) / 25.4 }),
+      },
+    };
     const body =
       id === "summary"
         ? content.summary
             .split(/\r?\n/)
             .filter((line) => line.trim())
-            .map((text) => new Paragraph(text))
+            .map((text) =>
+              sectionParagraph({
+                text,
+                spacing: { line: Math.round(style.lineHeight * 240) },
+              }),
+            )
         : id === "projects" && (style.projectTable ?? defaults.projectTable)
           ? projectTable(
               resumeEntries(content, id, dateFormat, false, dateSeparator),
@@ -526,7 +594,7 @@ export async function renderResumeWord(
               const entryParagraphs = [
                 ...(title || inlineSkills || leftText || rightText
                   ? [
-                      new Paragraph({
+                      sectionParagraph({
                         spacing: {
                           ...paragraphSpace,
                           line: inlineSkills
@@ -603,7 +671,7 @@ export async function renderResumeWord(
                   : []),
                 ...(subtitle || secondaryLeft || secondaryRight
                   ? [
-                      new Paragraph({
+                      sectionParagraph({
                         spacing: {
                           before: pointTwips(style.spacing?.headings),
                         },
@@ -651,7 +719,7 @@ export async function renderResumeWord(
                   : []),
                 ...(below.left || below.right
                   ? [
-                      new Paragraph({
+                      sectionParagraph({
                         keepNext: true,
                         tabStops: below.right ? rightTabs : undefined,
                         children: [
@@ -671,18 +739,17 @@ export async function renderResumeWord(
                       }),
                     ]
                   : []),
-                ...rows.map(
-                  (field) =>
-                    new Paragraph({
-                      alignment: align[field.alignment],
-                      keepNext: true,
-                      children: [
-                        new TextRun({
-                          text: field.text,
-                          ...typography("minor"),
-                        }),
-                      ],
-                    }),
+                ...rows.map((field) =>
+                  sectionParagraph({
+                    alignment: align[field.alignment],
+                    keepNext: true,
+                    children: [
+                      new TextRun({
+                        text: field.text,
+                        ...typography("minor"),
+                      }),
+                    ],
+                  }),
                 ),
                 ...(inlineSkills ? [] : skillParagraphs(skills)),
                 ...richParagraphs(
@@ -702,18 +769,17 @@ export async function renderResumeWord(
                 borders: {
                   right: { style: BorderStyle.SINGLE, color: accent, size: 4 },
                 },
-                children: rail.map(
-                  (field) =>
-                    new Paragraph({
-                      alignment: align[field.alignment],
-                      children: [
-                        new TextRun({
-                          text: field.text,
-                          ...typography("minor"),
-                          ...(field.kind === "date" ? { bold: true } : {}),
-                        }),
-                      ],
-                    }),
+                children: rail.map((field) =>
+                  sectionParagraph({
+                    alignment: align[field.alignment],
+                    children: [
+                      new TextRun({
+                        text: field.text,
+                        ...typography("minor"),
+                        ...(field.kind === "date" ? { bold: true } : {}),
+                      }),
+                    ],
+                  }),
                 ),
               });
               return [
@@ -747,7 +813,7 @@ export async function renderResumeWord(
                               new TableCell({
                                 width: { size: logoWidth, type: WidthType.DXA },
                                 children: [
-                                  new Paragraph({
+                                  sectionParagraph({
                                     alignment: AlignmentType.RIGHT,
                                     children: [image(rightLogo, 20, logos)],
                                   }),
@@ -762,54 +828,70 @@ export async function renderResumeWord(
               ];
             });
     const summaryTitle = essential && id === "summary" ? title.trim() : "";
-    return body.length || summaryTitle
-      ? [
-          new Paragraph({
-            heading: HeadingLevel.HEADING_1,
-            keepNext: true,
-            alignment: ivyLeague ? AlignmentType.CENTER : undefined,
-            border: colors.headingRule
-              ? {
-                  [colors.headingRule]: {
-                    style: BorderStyle.SINGLE,
-                    size: 4,
-                    space: 2,
-                    color: accent,
-                  },
-                }
-              : undefined,
-            spacing: {
-              before:
-                style.spacing?.sections === undefined
-                  ? mmTwips(style.sectionGap)
-                  : pointTwips(style.spacing.sections),
-              after: pointTwips(
-                style.spacing?.titleContent ??
-                  (essential
-                    ? defaults.spacing.titleContent + (summaryTitle ? 11 : 0)
-                    : undefined),
-              ),
-            },
-            children: [
-              new TextRun({
-                text:
-                  summaryTitle ||
-                  (essential
-                    ? sectionName(id, layout).toUpperCase()
-                    : sectionName(id, layout)),
-                color: summaryTitle
-                  ? "000000"
-                  : colors.headings
-                    ? accent
-                    : "24292D",
-                ...typography(summaryTitle ? "primary" : "section"),
-              }),
-            ],
-          }),
-          ...body,
-        ]
-      : [];
+    const section =
+      body.length || summaryTitle
+        ? [
+            sectionParagraph({
+              heading: HeadingLevel.HEADING_1,
+              pageBreakBefore: hasWordContent && override?.breakBefore,
+              keepNext: true,
+              alignment: ivyLeague ? AlignmentType.CENTER : undefined,
+              border: colors.headingRule
+                ? {
+                    [colors.headingRule]: {
+                      style: BorderStyle.SINGLE,
+                      size: 4,
+                      space: 2,
+                      color: accent,
+                    },
+                  }
+                : undefined,
+              spacing: {
+                before:
+                  previousSectionGap === undefined
+                    ? style.spacing?.sections === undefined
+                      ? mmTwips(style.sectionGap)
+                      : pointTwips(style.spacing.sections)
+                    : mmTwips(previousSectionGap),
+                after: pointTwips(
+                  style.spacing?.titleContent ??
+                    (essential
+                      ? defaults.spacing.titleContent + (summaryTitle ? 11 : 0)
+                      : undefined),
+                ),
+              },
+              children: [
+                new TextRun({
+                  text:
+                    override?.title ||
+                    summaryTitle ||
+                    (essential
+                      ? sectionName(id, layout).toUpperCase()
+                      : sectionName(id, layout)),
+                  color: summaryTitle
+                    ? "000000"
+                    : colors.headings
+                      ? accent
+                      : "24292D",
+                  ...typography(summaryTitle ? "primary" : "section"),
+                  characterSpacing:
+                    override?.letterSpacing === undefined
+                      ? undefined
+                      : Math.round(override.letterSpacing * 20),
+                }),
+              ],
+            }),
+            ...body,
+          ]
+        : [];
+    if (section.length) {
+      hasWordContent = true;
+      previousSectionGap = override?.sectionGap;
+    }
+    return section;
   });
+
+  style = baseStyle;
 
   const identity = [
     ...(layout.photo !== "none" && style.showPhoto && draft.photo

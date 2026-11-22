@@ -318,6 +318,7 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
                 </div>
                 {model.template && model.style ? (
                   <TemplateDesignForm
+                    sectionOrder={model.order}
                     gallery={gallery}
                     template={model.template}
                     style={model.style}

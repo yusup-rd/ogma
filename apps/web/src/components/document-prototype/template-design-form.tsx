@@ -6,6 +6,8 @@ import type {
   TemplateOption,
   TemplateStyle,
 } from "@/lib/document-prototype/resume-layout-model";
+import type { EditorSectionId } from "@/lib/document-prototype/content-presentation";
+import { SectionSettings } from "./section-settings";
 import { SelectSetting } from "./select-setting";
 
 interface TemplateDesignFormProps {
@@ -15,6 +17,7 @@ interface TemplateDesignFormProps {
   onChange: (changes: Partial<TemplateStyle>) => void;
   onReset: () => void;
   gallery: ReactNode;
+  sectionOrder: EditorSectionId[];
 }
 
 const fieldClass =
@@ -236,6 +239,7 @@ const TemplateDesignForm = ({
   onChange,
   onReset,
   gallery,
+  sectionOrder,
 }: TemplateDesignFormProps) => {
   const [tab, setTab] = useState<"Classic Settings" | "Advanced">(
     "Classic Settings",
@@ -685,6 +689,18 @@ const TemplateDesignForm = ({
           </SettingsGroup>
         </>
       )}
+      <SettingsGroup title="Section settings">
+        {sectionOrder
+          .filter((section) => section !== "personal")
+          .map((section) => (
+            <SectionSettings
+              key={section}
+              section={section}
+              style={style}
+              onChange={onChange}
+            />
+          ))}
+      </SettingsGroup>
       <ConfirmationDialog
         trigger={
           <button
