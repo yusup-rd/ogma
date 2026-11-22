@@ -2,6 +2,12 @@
 
 These instructions apply throughout the repository. Do ongoing development on `dev`. Use [PLAN.md](PLAN.md) for product scope and [ARCHITECTURE.md](ARCHITECTURE.md) for technical decisions.
 
+## Commit messages
+
+- Use scoped Conventional Commits for every commit: `<type>(<scope>): <summary>`.
+- Choose a type that describes the change, such as `feat`, `fix`, `style`, `refactor`, `perf`, `test`, `docs`, `build`, `ci`, `chore`, or `revert`. Use a scope that names the affected feature or area, such as `library`, `editor`, `exports`, `api`, or `contracts`.
+- Keep the summary concise and imperative, and group related changes into focused commits. Examples: `fix(library): preserve archived drafts`, `feat(editor): add icon previews`, and `docs(agents): clarify commit conventions`.
+
 ## TypeScript and components
 
 - Use strict TypeScript for `.ts` and `.tsx`. Avoid `any` and type-check suppressions. Validate runtime data at app boundaries.

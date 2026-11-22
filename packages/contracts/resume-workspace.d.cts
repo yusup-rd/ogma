@@ -1,4 +1,6 @@
+import type { PhotoCrop } from "./resume-content-schema.cjs";
 import type { z } from "zod";
+import type { LibraryEntryContent } from "./content-library.cjs";
 import type {
   DraftContent,
   DesignOptions,
@@ -15,14 +17,26 @@ export interface WorkspaceStyle extends DesignOptions {
   showPhoto: boolean;
 }
 
+export interface ResumeLibrarySource {
+  entryId: string;
+  libraryId: string;
+  revision: number;
+  content: LibraryEntryContent;
+}
+
 export interface ResumeDocument {
   schemaVersion: 1;
   layoutId: string;
   sectionOrder?: ("personal" | ResumeSectionId)[];
   content: DraftContent;
+  experienceSources?: ResumeLibrarySource[];
+  librarySources?: ResumeLibrarySource[];
   settings: Record<string, WorkspaceStyle>;
   hidden: string[];
+  /** Older documents are converted by the shared parser without changing saved checkpoints. */
+  hiddenKeyVersion?: 2;
   photo?: string;
+  photoCrop?: PhotoCrop;
 }
 
 export interface ResumeSummary {

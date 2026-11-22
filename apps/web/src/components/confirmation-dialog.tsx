@@ -52,6 +52,7 @@ const ConfirmationDialog = ({
             className="mt-1 flex flex-wrap justify-end gap-2"
             onSubmit={async (event) => {
               event.preventDefault();
+              event.stopPropagation();
               if (pending) return;
               setPending(true);
               setError("");

@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useCallback, useRef, useState } from "react";
 import type { SavedResume } from "@ogma/contracts/resume-workspace";
+import { ResumeLibraryDialog } from "@/components/content-library/resume-library-dialog";
 import { SignOutDialog } from "@/components/owner-auth/sign-out-dialog";
 import { ResumeConflictDialog } from "@/components/resumes/resume-conflict-dialog";
 import { CheckpointHistory } from "@/components/resumes/checkpoint-history";
@@ -274,9 +275,15 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
             )}
             {model.content && (
               <div hidden={screen !== "Content"}>
+                <ResumeLibraryDialog
+                  document={model.document}
+                  disabled={hasSectionDrafts}
+                  onChange={model.setDocument}
+                />
                 <ResumeContentForm
                   content={model.content}
                   photo={model.photo}
+                  photoCrop={model.document.photoCrop}
                   initialPersonalDetailsOpen={
                     resume.draftRevision === 1 &&
                     !resume.document.content.targetTitle &&

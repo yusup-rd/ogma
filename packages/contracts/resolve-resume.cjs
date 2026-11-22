@@ -1,19 +1,47 @@
-const sectionKey = (id) => "section/" + id;
-const entryKey = (id) => "entry/" + id;
-const bulletKey = (entryId, bulletId) => "bullet/" + entryId + "/" + bulletId;
+const {
+  sectionKey,
+  entryKey,
+  bulletKey,
+  projectBulletKey,
+  normalizeHiddenKeys,
+} = require("./selection-keys.cjs");
 
-function visibleDescription(value, entryId, hidden) {
+function visibleDescription(value, entryId, hidden, projectId) {
   function filter(block) {
     if (block.type === "paragraph") return [block];
     const content = block.content.flatMap((item) => {
       const id = item.attrs?.id;
-      if (id && hidden.has(bulletKey(entryId, id))) return [];
+      if (
+        id &&
+        hidden.has(
+          projectId === undefined
+            ? bulletKey(entryId, id)
+            : projectBulletKey(entryId, projectId, id),
+        )
+      )
+        return [];
       const [paragraph, ...children] = item.content;
       return [{ ...item, content: [paragraph, ...children.flatMap(filter)] }];
     });
     return content.length ? [{ ...block, content }] : [];
   }
   return { ...value, content: value.content?.flatMap(filter) };
+}
+
+function visibleBulletIds(description, entryId, hidden, projectId) {
+  const ids = new Set();
+  if (hidden.has(entryKey(entryId))) return ids;
+  function visit(blocks) {
+    for (const block of blocks ?? []) {
+      if (block.type === "paragraph") continue;
+      for (const item of block.content) {
+        if (item.attrs?.id) ids.add(item.attrs.id);
+        visit(item.content);
+      }
+    }
+  }
+  visit(visibleDescription(description, entryId, hidden, projectId).content);
+  return ids;
 }
 
 function visibleResume(content, hidden) {
@@ -39,12 +67,24 @@ function visibleResume(content, hidden) {
         ? ""
         : content.targetTitle,
     summary: hidden.has(sectionKey("summary")) ? "" : content.summary,
-    experience: described("experience", content.experience),
+    experience: described("experience", content.experience).map((entry) => ({
+      ...entry,
+      projects: entry.projects?.map((project) => ({
+        ...project,
+        description: visibleDescription(
+          project.description,
+          entry.id,
+          hidden,
+          project.id,
+        ),
+      })),
+    })),
     education: described("education", content.education),
     skills: entries("skills", content.skills).map((category) => ({
       ...category,
       skills: entries("skills", category.skills),
     })),
+    languages: entries("languages", content.languages ?? []),
     certifications: entries("certifications", content.certifications),
     awards: entries("awards", content.awards),
     projects: described("projects", content.projects),
@@ -68,7 +108,7 @@ function defaultStyle(template) {
 }
 
 function resolveResume(document, template) {
-  const hidden = new Set(document.hidden);
+  const hidden = new Set(normalizeHiddenKeys(document));
   const style = document.settings[template.id] ?? defaultStyle(template);
   return {
     layoutId: template.id,
@@ -88,6 +128,9 @@ module.exports = {
   sectionKey,
   entryKey,
   bulletKey,
+  projectBulletKey,
+  visibleBulletIds,
+  normalizeHiddenKeys,
   defaultStyle,
   resolveResume,
 };

@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { ContentLibraryModule } from "./content-library/content-library.module";
 import { DatabaseModule } from "./database/database.module";
 import { DocumentPrototypeModule } from "./document-prototype/document-prototype.module";
 import { HealthController } from "./health.controller";
@@ -15,6 +16,7 @@ import { ResumesModule } from "./resumes/resumes.module";
     DocumentPrototypeModule,
     ResumeLayoutsModule,
     ResumesModule,
+    ContentLibraryModule,
   ],
   controllers: [HealthController],
 })

@@ -52,6 +52,7 @@ const section = z.enum([
   "experience",
   "education",
   "skills",
+  "languages",
   "certifications",
   "awards",
   "projects",

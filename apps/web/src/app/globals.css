@@ -69,3 +69,29 @@ html,
   scrollbar-width: thin;
   scrollbar-color: #ab9bb7 transparent;
 }
+
+/* cspell:ignore sonner */
+[data-sonner-toast].ogma-toast {
+  font-family: var(--font-sans);
+  padding: 16px;
+  gap: 12px;
+  box-shadow: 0 8px 28px rgb(37 40 37 / 12%);
+}
+[data-sonner-toast].ogma-toast [data-icon] {
+  flex-shrink: 0;
+}
+[data-sonner-toast].ogma-toast [data-content] {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+[data-sonner-toast] .ogma-toast-close {
+  width: 24px;
+  height: 24px;
+}
+@media (prefers-reduced-motion: reduce) {
+  /* cspell:ignore sonner */
+  [data-sonner-toast].ogma-toast {
+    transition: none;
+    animation: none;
+  }
+}

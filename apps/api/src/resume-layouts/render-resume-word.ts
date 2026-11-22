@@ -1,3 +1,6 @@
+import { maxPicturePixels } from "@ogma/contracts/resume-content-schema";
+import { BadRequestException } from "@nestjs/common";
+import sharp from "sharp";
 import {
   entryMetadata,
   splitEssentialMetadata,
@@ -53,10 +56,15 @@ import {
 import { contactHref } from "./resume-links";
 
 // cspell:ignore IHDR
-function image(dataUri: string, size: number) {
+function image(
+  dataUri: string,
+  size: number,
+  converted: ReadonlyMap<string, Buffer>,
+) {
   const [mime, data] = dataUri.split(",");
-  const png = mime.includes("png");
-  const bytes = Buffer.from(data, "base64");
+  const prepared = converted.get(dataUri);
+  const png = Boolean(prepared) || mime.includes("png");
+  const bytes = prepared ?? Buffer.from(data, "base64");
   const dimensions =
     png && bytes.length >= 24 && bytes.toString("ascii", 12, 16) === "IHDR"
       ? { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) }
@@ -72,6 +80,38 @@ function image(dataUri: string, size: number) {
   });
 }
 
+async function prepareWordImage(dataUri: string, cover: boolean) {
+  const [mime, data] = dataUri.split(",");
+  const bytes = Buffer.from(data, "base64");
+  const expected = mime.includes("webp")
+    ? "webp"
+    : mime.includes("png")
+      ? "png"
+      : "jpeg";
+  const valid =
+    expected === "webp"
+      ? bytes.toString("ascii", 0, 4) === "RIFF" &&
+        bytes.toString("ascii", 8, 12) === "WEBP"
+      : expected === "png"
+        ? bytes
+            .subarray(0, 8)
+            .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+        : bytes[0] === 255 && bytes[1] === 216;
+  if (!valid) throw new BadRequestException("Invalid resume image.");
+  try {
+    const raster = sharp(bytes, { limitInputPixels: maxPicturePixels });
+    return await (
+      cover
+        ? raster.resize(120, 120, { fit: "cover", position: "centre" })
+        : raster
+    )
+      .png()
+      .toBuffer();
+  } catch {
+    throw new BadRequestException("Couldn’t open the resume image.");
+  }
+}
+
 function runs(paragraph: RichParagraph) {
   return (paragraph.content ?? []).map((part) => {
     if (part.type === "hardBreak") return new TextRun({ break: 1 });
@@ -85,8 +125,20 @@ function runs(paragraph: RichParagraph) {
   });
 }
 
-export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
+export async function renderResumeWord(
+  draft: LayoutDraft,
+  layout: ResumeLayout,
+) {
   const { content, style } = draft;
+  const converted = new Map<string, Buffer>();
+  const logos = new Map<string, Buffer>();
+  if (
+    layout.photo !== "none" &&
+    style.showPhoto &&
+    draft.photo?.startsWith("data:image/webp;base64,")
+  ) {
+    converted.set(draft.photo, await prepareWordImage(draft.photo, false));
+  }
   const { name, title, pronouns, details } = resumeHeader(content, layout);
   const essential = layout.id === "essential";
   const ivyLeague = layout.heading === "center-rule";
@@ -130,12 +182,35 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
         fontChoices[style.font].word + (namedWeight ? ` ${namedWeight}` : ""),
     };
   }
-  const { main, side } = resumeColumns(layout, draft.sectionOrder);
+  const { main, side } = resumeColumns(
+    layout,
+    draft.sectionOrder,
+    Boolean(content.languages?.some(({ name }) => name.trim())),
+  );
   const numbering: Array<INumberingOptions["config"][number]> = [];
 
   const skillMode = style.skillsLayout ?? defaults.skillsLayout;
   const dateFormat = style.dateFormat ?? defaults.dateFormat;
   const dateSeparator = style.dateSeparator ?? defaults.dateSeparator;
+  const experienceEntries =
+    main.includes("experience") || side.includes("experience")
+      ? resumeEntries(
+          content,
+          "experience",
+          dateFormat,
+          style.workProjectTables ?? defaults.workProjectTables,
+          dateSeparator,
+        )
+      : [];
+  const logoSources =
+    layout.logos === "none"
+      ? []
+      : experienceEntries.map(
+          (entry, index) =>
+            entry.logo ?? (index === 0 ? draft.logo : undefined),
+        );
+  for (const logo of new Set(logoSources))
+    if (logo) logos.set(logo, await prepareWordImage(logo, true));
   const separator = essential ? " • " : " | ";
   const metadataStyle = {
     ...style,
@@ -338,7 +413,10 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                     : dateSeparator,
                 )
             ).flatMap((entry, index) => {
-              const logo = entry.logo ?? (index === 0 ? draft.logo : undefined);
+              const logo =
+                id === "experience"
+                  ? (entry.logo ?? (index === 0 ? draft.logo : undefined))
+                  : undefined;
               const skills =
                 entry.skills?.map((skill) =>
                   proficiency !== "none" && skill.level
@@ -346,7 +424,9 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                     : skill.name,
                 ) ?? [];
               const inlineSkills =
-                id === "skills" && skillMode !== "columns" && skills.length > 0;
+                (id === "skills" || id === "languages") &&
+                skillMode !== "columns" &&
+                skills.length > 0;
               const work =
                 id === "experience" && defaults.workExperience
                   ? workEntryHeading(
@@ -474,7 +554,7 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                           ...(id === "experience" &&
                           layout.logos === "left" &&
                           logo
-                            ? [image(logo, 20), new TextRun("  ")]
+                            ? [image(logo, 20, logos), new TextRun("  ")]
                             : []),
                           ...(title
                             ? [
@@ -669,7 +749,7 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
                                 children: [
                                   new Paragraph({
                                     alignment: AlignmentType.RIGHT,
-                                    children: [image(rightLogo, 20)],
+                                    children: [image(rightLogo, 20, logos)],
                                   }),
                                 ],
                               }),
@@ -739,7 +819,7 @@ export function renderResumeWord(draft: LayoutDraft, layout: ResumeLayout) {
               layout.photo === "top"
                 ? AlignmentType.CENTER
                 : AlignmentType.RIGHT,
-            children: [image(draft.photo, 66)],
+            children: [image(draft.photo, 66, converted)],
           }),
         ]
       : []),

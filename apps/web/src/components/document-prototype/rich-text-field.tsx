@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import UniqueID from "@tiptap/extension-unique-id";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -54,12 +55,29 @@ const RichTextField = ({
           "min-h-[calc(4lh+1.25rem)] cursor-text px-3 py-2.5 text-sm outline-none [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_p+p]:mt-1.5",
       },
     },
-    onUpdate: ({ editor }) => onChange(editor.getJSON() as RichText),
+    onUpdate: ({ editor }) => {
+      // Initial extension normalization is not a user edit.
+      if (!editor.isInitialized) return;
+      const next = editor.getJSON() as RichText;
+      onChange(next);
+    },
   });
+  useEffect(() => {
+    if (!editor) return;
+    const next = value.content?.length
+      ? value
+      : { type: "doc" as const, content: [{ type: "paragraph" as const }] };
+    if (JSON.stringify(editor.getJSON()) !== JSON.stringify(next))
+      editor.commands.setContent(next, { emitUpdate: false });
+  }, [editor, value]);
   const state = useEditorState({
     editor,
     selector: ({ editor }) => ({
-      empty: editor?.isEmpty,
+      showPlaceholder:
+        editor?.isEmpty &&
+        editor.state.doc.content.content.every(
+          (node) => node.type.name === "paragraph",
+        ),
       bold: editor?.isActive("bold"),
       italic: editor?.isActive("italic"),
       underline: editor?.isActive("underline"),
@@ -125,9 +143,9 @@ const RichTextField = ({
             </button>
           ))}
         </div>
-        <div className="relative focus-within:ring-2 focus-within:ring-accent focus-within:ring-inset">
+        <div className="relative rounded-b-[calc(var(--radius-lg)-1px)] focus-within:ring-2 focus-within:ring-accent focus-within:ring-inset">
           <EditorContent editor={editor} />
-          {placeholder && state?.empty && (
+          {placeholder && state?.showPlaceholder && (
             <p
               aria-hidden="true"
               className="pointer-events-none absolute inset-x-3 top-2.5 text-sm text-muted"

@@ -1,6 +1,6 @@
 generator client {
   provider     = "prisma-client"
-  output       = "../src/generated/prisma"
+  output       = "../src/generated/database"
   moduleFormat = "cjs"
 }
 
@@ -15,6 +15,7 @@ model Owner {
   createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   resumes         Resume[]
   sessions        OwnerSession[]
+  libraryEntries  LibraryEntry[]
 
   @@unique([identityIssuer, identitySubject])
   @@map("owners")
@@ -84,4 +85,31 @@ model ResumeCheckpointRestore {
 
   @@index([checkpointId])
   @@map("resume_checkpoint_restores")
+}
+
+model LibraryEntry {
+  id              String                 @id @db.Uuid
+  ownerId         String                 @map("owner_id") @db.Uuid
+  kind            String
+  currentRevision Int                    @default(1) @map("current_revision")
+  createdAt       DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+  archivedAt      DateTime?              @map("archived_at") @db.Timestamptz(3)
+  archiveToken    String?                @map("archive_token") @db.Uuid
+  owner           Owner                  @relation(fields: [ownerId], references: [id])
+  revisions       LibraryEntryRevision[]
+
+  @@index([ownerId, archivedAt, updatedAt])
+  @@map("library_entries")
+}
+
+model LibraryEntryRevision {
+  entryId   String       @map("entry_id") @db.Uuid
+  revision  Int
+  content   Json         @db.JsonB
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  entry     LibraryEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@id([entryId, revision])
+  @@map("library_entry_revisions")
 }

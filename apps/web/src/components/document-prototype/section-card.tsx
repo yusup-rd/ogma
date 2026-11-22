@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useId, useLayoutEffect, useState, type ReactNode } from "react";
@@ -172,7 +173,12 @@ const SectionCard = <Value,>({
                 type="button"
                 disabled={draft === undefined}
                 onClick={() => {
-                  if (draft !== undefined) onSave(draft);
+                  if (draft !== undefined) {
+                    onSave(draft);
+                    toast.success(title + " updated.", {
+                      id: "section-updated",
+                    });
+                  }
                   clearDraft();
                 }}
                 className="min-h-10 rounded-lg bg-accent px-3 text-sm font-semibold text-white enabled:hover:bg-accent-hover disabled:opacity-45"
