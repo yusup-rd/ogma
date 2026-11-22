@@ -34,15 +34,16 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
   const [sectionDrafts, setSectionDrafts] = useState(
     () => new Set<EditorSectionId>(),
   );
+  const sectionDraftsRef = useRef(sectionDrafts);
   const onDraftChange = useCallback(
     (section: EditorSectionId, hasDraft: boolean) => {
-      setSectionDrafts((current) => {
-        if (current.has(section) === hasDraft) return current;
-        const next = new Set(current);
-        if (hasDraft) next.add(section);
-        else next.delete(section);
-        return next;
-      });
+      const current = sectionDraftsRef.current;
+      if (current.has(section) === hasDraft) return;
+      const next = new Set(current);
+      if (hasDraft) next.add(section);
+      else next.delete(section);
+      sectionDraftsRef.current = next;
+      setSectionDrafts(next);
     },
     [],
   );
@@ -58,23 +59,26 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
   const [leaving, setLeaving] = useState(false);
   const draftNotice = useRef<HTMLParagraphElement>(null);
   const requireSavedSections = async () => {
-    if (hasSectionDrafts) {
+    const revealDrafts = () => {
+      if (sectionDraftsRef.current.size === 0) return false;
       setScreen("Content");
       setMobileView("Edit");
       requestAnimationFrame(() => draftNotice.current?.focus());
-      return null;
-    }
-    return autosave.flush();
+      return true;
+    };
+    if (revealDrafts()) return null;
+    const revision = await autosave.flush();
+    return revealDrafts() ? null : revision;
   };
   const backToResumes = async () => {
-    if (hasSectionDrafts) {
+    if (sectionDraftsRef.current.size > 0) {
       setScreen("Content");
       setMobileView("Edit");
       requestAnimationFrame(() => draftNotice.current?.focus());
       return;
     }
     setLeaving(true);
-    const savedRevision = await autosave.flush();
+    const savedRevision = await requireSavedSections();
     if (savedRevision === null) {
       setLeaving(false);
       return;
@@ -167,14 +171,14 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
         />
         <SignOutDialog
           beforeSignOut={() => {
-            if (hasSectionDrafts) {
+            if (sectionDraftsRef.current.size > 0) {
               setScreen("Content");
               setMobileView("Edit");
               throw new Error(
                 "Choose Save or Cancel in each edited section before signing out.",
               );
             }
-            return autosave.flush();
+            return requireSavedSections();
           }}
         />
       </header>
