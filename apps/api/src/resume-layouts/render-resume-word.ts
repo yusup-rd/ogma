@@ -1,4 +1,7 @@
-import { templateHeaderPadding } from "@ogma/contracts/resolve-resume";
+import {
+  templateHeaderPadding,
+  templatePhotoSize,
+} from "@ogma/contracts/resolve-resume";
 import { maxPicturePixels } from "@ogma/contracts/resume-content-schema";
 import { BadRequestException } from "@nestjs/common";
 import sharp from "sharp";
@@ -906,9 +909,8 @@ export async function renderResumeWord(
             children: [
               image(
                 draft.photo,
-                style.photoSize === undefined
-                  ? 66
-                  : (style.photoSize * 96) / 25.4,
+                ((style.photoSize ?? templatePhotoSize(style, layout)) * 96) /
+                  25.4,
                 converted,
               ),
             ],
@@ -993,14 +995,12 @@ export async function renderResumeWord(
       : []),
   ];
 
-  const hasHeaderPadding = Object.values(style.headerPadding ?? {}).some(
-    (value) => value !== undefined,
-  );
   const padding = templateHeaderPadding(style, layout);
   for (const edge of ["top", "right", "bottom", "left"] as const) {
     const value = style.headerPadding?.[edge];
     if (value !== undefined) padding[edge] = value;
   }
+  const hasHeaderPadding = Object.values(padding).some((value) => value !== 0);
   const headerBorders = {
     top: { style: BorderStyle.NONE },
     bottom: { style: BorderStyle.NONE },
