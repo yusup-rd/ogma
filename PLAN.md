@@ -26,7 +26,7 @@ Ogma is a private, single-owner resume builder. The name comes from Ogma, a figu
 - Include palette presets and custom accent colors, curated fonts, body and heading sizes, weight, line height, letter spacing, four-sided page margins, header padding, section and item gaps, bullet spacing, and photo size and crop on supported templates. Offer per-section typography and spacing overrides plus a break-before control for sections. Use automatic pagination with visible page boundaries and intentional splitting of long content.
 - Preserve Unicode input and editable section titles, including Russian examples such as `Проекты`. Ship English copy and English text heuristics. Test Cyrillic rendering and extraction in both exports.
 - Put section renaming beside Content headings. Keep renamed titles with the CV across template changes. Preview unsaved Content edits immediately; Save commits a section and Cancel restores it. Require saved sections before exports and checkpoint actions.
-- Offer a persistent CV lock to protect saved drafts. Locked CVs remain editable for preview; apply content locally, then explicitly unlock and save or discard the preview. Prompt before leaving a changed locked preview. Show locked status on the dashboard, and use a document skeleton until its saved thumbnail is fully ready.
+- Offer a persistent CV lock to protect saved drafts. Locked CVs remain editable for preview; apply content locally, then explicitly unlock and save or discard the preview. Prompt before leaving a changed locked preview. Provide a Lock/Unlock icon in dashboard row actions without a separate status label. Always show paper size and template, and report pending or unavailable page counts explicitly. Use a document skeleton until the saved thumbnail is fully ready.
 
 ## Resume Check and job matching
 
@@ -59,3 +59,8 @@ The core release is complete when you can import an existing CV, reuse its conte
 - Schedule a dedicated motion-polish phase after the functional roadmap is complete and release readiness is verified. Keep the current functional milestones focused on their product outcomes, with the existing immediate-feedback and accessibility requirements continuing to apply.
 - Follow **Animation & Motion Design Preferences** in [AGENTS.md](AGENTS.md). Inspect existing interactions and architecture, establish reusable motion configuration where needed, and coordinate component transitions with surrounding layout changes. Cover dialogs and backdrops, expanding content, controls, lists, notifications, navigation, gestures, and useful scroll-related interactions.
 - Verify interruption and rapid state changes, synchronized compound interactions, desktop and mobile behavior, keyboard and touch access, reduced-motion and transparency preferences, and performance. Choose implementation tools within that phase according to the existing stack and actual interaction requirements.
+
+### Shared client caching follow-up
+
+- Use TanStack Query for reusable reads across the dashboard, Library, editor catalog, history, saved page counts, and saved thumbnails. Centralize policies and invalidation; preserve unsaved editing and ordered writes. Hydrate server-loaded lists, retain memory across internal navigation, clear it on sign-out, and keep private data out of persistent caches.
+- Keep formatting centralized and render Last edited consistently across hydration with timezone-aware relative labels and a live client clock.

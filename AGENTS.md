@@ -134,6 +134,21 @@ Consider the following patterns wherever they improve usability, continuity, or 
 6. Verify compound interactions stay synchronized, including during rapid reversals and repeated input.
 7. Check performance, focus, keyboard and touch behavior, responsive layouts, and reduced-motion behavior before completing the motion work.
 
+## Caching preferences
+
+- Use TanStack Query for reusable client reads of server data. Centralize query keys, options, freshness durations, and mutation cache helpers in `apps/web/src/lib/queries`; keep feature hooks under `hooks/`. Check existing queries before adding a request or another cache.
+- Cache validated raw data, including timestamps. Include every response-changing input in the key: archive/filter state, resource ID, and document revision for derived page counts and thumbnails. Add owner or tenant identity to keys if multiple identities can share a client in the future.
+- Choose freshness deliberately: lists and Library status 1 minute, checkpoint history 30 seconds, template catalog 1 hour, saved thumbnails 5 minutes. Page counts are immutable for their revision. Retain inactive private document results for at most 5 minutes and other ordinary reads for 10 minutes. Explain deviations alongside query options.
+- Hydrate authenticated server reads with a per-request QueryClient. Keep one provider across client navigation; never share a server QueryClient between requests. Preserve server authentication checks and private, no-store HTTP responses. Do not persist CVs or Library data in browser storage. Clear and cancel client queries on sign-out or an expired session.
+- After acknowledged writes, cancel competing reads before updating cached data and invalidate all affected lists/status/derived results. Use revision keys to isolate derived results. Test create, save, lock, archive, restore, delete, conflict, and sign-out paths when they affect cached data.
+- Pass query cancellation signals to fetch. Retry only bounded transient reads. Keep writes and downloads free of automatic retries. Preserve the editor's ordered autosave and latest-preview queues; never let a background query overwrite unsaved edits, pinned Library revisions, or checkpoints. Keep live previews, exports, authentication, and local form state outside reusable read caches.
+- Keep cached content visible during background refreshes and offer an actionable refresh error. Use skeletons for genuinely missing or not-yet-rendered content. Verify cache reuse, stale refresh, invalidation, cancellation, and session isolation with network requests as well as visible UI.
+
+## Formatting preferences
+
+- Check `apps/web/src/lib/formatUtil.ts` before formatting dates, times, numbers, percentages, or document metadata. Reuse its helpers or add a shared helper there instead of duplicating presentation formatting in components.
+- Keep raw values in models and query caches. Format at the display boundary. Use an explicit timezone and reference clock for relative dates; keep server and initial client output consistent. Do not replace an absolute-date fallback with a relative label after hydration. Reserve space while browser-only display context is unavailable, and update relative labels as time passes.
+
 ## Data and verification
 
 - Preserve pinned library revisions, local overrides, and immutable checkpoints across editor changes. Keep live preview, exports, and analysis on the same resolved document model.
