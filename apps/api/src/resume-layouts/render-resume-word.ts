@@ -279,10 +279,10 @@ export async function renderResumeWord(
     return new Paragraph({
       ...properties,
       spacing: {
-        ...(properties.heading
-          ? {}
-          : { line: Math.round(style.lineHeight * 240) }),
         ...properties.spacing,
+        line:
+          properties.spacing?.line ??
+          (properties.heading ? undefined : Math.round(style.lineHeight * 240)),
       },
     });
   }
