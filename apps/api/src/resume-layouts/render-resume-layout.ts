@@ -607,7 +607,10 @@ ${formattingRules(effectiveStyle, toPoints, style.spacing?.titleContent !== unde
 ${fontStyles(style.font)}
 ${Object.entries(style.sectionOverrides ?? {})
   .map(([id, override]) => {
-    const selector = `.resume-page .column section.section.${id}`;
+    const selector =
+      id === "skills"
+        ? ".resume-page .column section.section:is(.skills,.proficiency)"
+        : `.resume-page .column section.section.${id}`;
     return `${selector}{${override.sectionGap === undefined ? "" : `--gap:${toWidth(override.sectionGap)};`}${override.lineHeight === undefined ? "" : `line-height:${override.lineHeight};--leading:${override.lineHeight};`}}
 ${override.sectionGap === undefined ? "" : `${selector}:not(:last-child){margin-bottom:${toWidth(override.sectionGap)} !important;}`}
 ${selector} h2{${override.headingSize === undefined ? "" : `font-size:${toPoints(override.headingSize)} !important;`}${override.headingWeight === undefined ? "" : `font-weight:${override.headingWeight} !important;`}${override.letterSpacing === undefined ? "" : `letter-spacing:${toPoints(override.letterSpacing)} !important;`}}
