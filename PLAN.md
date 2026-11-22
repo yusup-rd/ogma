@@ -49,3 +49,11 @@ The core release is complete when you can import an existing CV, reuse its conte
 ## Future authentication
 
 - The current private release uses Google sign-in for the owner account. In a later milestone, integrate Clerk for email and password sign-in, password reset, and email one-time passwords (OTP). Link the existing Google identity to the same Ogma owner record so the owner keeps access to their saved resumes when switching sign-in methods.
+
+## Future implementations
+
+### Animation and motion polish
+
+- Schedule a dedicated motion-polish phase after the functional roadmap is complete and release readiness is verified. Keep the current functional milestones focused on their product outcomes, with the existing immediate-feedback and accessibility requirements continuing to apply.
+- Follow **Animation & Motion Design Preferences** in [AGENTS.md](AGENTS.md). Inspect existing interactions and architecture, establish reusable motion configuration where needed, and coordinate component transitions with surrounding layout changes. Cover dialogs and backdrops, expanding content, controls, lists, notifications, navigation, gestures, and useful scroll-related interactions.
+- Verify interruption and rapid state changes, synchronized compound interactions, desktop and mobile behavior, keyboard and touch access, reduced-motion and transparency preferences, and performance. Choose implementation tools within that phase according to the existing stack and actual interaction requirements.
