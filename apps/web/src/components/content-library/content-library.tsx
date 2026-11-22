@@ -12,7 +12,7 @@ import { cacheResumeSummary } from "@/lib/queries/resume-queries";
 import { queryKeys } from "@/lib/queries/query-keys";
 import { toast } from "sonner";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   LuArchive,
   LuBriefcaseBusiness,
@@ -48,7 +48,9 @@ interface ContentLibraryProps {
   continueToResume: boolean;
 }
 
-type EditState = { id: string; entry?: LibraryEntry };
+type EditState = { id?: string; entry?: LibraryEntry };
+
+const emptyEntries: LibraryEntry[] = [];
 
 const kinds = Object.keys(librarySections) as LibraryKind[];
 const primary =
@@ -69,8 +71,11 @@ const ContentLibrary = ({
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
-  const entries = list.data ?? [];
+  const entries = list.data ?? emptyEntries;
   const [editor, setEditor] = useState<EditState>();
+  const [draftEditors, setDraftEditors] = useState(
+    () => new Map<string, EditState>(),
+  );
   const [loadBlocked, setBlocked] = useState(loadFailed);
   const blocked = !list.data && (loadBlocked || list.isError || list.isPending);
   const [busy, setBusy] = useState(false);
@@ -82,15 +87,28 @@ const ContentLibrary = ({
   const [drafts, setDrafts] = useState(() => new Map<string, LibraryValue>());
   const createIds = useRef(new Map<string, string>());
   const resumeId = useRef<string | undefined>(undefined);
-  const rows = entries.filter((entry) => entry.content.kind === section);
+  const rows = useMemo(
+    () => entries.filter((entry) => entry.content.kind === section),
+    [entries, section],
+  );
   const singleton = singletonLibraryKinds.includes(section);
-  const activeEditor =
-    !archived && !blocked
-      ? (editor ??
-        (singleton || !rows.length
-          ? { id: rows[0]?.id, entry: rows[0] }
-          : undefined))
-      : undefined;
+  const activeEditor = useMemo(() => {
+    if (archived || blocked) return undefined;
+    const candidate =
+      editor ??
+      (singleton || !rows.length
+        ? { id: rows[0]?.id, entry: rows[0] }
+        : undefined);
+    if (!candidate) return undefined;
+    const recovery = draftEditors.get(
+      `${section}:${candidate.entry?.id ?? "new"}`,
+    );
+    const singletonRecovery =
+      !editor && singleton
+        ? [...draftEditors].find(([key]) => key.startsWith(`${section}:`))?.[1]
+        : undefined;
+    return recovery ?? singletonRecovery ?? candidate;
+  }, [archived, blocked, editor, singleton, rows, draftEditors, section]);
   const draftKey =
     section +
     ":" +
@@ -99,6 +117,16 @@ const ContentLibrary = ({
       : "new");
   const rememberDraft = useCallback(
     (draft: LibraryValue | undefined) => {
+      if (activeEditor)
+        setDraftEditors((current) => {
+          const key = `${section}:${activeEditor.entry?.id ?? "new"}`;
+          if (draft ? current.get(key) === activeEditor : !current.has(key))
+            return current;
+          const next = new Map(current);
+          if (draft) next.set(key, activeEditor);
+          else next.delete(key);
+          return next;
+        });
       setDrafts((current) => {
         if (current.get(draftKey) === draft) return current;
         const next = new Map(current);
@@ -107,7 +135,7 @@ const ContentLibrary = ({
         return next;
       });
     },
-    [draftKey],
+    [draftKey, activeEditor, section],
   );
   const sectionTitle = librarySections[section].label;
   const locked = busy || saving;
