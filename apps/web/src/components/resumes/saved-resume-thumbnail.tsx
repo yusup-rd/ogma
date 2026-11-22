@@ -41,57 +41,46 @@ export const SavedResumeThumbnail = ({
       ref={container}
       aria-hidden="true"
       data-thumbnail-state={thumbnail.isError ? "error" : phase}
-      className={`relative w-54 max-w-[78%] overflow-hidden rounded-t-sm bg-paper shadow-lg ${paper === "Letter" ? "aspect-[8.5/11]" : "aspect-[210/297]"}`}
+      className={`relative w-54 max-w-[78%] ${paper === "Letter" ? "aspect-[8.5/11]" : "aspect-[210/297]"}`}
     >
-      {phase !== "ready" && (
-        <div className="absolute inset-0 flex flex-col gap-3 p-4">
-          <div className="h-2 w-2/3 rounded-sm bg-accent/25" />
-          <div className="h-1 w-1/2 rounded-sm bg-line" />
-          <div className="grid flex-1 grid-cols-[2fr_1fr] gap-3 pt-2">
-            {[0, 1].map((column) => (
-              <div key={column} className="flex flex-col gap-4">
-                {[0, 1, 2].map((section) => (
-                  <div key={section} className="flex flex-col gap-1.5">
-                    <div className="h-1 w-3/4 rounded-sm bg-accent/20" />
-                    <div className="h-1 rounded-sm bg-line" />
-                    <div className="h-1 w-4/5 rounded-sm bg-line" />
-                    <div className="h-1 w-2/3 rounded-sm bg-line" />
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-          {(phase === "error" || thumbnail.isError) && (
-            <span className="text-center text-xs text-muted">
-              Preview unavailable
-            </span>
-          )}
-        </div>
+      {(phase === "error" || thumbnail.isError) && (
+        <span className="absolute inset-x-0 top-8 text-center text-xs text-muted">
+          Preview unavailable
+        </span>
       )}
-      {html && (
-        <iframe
-          ref={frame}
-          title="Saved resume thumbnail"
-          srcDoc={html}
-          sandbox="allow-same-origin"
-          referrerPolicy="no-referrer"
-          tabIndex={-1}
-          className={`pointer-events-none absolute inset-0 size-full border-0 ${phase === "ready" ? "visible" : "invisible"}`}
-          onLoad={async () => {
-            const node = frame.current;
-            const doc = node?.contentDocument;
-            if (!node || !doc) return;
-            await doc.fonts.ready;
-            await Promise.all(
-              Array.from(doc.images, (image) =>
-                image.decode().catch(() => undefined),
-              ),
-            );
-            if (node.isConnected && frame.current === node)
-              setPhase(doc.querySelector(".resume-page") ? "ready" : "error");
-          }}
-        />
-      )}
+      <div
+        className="resume-thumbnail-paper absolute inset-0 overflow-hidden rounded-t-sm bg-paper shadow-lg"
+        data-ready={phase === "ready"}
+      >
+        {html && (
+          <iframe
+            ref={frame}
+            title="Saved resume thumbnail"
+            srcDoc={html}
+            sandbox="allow-same-origin"
+            referrerPolicy="no-referrer"
+            tabIndex={-1}
+            className="pointer-events-none absolute inset-0 size-full border-0"
+            onLoad={async () => {
+              const node = frame.current;
+              const doc = node?.contentDocument;
+              if (!node || !doc) return;
+              await doc.fonts.ready;
+              await Promise.all(
+                Array.from(doc.images, (image) =>
+                  image.decode().catch(() => undefined),
+                ),
+              );
+              if (
+                node.isConnected &&
+                frame.current === node &&
+                node.contentDocument === doc
+              )
+                setPhase(doc.querySelector(".resume-page") ? "ready" : "error");
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 };
