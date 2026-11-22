@@ -77,6 +77,7 @@ export const thumbnailQuery = (id: string, revision: number) =>
     staleTime: queryFreshness.documents,
     gcTime: queryFreshness.documents,
     refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
 // Cancel older reads before publishing an acknowledged write, so they cannot undo it.
