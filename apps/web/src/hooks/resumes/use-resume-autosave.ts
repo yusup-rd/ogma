@@ -288,6 +288,15 @@ export function useResumeAutosave(
     changeLock,
     previewChanged,
     savedSnapshot: acknowledged,
+    isNavigationDirty: () => {
+      const state = queue.current;
+      return (
+        !state.allowNavigation &&
+        (state.hasSectionDrafts ||
+          Boolean(state.request) ||
+          !sameContent(state.latest, state.saved))
+      );
+    },
     leaveWithoutChanges: () => {
       queue.current.allowNavigation = true;
     },

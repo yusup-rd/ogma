@@ -12,6 +12,7 @@ import { ResumeConflictDialog } from "@/components/resumes/resume-conflict-dialo
 import { CheckpointHistory } from "@/components/resumes/checkpoint-history";
 import { ResumeLockDialog } from "@/components/resumes/resume-lock-dialog";
 import { useResumeLayouts } from "@/hooks/document-prototype/use-resume-layouts";
+import { useResumeHistoryGuard } from "@/hooks/resumes/use-resume-history-guard";
 import { useResumeAutosave } from "@/hooks/resumes/use-resume-autosave";
 import type { EditorSectionId } from "@/lib/document-prototype/content-presentation";
 import { ExportDialog } from "./export-dialog";
@@ -63,6 +64,7 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
   const [leaveAfterPreview, setLeaveAfterPreview] = useState(false);
   const [previewReset, setPreviewReset] = useState(0);
   const draftNotice = useRef<HTMLParagraphElement>(null);
+  const leaveDestination = useRef<() => void>(() => router.push("/"));
   const requireSavedSections = async () => {
     if (
       autosave.locked &&
@@ -82,7 +84,8 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
     const revision = await autosave.flush();
     return revealDrafts() ? null : revision;
   };
-  const backToResumes = async () => {
+  const backToResumes = async (navigate = () => router.push("/")) => {
+    leaveDestination.current = navigate;
     if (
       autosave.locked &&
       (autosave.previewChanged || sectionDraftsRef.current.size > 0)
@@ -103,8 +106,11 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
       setLeaving(false);
       return;
     }
-    router.push("/");
+    navigate();
   };
+  useResumeHistoryGuard(autosave.isNavigationDirty, (proceed) => {
+    void backToResumes(proceed);
+  });
   const gallery = model.catalog && (
     <TemplateGallery
       templates={model.catalog.layouts}
@@ -198,7 +204,7 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
           leaving={leaveAfterPreview}
           onConfirm={() => {
             void autosave.changeLock(!autosave.locked).then((changed) => {
-              if (changed && leaveAfterPreview) router.push("/");
+              if (changed && leaveAfterPreview) leaveDestination.current();
             });
           }}
           onDiscard={() => {
@@ -208,7 +214,7 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
             autosave.setLockPromptOpen(false);
             if (leaveAfterPreview) {
               autosave.leaveWithoutChanges();
-              router.push("/");
+              leaveDestination.current();
             }
             setLeaveAfterPreview(false);
           }}
