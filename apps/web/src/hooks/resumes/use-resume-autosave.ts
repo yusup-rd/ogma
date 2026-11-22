@@ -211,7 +211,12 @@ export function useResumeAutosave(
     setLockBusy(true);
     setLockError("");
     try {
-      if (nextLocked && (await flush()) === null) return false;
+      if (nextLocked && (await flush()) === null) {
+        setLockError(
+          "Couldn’t save the CV. Retry saving before locking. Your edits are still here.",
+        );
+        return false;
+      }
       if (state.hasSectionDrafts) {
         setLockError(
           "Apply or cancel each edited section before changing the lock.",
