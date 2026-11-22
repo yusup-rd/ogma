@@ -1,4 +1,6 @@
 "use client";
+import { useQuery } from "@tanstack/react-query";
+import { catalogQuery } from "@/lib/queries/resume-queries";
 import { toast } from "sonner";
 
 import type { PhotoCrop } from "@ogma/contracts/resume-content-schema";
@@ -16,10 +18,8 @@ import {
   type EditorSectionId,
 } from "@/lib/document-prototype/content-presentation";
 import {
-  templateCatalogSchema,
   type DraftContent,
   type ResumeDraft,
-  type TemplateCatalog,
   type TemplateOption,
   type TemplateStyle,
 } from "@/lib/document-prototype/resume-layout-model";
@@ -49,7 +49,8 @@ function renameSection(
 }
 
 export function useResumeLayouts(initialDocument: ResumeDocument) {
-  const [catalog, setCatalog] = useState<TemplateCatalog | null>(null);
+  const catalogResult = useQuery(catalogQuery());
+  const catalog = catalogResult.data ?? null;
   const [editedDocument, setEditedDocument] = useState<ResumeDocument>();
   const [sectionPreviews, setSectionPreviews] = useState<
     Partial<Record<EditorSectionId, SectionPreview>>
@@ -73,26 +74,7 @@ export function useResumeLayouts(initialDocument: ResumeDocument) {
     templateName?: string;
   }>();
   const [error, setError] = useState("");
-  const [reload, setReload] = useState(0);
   const [previewRetry, setPreviewRetry] = useState(0);
-
-  useEffect(() => {
-    const request = new AbortController();
-    fetch("/api/resume-layouts", { signal: request.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Catalog unavailable");
-        const next: TemplateCatalog = templateCatalogSchema.parse(
-          await response.json(),
-        );
-        if (request.signal.aborted) return;
-        setCatalog(next);
-      })
-      .catch(() => {
-        if (!request.signal.aborted)
-          setError("Couldn’t load the template gallery. Is the API running?");
-      });
-    return () => request.abort();
-  }, [reload]);
 
   const document = editedDocument ?? initialDocument;
   const { content, photo, sectionOrder: customOrder } = document;
@@ -227,7 +209,11 @@ export function useResumeLayouts(initialDocument: ResumeDocument) {
     style,
     exportDraft,
     preview,
-    error,
+    error:
+      error ||
+      (catalogResult.isError
+        ? "Couldn’t load the template gallery. Try again."
+        : ""),
     order,
     hidden,
     photo,
@@ -287,7 +273,7 @@ export function useResumeLayouts(initialDocument: ResumeDocument) {
     retry: () => {
       setError("");
       if (catalog) setPreviewRetry((value) => value + 1);
-      else setReload((value) => value + 1);
+      else void catalogResult.refetch();
     },
   };
 }

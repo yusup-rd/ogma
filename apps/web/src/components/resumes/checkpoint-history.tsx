@@ -1,4 +1,7 @@
 "use client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { checkpointQuery } from "@/lib/queries/resume-queries";
+import { queryKeys } from "@/lib/queries/query-keys";
 import { toast } from "sonner";
 import { notifyAfterNavigation } from "@/lib/notifications/navigation";
 
@@ -7,7 +10,7 @@ import {
   checkpointSchema,
   type ResumeCheckpoint,
 } from "@ogma/contracts/resume-workspace";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { LuClock3 } from "react-icons/lu";
 import { z } from "zod";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
@@ -22,7 +25,6 @@ interface CheckpointHistoryProps {
   onRestored: () => void;
 }
 
-const checkpointList = z.array(checkpointSchema);
 const restoreResult = z.object({ draftRevision: z.int().positive() });
 const secondary =
   "min-h-11 rounded-lg border border-line px-3 text-sm font-semibold hover:bg-canvas disabled:opacity-60";
@@ -35,28 +37,16 @@ const CheckpointHistory = ({
   onRestored,
 }: CheckpointHistoryProps) => {
   const [open, setOpen] = useState(false);
-  const [rows, setRows] = useState<ResumeCheckpoint[]>();
+  const client = useQueryClient();
+  const history = useQuery({ ...checkpointQuery(resumeId), enabled: open });
+  const rows = history.data;
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [retry, setRetry] = useState(0);
+  const [actionError, setError] = useState("");
+  const error =
+    actionError || (history.isError ? "Couldn’t load checkpoint history." : "");
   const ids = useRef(new Map<string, string>());
   const base = `/${resumeId}/checkpoints`;
-
-  useEffect(() => {
-    if (!open) return;
-    let active = true;
-    void requestResume(base, checkpointList)
-      .then((result) => {
-        if (active) setRows(result);
-      })
-      .catch(() => {
-        if (active) setError("Couldn’t load checkpoint history.");
-      });
-    return () => {
-      active = false;
-    };
-  }, [base, open, retry]);
 
   const operationId = (key: string) => {
     const id = ids.current.get(key) ?? crypto.randomUUID();
@@ -91,10 +81,18 @@ const CheckpointHistory = ({
         body: { id: operationId(key), name: name.trim(), expectedRevision },
       });
       ids.current.delete(key);
-      setRows((current) => [
-        checkpoint,
-        ...(current ?? []).filter(({ id }) => id !== checkpoint.id),
-      ]);
+      await client.cancelQueries({ queryKey: queryKeys.checkpoints(resumeId) });
+      client.setQueryData<ResumeCheckpoint[]>(
+        queryKeys.checkpoints(resumeId),
+        (current) => [
+          checkpoint,
+          ...(current ?? []).filter(({ id }) => id !== checkpoint.id),
+        ],
+      );
+      void client.invalidateQueries({
+        queryKey: queryKeys.checkpoints(resumeId),
+        refetchType: "none",
+      });
       setName("");
       toast.success("Checkpoint saved.");
     } catch (error) {
@@ -137,7 +135,6 @@ const CheckpointHistory = ({
         setOpen(next);
         if (next) {
           setError("");
-          setRows(undefined);
         }
       }}
     >
@@ -199,7 +196,7 @@ const CheckpointHistory = ({
                 className={secondary}
                 onClick={() => {
                   setError("");
-                  setRetry((value) => value + 1);
+                  void history.refetch();
                 }}
               >
                 Retry history

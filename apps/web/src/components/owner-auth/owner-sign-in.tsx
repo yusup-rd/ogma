@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { FcGoogle } from "react-icons/fc";
+import { ClearSessionQueries } from "@/components/query-provider";
 
 interface OwnerSignInProps {
   available: boolean;
@@ -9,6 +10,7 @@ interface OwnerSignInProps {
 const OwnerSignIn = ({ available, error }: OwnerSignInProps) => {
   return (
     <main className="grid min-h-dvh content-center bg-canvas px-4 pt-6 pb-24 text-ink">
+      <ClearSessionQueries />
       <section
         aria-labelledby="sign-in-heading"
         className="mx-auto flex w-full max-w-sm flex-col items-start rounded-2xl border border-line bg-paper p-5 pb-12"

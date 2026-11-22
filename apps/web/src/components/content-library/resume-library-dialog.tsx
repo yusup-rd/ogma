@@ -1,5 +1,7 @@
 "use client";
 
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { libraryListQuery } from "@/lib/queries/library-queries";
 import Image from "next/image";
 import { toast } from "sonner";
 
@@ -20,7 +22,6 @@ import {
   libraryTitle,
   librarySubtitle,
 } from "@/lib/content-library/library-content";
-import { loadLibrary } from "@/lib/content-library/library-api";
 import {
   canIncludeLibraryEntry,
   includeLibraryEntry,
@@ -34,6 +35,8 @@ interface ResumeLibraryDialogProps {
   disabled: boolean;
   onChange: (update: (document: ResumeDocument) => ResumeDocument) => void;
 }
+
+const emptyEntries: LibraryEntry[] = [];
 
 type Choice = "library" | "resume";
 
@@ -57,7 +60,9 @@ const ResumeLibraryDialog = ({
   const [applyingAction, setApplyingAction] = useState<"add" | "sync">("sync");
   const [applying, setApplying] = useState<ResumeDocument>();
   const [open, setOpen] = useState(false);
-  const [entries, setEntries] = useState<LibraryEntry[]>([]);
+  const client = useQueryClient();
+  const library = useQuery({ ...libraryListQuery(false), enabled: open });
+  const entries = library.data ?? emptyEntries;
   const activeLibraryIds = useMemo(
     () => new Set(entries.map(({ id }) => id)),
     [entries],
@@ -83,12 +88,11 @@ const ResumeLibraryDialog = ({
   const rows = entries.filter(({ content }) => content.kind === section);
   const refresh = async () => {
     const id = ++requestId.current;
-    setLoading(true);
+    setLoading(!client.getQueryData(libraryListQuery(false).queryKey));
     setError("");
     try {
-      const entries = await loadLibrary(false);
+      const entries = await client.fetchQuery(libraryListQuery(false));
       if (id !== requestId.current) return;
-      setEntries(entries);
       setSection((current) =>
         entries.some(({ content }) => content.kind === current)
           ? current

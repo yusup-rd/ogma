@@ -66,10 +66,6 @@ function ownerIdFor(request: OwnerRequest) {
 
 @Controller("resumes")
 export class ResumesController {
-  private readonly thumbnails = new Map<
-    string,
-    { html: string; expiresAt: number }
-  >();
   constructor(
     private readonly resumes: ResumesService,
     private readonly documents: DocumentPrototypeService,
@@ -130,25 +126,19 @@ export class ResumesController {
   async thumbnail(
     @Req() request: OwnerRequest,
     @Param("id", ParseUUIDPipe) id: string,
+    @Query("revision") revision?: string,
   ) {
-    const { draft, layout, revision } = await this.resumes.getRenderSnapshot(
+    const { draft, layout } = await this.resumes.getRenderSnapshot(
       ownerIdFor(request),
       id,
+      revision === undefined
+        ? undefined
+        : readBody(z.coerce.number().pipe(revisionSchema), revision),
     );
-    const key = `${ownerIdFor(request)}:${id}:${revision}`;
-    const cached = this.thumbnails.get(key);
-    if (cached && cached.expiresAt > Date.now()) return cached.html;
-    this.thumbnails.delete(key);
-    const html = await this.documents.prepareHtml(
+    return this.documents.prepareHtml(
       renderResumeLayout(draft, layout, true),
       paginateResume,
     );
-    if (Buffer.byteLength(html) <= 3_000_000) {
-      this.thumbnails.set(key, { html, expiresAt: Date.now() + 300_000 });
-      while (this.thumbnails.size > 4)
-        this.thumbnails.delete(this.thumbnails.keys().next().value!);
-    }
-    return html;
   }
 
   @Patch(":id")

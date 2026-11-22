@@ -1,6 +1,16 @@
 "use client";
 import { notifyAfterNavigation } from "@/lib/notifications/navigation";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/queries/query-keys";
+import {
+  resumeListQuery,
+  cacheResumeSummary,
+  removeCachedResume,
+} from "@/lib/queries/resume-queries";
+import { libraryStatusQuery } from "@/lib/queries/library-queries";
 import { toast } from "sonner";
 
 import { useEffect, useState, useRef } from "react";
@@ -10,6 +20,7 @@ import {
   LuCopy,
   LuFileText,
   LuLockKeyhole,
+  LuLockKeyholeOpen,
   LuTrash2,
 } from "react-icons/lu";
 import {
@@ -21,7 +32,6 @@ import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { LibraryOnboarding } from "@/components/content-library/library-onboarding";
 import { WorkspaceShell } from "@/components/workspace-shell";
 import { SavedResumeThumbnail } from "./saved-resume-thumbnail";
-import { getLibraryStatus } from "@/lib/content-library/library-api";
 import { useResumePageCounts } from "@/hooks/resumes/use-resume-page-counts";
 import {
   formatDateTime,
@@ -32,12 +42,11 @@ import {
   createResume,
   deleteArchivedResume,
   requestResume,
-  resumeListSchema,
   ResumeRequestError,
 } from "@/lib/resumes/resume-api";
 
 interface ResumesDashboardProps {
-  initialRows: ResumeSummary[];
+  initialClock: { now: number; timeZone: string } | null;
   loadFailed: boolean;
 }
 
@@ -47,20 +56,22 @@ const secondary =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-line bg-paper px-3 text-sm font-semibold hover:bg-canvas disabled:opacity-60";
 
 const ResumesDashboard = ({
-  initialRows,
+  initialClock,
   loadFailed,
 }: ResumesDashboardProps) => {
-  const [rows, setRows] = useState(initialRows);
+  const client = useQueryClient();
+  const router = useRouter();
   const [archived, setArchived] = useState(false);
+  const list = useQuery(resumeListQuery(archived));
+  const rows = list.data ?? [];
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
   const [showLibraryPrompt, setShowLibraryPrompt] = useState(false);
-  const [error, setError] = useState(
-    loadFailed ? "Couldn’t load your resumes." : "",
-  );
-  const [clock, setClock] = useState<{ now?: number; timeZone: string }>({
-    timeZone: "UTC",
-  });
+  const [actionError, setError] = useState("");
+  const error =
+    actionError ||
+    (!list.data && loadFailed ? "Couldn’t load your resumes." : "");
+  const [clock, setClock] = useState(initialClock);
   const pageCount = useResumePageCounts(rows);
   const mutationIds = useRef(new Map<string, string>());
   const latest = !archived ? rows[0] : undefined;
@@ -81,11 +92,12 @@ const ResumesDashboard = ({
   const showRows = async (showArchived: boolean) => {
     setBusy(true);
     try {
-      const result = await requestResume(
-        showArchived ? "?archived=true" : "",
-        resumeListSchema,
-      );
-      setRows(result);
+      if (showArchived === archived)
+        await client.invalidateQueries({
+          queryKey: queryKeys.resumeList(showArchived),
+          refetchType: "none",
+        });
+      await client.fetchQuery(resumeListQuery(showArchived));
       setArchived(showArchived);
       setSearch("");
       setError("");
@@ -122,9 +134,8 @@ const ResumesDashboard = ({
       notifyAfterNavigation(
         sourceId ? "Resume duplicated." : "Resume created.",
       );
-      window.location.assign(
-        new URL(`/resumes/${resume.id}`, window.location.origin),
-      );
+      await cacheResumeSummary(client, resume);
+      router.push(`/resumes/${resume.id}`);
     } catch {
       if (!active.current) return;
       toast.error(
@@ -141,7 +152,7 @@ const ResumesDashboard = ({
     setBusy(true);
     setError("");
     try {
-      const status = await getLibraryStatus();
+      const status = await client.fetchQuery(libraryStatusQuery());
       if (!active.current) return;
       if (status.hasEntries) {
         await openDraft();
@@ -157,11 +168,15 @@ const ResumesDashboard = ({
 
   const archive = async (row: ResumeSummary) => {
     try {
-      await requestResume(`/${row.id}/archive`, resumeSummarySchema, {
-        method: "POST",
-        body: { archived: !row.archived },
-      });
-      setRows((current) => current.filter(({ id }) => id !== row.id));
+      const updated = await requestResume(
+        `/${row.id}/archive`,
+        resumeSummarySchema,
+        {
+          method: "POST",
+          body: { archived: !row.archived },
+        },
+      );
+      await cacheResumeSummary(client, updated);
       toast.success(row.archived ? "Resume restored." : "Resume archived.");
     } catch {
       throw new Error("Couldn’t update this resume. Try again.");
@@ -172,13 +187,53 @@ const ResumesDashboard = ({
     try {
       await deleteArchivedResume(row.id, row.draftRevision);
       toast.success("Resume deleted.");
-      setRows((current) => current.filter(({ id }) => id !== row.id));
+      await removeCachedResume(client, row.id);
     } catch (error) {
       if (error instanceof ResumeRequestError && error.status === 409)
         throw new Error(
           "This resume changed. Close this dialog and reload the archive.",
         );
       throw new Error("Couldn’t delete this resume. Try again.");
+    }
+  };
+
+  const toggleLock = async (row: ResumeSummary) => {
+    setBusy(true);
+    try {
+      const saved = row.locked
+        ? await requestResume(`/${row.id}`, savedResumeSchema)
+        : undefined;
+      if (saved && saved.draftRevision !== row.draftRevision)
+        throw new ResumeRequestError(409);
+      const updated = await requestResume(
+        `/${row.id}/lock`,
+        resumeSummarySchema,
+        {
+          method: "POST",
+          body: {
+            locked: !row.locked,
+            expectedRevision: row.draftRevision,
+            ...(saved ? { title: saved.title, document: saved.document } : {}),
+          },
+        },
+      );
+      await cacheResumeSummary(client, updated);
+      toast.success(updated.locked ? "CV locked." : "CV unlocked.");
+    } catch (error) {
+      if (
+        error instanceof ResumeRequestError &&
+        [404, 409].includes(error.status)
+      ) {
+        setError(
+          "This resume changed elsewhere. Reload the list before changing its lock.",
+        );
+        throw new Error(
+          "This resume changed. Close this dialog and reload the list.",
+        );
+      }
+      throw new Error("Couldn’t change the lock. Try again.");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -199,10 +254,10 @@ const ResumesDashboard = ({
           onStartBlank={() => void openDraft()}
         />
       </header>
-      {error && (
+      {(error || list.isError) && (
         <div className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-paper p-3">
           <p role="alert" className="text-sm text-red-800">
-            {error}
+            {error || "Couldn’t refresh your resumes. Try again."}
           </p>
           <button
             type="button"
@@ -238,10 +293,10 @@ const ResumesDashboard = ({
             </p>
             <div className="mt-4 flex flex-wrap gap-2.5 md:mt-7">
               {/* Full page navigation lets the editor guard browser Back. */}
-              <a href={`/resumes/${latest.id}`} className={primary}>
+              <Link href={`/resumes/${latest.id}`} className={primary}>
                 <LuChevronRight aria-hidden="true" className="size-4" />
                 Continue editing
-              </a>
+              </Link>
               <button
                 type="button"
                 disabled={busy}
@@ -294,7 +349,16 @@ const ResumesDashboard = ({
             </button>
           </div>
         </div>
-        {filtered.length ? (
+        {!list.data ? (
+          <p
+            role="status"
+            className="rounded-2xl border border-line bg-paper p-5 text-sm text-muted"
+          >
+            {list.isFetching
+              ? "Loading resumes…"
+              : "Resume list unavailable. Use Reload list to try again."}
+          </p>
+        ) : filtered.length ? (
           <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-paper">
             {filtered.map((row) => (
               <li
@@ -306,28 +370,19 @@ const ResumesDashboard = ({
                     <LuFileText aria-hidden="true" className="size-4" />
                   </span>
                   <div className="min-w-0">
-                    {row.locked && (
-                      <span className="mb-1 flex items-center gap-1 text-xs font-semibold text-accent">
-                        <LuLockKeyhole
-                          aria-hidden="true"
-                          className="size-3.5"
-                        />
-                        Locked
-                      </span>
-                    )}
                     {row.archived ? (
                       <span className="text-sm font-semibold break-words">
                         {row.title}
                       </span>
                     ) : (
-                      <a
+                      <Link
                         href={`/resumes/${row.id}`}
                         className="block text-sm font-semibold break-words hover:text-accent hover:underline"
                       >
                         {row.title}
-                      </a>
+                      </Link>
                     )}
-                    <p className="mt-1 text-xs text-muted">
+                    <p className="mt-1 text-xs wrap-anywhere text-muted">
                       {formatResumeDetails(
                         row.paper,
                         row.templateName,
@@ -340,13 +395,57 @@ const ResumesDashboard = ({
                   <span>Last edited</span>
                   <time
                     dateTime={row.updatedAt}
-                    title={formatDateTime(row.updatedAt, clock.timeZone)}
+                    title={
+                      clock
+                        ? formatDateTime(row.updatedAt, clock.timeZone)
+                        : undefined
+                    }
                     className="font-medium text-ink"
                   >
-                    {formatLastEdited(row.updatedAt, clock.now, clock.timeZone)}
+                    {clock ? (
+                      formatLastEdited(row.updatedAt, clock.now, clock.timeZone)
+                    ) : (
+                      <span
+                        aria-label="Loading last edited time"
+                        className="inline-block h-3 w-20 rounded-sm bg-line"
+                      />
+                    )}
                   </time>
                 </div>
                 <div className="col-start-2 row-span-2 row-start-1 flex gap-2 md:col-start-3 md:row-span-1">
+                  {!row.archived && (
+                    <ConfirmationDialog
+                      trigger={
+                        <button
+                          type="button"
+                          disabled={busy}
+                          title={row.locked ? "Unlock resume" : "Lock resume"}
+                          aria-label={`${row.locked ? "Unlock" : "Lock"} ${row.title}`}
+                          className={`${secondary} min-w-11 active:bg-accent-soft ${row.locked ? "border-accent/25 bg-accent-soft text-accent" : ""}`}
+                        >
+                          {row.locked ? (
+                            <LuLockKeyhole
+                              aria-hidden="true"
+                              className="size-4"
+                            />
+                          ) : (
+                            <LuLockKeyholeOpen
+                              aria-hidden="true"
+                              className="size-4"
+                            />
+                          )}
+                        </button>
+                      }
+                      title={row.locked ? "Unlock this CV?" : "Lock this CV?"}
+                      description={
+                        row.locked
+                          ? `Enable autosave for “${row.title}”. Its saved content and design will stay as they are.`
+                          : `Protect “${row.title}” from accidental changes. You can still try content and design changes in its preview.`
+                      }
+                      confirmLabel={row.locked ? "Unlock CV" : "Lock CV"}
+                      action={() => toggleLock(row)}
+                    />
+                  )}
                   {!row.archived && (
                     <button
                       type="button"

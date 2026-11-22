@@ -1,4 +1,6 @@
 "use client";
+import { useQueryClient } from "@tanstack/react-query";
+import { cacheResumeSummary } from "@/lib/queries/resume-queries";
 import { notifyAfterNavigation } from "@/lib/notifications/navigation";
 
 import {
@@ -42,6 +44,7 @@ export function useResumeAutosave(
   draft: ResumeDocument,
   hasSectionDrafts: boolean,
 ) {
+  const client = useQueryClient();
   const [phase, setPhase] = useState<"saved" | "saving" | "error" | "conflict">(
     "saved",
   );
@@ -95,7 +98,8 @@ export function useResumeAutosave(
         method: "PATCH",
         body: { ...snapshot, expectedRevision: state.revision },
       })
-        .then((result) => {
+        .then(async (result) => {
+          await cacheResumeSummary(client, result);
           state.revision = result.draftRevision;
           state.saved = snapshot;
           setAcknowledged(snapshot);
@@ -127,7 +131,7 @@ export function useResumeAutosave(
           state.request = undefined;
         });
     }
-  }, [initial.id]);
+  }, [initial.id, client]);
 
   useLayoutEffect(() => {
     const state = queue.current;
@@ -236,6 +240,7 @@ export function useResumeAutosave(
           },
         },
       );
+      await cacheResumeSummary(client, result);
       state.revision = result.draftRevision;
       state.locked = result.locked;
       if (!nextLocked) {

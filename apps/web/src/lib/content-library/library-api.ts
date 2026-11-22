@@ -17,25 +17,33 @@ interface LibraryMutation {
   body: unknown;
 }
 
-async function requestLibrary(path: string, options?: LibraryMutation) {
+async function requestLibrary(
+  path: string,
+  options?: LibraryMutation,
+  signal?: AbortSignal,
+) {
   const response = await fetch("/api/library" + path, {
     method: options?.method,
     headers: options ? { "Content-Type": "application/json" } : undefined,
     body: options && JSON.stringify(options.body),
-    signal: AbortSignal.timeout(15000),
+    signal: signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(15000)])
+      : AbortSignal.timeout(15000),
     cache: "no-store",
   });
   if (!response.ok) throw new LibraryRequestError(response.status);
   return (await response.json()) as unknown;
 }
 
-export async function getLibraryStatus() {
-  return libraryStatusSchema.parse(await requestLibrary("/status"));
+export async function getLibraryStatus(signal?: AbortSignal) {
+  return libraryStatusSchema.parse(
+    await requestLibrary("/status", undefined, signal),
+  );
 }
 
-export async function loadLibrary(archived: boolean) {
+export async function loadLibrary(archived: boolean, signal?: AbortSignal) {
   return libraryListSchema.parse(
-    await requestLibrary(archived ? "?archived=true" : ""),
+    await requestLibrary(archived ? "?archived=true" : "", undefined, signal),
   );
 }
 

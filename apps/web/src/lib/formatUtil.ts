@@ -16,12 +16,10 @@ function dateParts(timestamp: number, timeZone: string) {
 
 export function formatLastEdited(
   iso: string,
-  referenceTime: number | undefined,
+  referenceTime: number,
   timeZone = "UTC",
 ) {
   const timestamp = Date.parse(iso);
-  if (referenceTime === undefined)
-    return formatCalendarDate(timestamp, timeZone, true);
   const minutes = Math.max(
     0,
     Math.floor((referenceTime - timestamp) / minuteMs),
@@ -66,9 +64,13 @@ export function formatResumeDetails(
   templateName: string,
   pageCount: number | null | undefined,
 ) {
-  return pageCount == null
-    ? templateName
-    : `${paper} · ${templateName} · ${formatPageCount(pageCount)}`;
+  const pages =
+    pageCount === undefined
+      ? "Counting pages…"
+      : pageCount === null
+        ? "Page count unavailable"
+        : formatPageCount(pageCount);
+  return `${paper} · ${templateName} · ${pages}`;
 }
 
 export function ratioToPercent(ratio: number, decimals = 0) {
@@ -77,4 +79,16 @@ export function ratioToPercent(ratio: number, decimals = 0) {
 
 export function formatPercent(ratio: number) {
   return `${ratioToPercent(ratio)}%`;
+}
+
+export function validTimeZone(value: string | undefined) {
+  if (!value) return undefined;
+  try {
+    const decoded = decodeURIComponent(value);
+    return new Intl.DateTimeFormat("en", {
+      timeZone: decoded,
+    }).resolvedOptions().timeZone;
+  } catch {
+    return undefined;
+  }
 }

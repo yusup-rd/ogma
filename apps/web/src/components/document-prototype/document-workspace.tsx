@@ -1,6 +1,7 @@
 "use client";
 
 import { LuChevronLeft, LuFileText, LuPalette } from "react-icons/lu";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useCallback, useRef, useState } from "react";
@@ -29,6 +30,7 @@ interface DocumentWorkspaceProps {
 }
 
 const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
+  const router = useRouter();
   const model = useResumeLayouts(resume.document);
   const [title, setTitle] = useState(resume.title);
   const savedTitle = title.trim() || "Untitled resume";
@@ -101,7 +103,7 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
       setLeaving(false);
       return;
     }
-    window.location.assign(new URL("/", window.location.origin));
+    router.push("/");
   };
   const gallery = model.catalog && (
     <TemplateGallery
@@ -196,8 +198,7 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
           leaving={leaveAfterPreview}
           onConfirm={() => {
             void autosave.changeLock(!autosave.locked).then((changed) => {
-              if (changed && leaveAfterPreview)
-                window.location.assign(new URL("/", window.location.origin));
+              if (changed && leaveAfterPreview) router.push("/");
             });
           }}
           onDiscard={() => {
@@ -207,7 +208,7 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
             autosave.setLockPromptOpen(false);
             if (leaveAfterPreview) {
               autosave.leaveWithoutChanges();
-              window.location.assign(new URL("/", window.location.origin));
+              router.push("/");
             }
             setLeaveAfterPreview(false);
           }}

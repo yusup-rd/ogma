@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type CSSProperties } from "react";
+import { usePathname } from "next/navigation";
 import { Toaster, toast } from "sonner";
 import {
   LuCircleCheck,
@@ -11,10 +12,11 @@ import {
 import { takeArrivalNotification } from "@/lib/notifications/navigation";
 
 const AppToaster = () => {
+  const pathname = usePathname();
   useEffect(() => {
     const message = takeArrivalNotification();
     if (message) toast.success(message);
-  }, []);
+  }, [pathname]);
 
   return (
     <Toaster

@@ -1,6 +1,15 @@
 "use client";
 import { notifyAfterNavigation } from "@/lib/notifications/navigation";
 
+import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  libraryListQuery,
+  cacheLibraryEntry,
+  removeCachedLibraryEntry,
+} from "@/lib/queries/library-queries";
+import { cacheResumeSummary } from "@/lib/queries/resume-queries";
+import { queryKeys } from "@/lib/queries/query-keys";
 import { toast } from "sonner";
 
 import { useCallback, useRef, useState } from "react";
@@ -24,7 +33,6 @@ import {
   archiveLibraryEntry,
   deleteLibraryEntry,
   LibraryRequestError,
-  loadLibrary,
   saveLibraryEntry,
 } from "@/lib/content-library/library-api";
 import {
@@ -36,7 +44,6 @@ import { createResume } from "@/lib/resumes/resume-api";
 import { LibraryEntryForm } from "./library-entry-form";
 
 interface ContentLibraryProps {
-  initialEntries: LibraryEntry[];
   loadFailed: boolean;
   continueToResume: boolean;
 }
@@ -50,20 +57,28 @@ const secondary =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-line bg-paper px-3 text-sm font-semibold hover:bg-canvas disabled:opacity-60";
 
 const ContentLibrary = ({
-  initialEntries,
   loadFailed,
   continueToResume,
 }: ContentLibraryProps) => {
-  const [entries, setEntries] = useState(initialEntries);
+  const client = useQueryClient();
+  const router = useRouter();
   const [section, setSection] = useState<LibraryKind>("personal");
   const [archived, setArchived] = useState(false);
+  const list = useQuery({
+    ...libraryListQuery(archived),
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+  const entries = list.data ?? [];
   const [editor, setEditor] = useState<EditState>();
-  const [blocked, setBlocked] = useState(loadFailed);
+  const [loadBlocked, setBlocked] = useState(loadFailed);
+  const blocked = !list.data && (loadBlocked || list.isError || list.isPending);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(
-    loadFailed ? "Couldn’t load your Library." : "",
-  );
+  const [actionError, setError] = useState("");
+  const error =
+    actionError ||
+    (!list.data && loadFailed ? "Couldn’t load your Library." : "");
   const [drafts, setDrafts] = useState(() => new Map<string, LibraryValue>());
   const createIds = useRef(new Map<string, string>());
   const resumeId = useRef<string | undefined>(undefined);
@@ -106,7 +121,12 @@ const ContentLibrary = ({
     setBusy(true);
     setError("");
     try {
-      setEntries(await loadLibrary(showArchived));
+      if (showArchived === archived)
+        await client.invalidateQueries({
+          queryKey: queryKeys.libraryList(showArchived),
+          refetchType: "none",
+        });
+      await client.fetchQuery(libraryListQuery(showArchived));
       setArchived(showArchived);
       setBlocked(false);
       setEditor(undefined);
@@ -127,9 +147,8 @@ const ContentLibrary = ({
         title: "Untitled resume",
       });
       notifyAfterNavigation("Resume created.");
-      window.location.assign(
-        new URL("/resumes/" + resume.id, window.location.origin),
-      );
+      await cacheResumeSummary(client, resume);
+      router.push(`/resumes/${resume.id}`);
     } catch {
       toast.error("Couldn’t create a resume. Try again.");
       setBusy(false);
@@ -171,10 +190,10 @@ const ContentLibrary = ({
           )}
         </div>
       </header>
-      {error && (
+      {(error || list.isError) && (
         <div className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-paper p-3">
           <p role="alert" className="text-sm text-red-800">
-            {error}
+            {error || "Couldn’t refresh your Library. Try again."}
           </p>
           <button
             type="button"
@@ -305,10 +324,8 @@ const ContentLibrary = ({
                       confirmLabel={label}
                       action={async () => {
                         try {
-                          await archiveLibraryEntry(entry);
-                          setEntries((current) =>
-                            current.filter(({ id }) => id !== entry.id),
-                          );
+                          const updated = await archiveLibraryEntry(entry);
+                          await cacheLibraryEntry(client, updated);
                           if (editor?.id === entry.id) setEditor(undefined);
                           toast.success(
                             archived
@@ -345,9 +362,7 @@ const ContentLibrary = ({
                         action={async () => {
                           try {
                             await deleteLibraryEntry(entry);
-                            setEntries((current) =>
-                              current.filter(({ id }) => id !== entry.id),
-                            );
+                            await removeCachedLibraryEntry(client, entry.id);
                             toast.success("Entry deleted.");
                           } catch {
                             throw new Error(
@@ -427,12 +442,10 @@ const ContentLibrary = ({
                       const entry = activeEditor.entry;
                       if (!entry) return;
                       try {
-                        await archiveLibraryEntry(entry);
+                        const updated = await archiveLibraryEntry(entry);
                         rememberDraft(undefined);
                         createIds.current.delete(draftKey);
-                        setEntries((current) =>
-                          current.filter(({ id }) => id !== entry.id),
-                        );
+                        await cacheLibraryEntry(client, updated);
                         setEditor(undefined);
                         toast.success("Entry moved to the archive.");
                       } catch {
@@ -456,11 +469,7 @@ const ContentLibrary = ({
                   );
                   rememberDraft(undefined);
                   createIds.current.delete(draftKey);
-                  setEntries((current) =>
-                    entry.archived
-                      ? current.filter(({ id }) => id !== entry.id)
-                      : [entry, ...current.filter(({ id }) => id !== entry.id)],
-                  );
+                  await cacheLibraryEntry(client, entry);
                   setEditor(
                     entry.archived ? undefined : { id: entry.id, entry },
                   );
