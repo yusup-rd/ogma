@@ -35,7 +35,12 @@ export function rememberHistoryPoint(state: unknown) {
 }
 
 export function markHistoryEntry() {
-  const point = historyPoint(window.history.state) ?? lastPoint;
+  const existing = historyPoint(window.history.state);
+  if (existing !== undefined) {
+    lastPoint = existing;
+    return existing;
+  }
+  const point = lastPoint;
   window.history.replaceState(stateAtPoint(window.history.state, point), "");
   lastPoint = point;
   return point;
