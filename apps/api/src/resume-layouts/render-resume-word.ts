@@ -1,16 +1,9 @@
+import { BadRequestException } from "@nestjs/common";
 import {
   templateHeaderPadding,
   templatePhotoSize,
 } from "@ogma/contracts/resolve-resume";
 import { maxPicturePixels } from "@ogma/contracts/resume-content-schema";
-import { BadRequestException } from "@nestjs/common";
-import sharp from "sharp";
-import {
-  entryMetadata,
-  splitEssentialMetadata,
-  workEntryHeading,
-  workMetadataSeparator,
-} from "./entry-metadata";
 import {
   AlignmentType,
   BorderStyle,
@@ -21,17 +14,18 @@ import {
   LevelFormat,
   Packer,
   Paragraph,
-  TextRun,
   Tab,
   Table,
   TableCell,
-  TableRow,
   TableLayoutType,
-  WidthType,
+  TableRow,
   TabStopType,
+  TextRun,
+  WidthType,
   type INumberingOptions,
   type IParagraphOptions,
 } from "docx";
+import sharp from "sharp";
 import type {
   RichBlock,
   RichParagraph,
@@ -39,16 +33,22 @@ import type {
   TextRole,
 } from "../../../../packages/contracts/resume-content";
 import {
-  fontChoices,
-  resumeColumns,
-  type ResumeLayout,
-} from "./layout-catalog";
-import {
   designDefaults,
   pageMargins,
   paperDimensions,
   resolveProficiency,
 } from "./design-options";
+import {
+  entryMetadata,
+  splitEssentialMetadata,
+  workEntryHeading,
+  workMetadataSeparator,
+} from "./entry-metadata";
+import {
+  fontChoices,
+  resumeColumns,
+  type ResumeLayout,
+} from "./layout-catalog";
 import type { LayoutDraft } from "./layout-draft";
 import { resumeColors } from "./resume-colors";
 import {
@@ -61,7 +61,6 @@ import {
 } from "./resume-content";
 import { contactHref } from "./resume-links";
 
-// cspell:ignore IHDR
 function image(
   dataUri: string,
   size: number,

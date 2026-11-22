@@ -70,7 +70,6 @@ html,
   scrollbar-color: #ab9bb7 transparent;
 }
 
-/* cspell:ignore sonner */
 [data-sonner-toast].ogma-toast {
   font-family: var(--font-sans);
   padding: 16px;
@@ -89,7 +88,6 @@ html,
   height: 24px;
 }
 @media (prefers-reduced-motion: reduce) {
-  /* cspell:ignore sonner */
   [data-sonner-toast].ogma-toast {
     transition: none;
     animation: none;
