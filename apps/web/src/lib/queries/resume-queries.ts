@@ -108,16 +108,20 @@ export async function cacheResumeSummary(
 }
 
 export async function removeCachedResume(client: QueryClient, id: string) {
-  await client.cancelQueries({ queryKey: queryKeys.resumes });
+  const resource = {
+    predicate: (query: { queryKey: readonly unknown[] }) =>
+      query.queryKey[0] === "resumes" && query.queryKey[2] === id,
+  };
+  await Promise.all([
+    client.cancelQueries({ queryKey: queryKeys.resumeLists }),
+    client.cancelQueries(resource),
+  ]);
   for (const archived of [false, true])
     client.setQueryData<ResumeSummary[]>(
       queryKeys.resumeList(archived),
       (rows) => rows?.filter((row) => row.id !== id),
     );
-  client.removeQueries({
-    predicate: (query) =>
-      query.queryKey[0] === "resumes" && query.queryKey[2] === id,
-  });
+  client.removeQueries(resource);
   void client.invalidateQueries({
     queryKey: queryKeys.resumeLists,
     refetchType: "none",

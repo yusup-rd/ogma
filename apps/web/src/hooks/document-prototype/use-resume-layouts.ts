@@ -272,8 +272,8 @@ export function useResumeLayouts(initialDocument: ResumeDocument) {
     },
     retry: () => {
       setError("");
-      if (catalog) setPreviewRetry((value) => value + 1);
-      else void catalogResult.refetch();
+      if (catalogResult.isError || !catalog) void catalogResult.refetch();
+      else setPreviewRetry((value) => value + 1);
     },
   };
 }
