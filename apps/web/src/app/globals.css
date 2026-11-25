@@ -40,7 +40,9 @@
     [role="radio"],
     [role="switch"],
     [role="tab"],
-    label:has(input:is([type="checkbox"], [type="radio"]):not(:disabled))
+    label:has(
+      input:is([type="checkbox"], [type="radio"], [type="file"]):not(:disabled)
+    )
   ):where(:not(:disabled, [aria-disabled="true"], [data-disabled])) {
     cursor: pointer;
   }
@@ -63,6 +65,45 @@
 :root {
   color-scheme: light;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.pressable-action {
+  transition:
+    background-color 140ms ease,
+    transform 140ms var(--ease-out);
+}
+
+.pressable-action:active:not(
+    :disabled,
+    :focus-visible,
+    [aria-disabled="true"]
+  ) {
+  transform: scale(0.98);
+}
+
+@media (min-width: 64rem) {
+  @supports (backdrop-filter: blur(16px)) {
+    .import-toolbar {
+      background: rgb(255 255 255 / 98%);
+      backdrop-filter: blur(16px);
+    }
+  }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .import-toolbar {
+    background: var(--color-paper);
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pressable-action {
+    transition: none;
+  }
+  .pressable-action:active {
+    transform: none;
+  }
 }
 
 .resume-thumbnail-paper {

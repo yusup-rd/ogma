@@ -1,6 +1,11 @@
 "use client";
 
-import { LuChevronLeft, LuFileText, LuPalette } from "react-icons/lu";
+import {
+  LuChevronLeft,
+  LuFileText,
+  LuPalette,
+  LuListChecks,
+} from "react-icons/lu";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import Image from "next/image";
@@ -21,6 +26,11 @@ import { ResumePreview } from "./resume-preview";
 
 const TemplateGallery = dynamic(() =>
   import("./template-gallery").then((module) => module.TemplateGallery),
+);
+const ResumeCheck = dynamic(() =>
+  import("@/components/resumes/resume-check").then(
+    (module) => module.ResumeCheck,
+  ),
 );
 const TemplateDesignForm = dynamic(() =>
   import("./template-design-form").then((module) => module.TemplateDesignForm),
@@ -58,7 +68,10 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
     model.document,
     hasSectionDrafts,
   );
-  const [screen, setScreen] = useState<"Content" | "Design">("Content");
+  const [screen, setScreen] = useState<"Content" | "Design" | "Resume Check">(
+    "Content",
+  );
+  const [checkOpened, setCheckOpened] = useState(false);
   const [mobileView, setMobileView] = useState<"Edit" | "Preview">("Edit");
   const [leaving, setLeaving] = useState(false);
   const [leaveAfterPreview, setLeaveAfterPreview] = useState(false);
@@ -333,13 +346,17 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
               [
                 ["Content", LuFileText],
                 ["Design", LuPalette],
+                ["Resume Check", LuListChecks],
               ] as const
             ).map(([name, Icon]) => (
               <button
                 key={name}
                 type="button"
                 aria-pressed={screen === name}
-                onClick={() => setScreen(name)}
+                onClick={() => {
+                  setScreen(name);
+                  if (name === "Resume Check") setCheckOpened(true);
+                }}
                 className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-3 text-xs font-semibold text-muted aria-pressed:bg-accent-soft aria-pressed:text-accent"
               >
                 <Icon aria-hidden="true" className="size-4 shrink-0" />
@@ -443,6 +460,19 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
                 )}
               </>
             )}
+            <div hidden={screen !== "Resume Check"}>
+              {checkOpened && (
+                <ResumeCheck
+                  resumeId={resume.id}
+                  documentKey={JSON.stringify(model.document)}
+                  initialRevision={resume.draftRevision}
+                  initialDocumentKey={JSON.stringify(resume.document)}
+                  dirty={hasSectionDrafts || autosave.previewChanged}
+                  beforeRun={requireSavedSections}
+                  onConflict={autosave.reportConflict}
+                />
+              )}
+            </div>
           </div>
         </section>
 

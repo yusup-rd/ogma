@@ -20,6 +20,14 @@ export const libraryStatusQuery = () =>
     staleTime: queryFreshness.lists,
   });
 
+export async function invalidateLibraryQueries(client: QueryClient) {
+  await client.cancelQueries({ queryKey: queryKeys.library });
+  await client.invalidateQueries({
+    queryKey: queryKeys.library,
+    refetchType: "none",
+  });
+}
+
 export async function cacheLibraryEntry(
   client: QueryClient,
   entry: LibraryEntry,

@@ -53,6 +53,7 @@ interface ResumeContentFormProps extends SectionControls {
   onPhoto: (photo?: string, crop?: PhotoCrop) => void;
   showWorkProjects: boolean;
   initialPersonalDetailsOpen: boolean;
+  guidance?: string;
   onChange: (content: DraftContent) => void;
 }
 
@@ -82,6 +83,7 @@ const ResumeContentForm = ({
   onRename,
   onPreviewChange,
   locked,
+  guidance,
 }: ResumeContentFormProps) => {
   const field = <Key extends keyof DraftContent>(
     key: Key,
@@ -406,7 +408,8 @@ const ResumeContentForm = ({
         <p className="text-sm text-muted">
           {locked
             ? "This CV is locked. Apply section edits to the preview, then unlock to save them."
-            : "Edits appear in the preview. Save each section to keep them, or Cancel to undo."}
+            : (guidance ??
+              "Edits appear in the preview. Save each section to keep them, or Cancel to undo.")}
         </p>
       </div>
       <DndContext

@@ -22,6 +22,7 @@ import {
   LuLockKeyhole,
   LuLockKeyholeOpen,
   LuTrash2,
+  LuUpload,
 } from "react-icons/lu";
 import {
   resumeSummarySchema,
@@ -51,9 +52,9 @@ interface ResumesDashboardProps {
 }
 
 const primary =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60";
+  "pressable-action inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60";
 const secondary =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-line bg-paper px-3 text-sm font-semibold hover:bg-canvas disabled:opacity-60";
+  "pressable-action inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-line bg-paper px-3 text-sm font-semibold hover:bg-canvas disabled:opacity-60";
 
 const ResumesDashboard = ({
   initialClock,
@@ -246,13 +247,19 @@ const ResumesDashboard = ({
             Create, tailor, and manage your resume versions.
           </p>
         </div>
-        <LibraryOnboarding
-          open={showLibraryPrompt}
-          onOpenChange={setShowLibraryPrompt}
-          busy={busy}
-          onNewResume={() => void startNewResume()}
-          onStartBlank={() => void openDraft()}
-        />
+        <div className="flex flex-wrap gap-2">
+          <Link href="/import" className={secondary}>
+            <LuUpload aria-hidden="true" className="size-4" />
+            Import resume
+          </Link>
+          <LibraryOnboarding
+            open={showLibraryPrompt}
+            onOpenChange={setShowLibraryPrompt}
+            busy={busy}
+            onNewResume={() => void startNewResume()}
+            onStartBlank={() => void openDraft()}
+          />
+        </div>
       </header>
       {(error || list.isError) && (
         <div className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-paper p-3">
@@ -303,6 +310,7 @@ const ResumesDashboard = ({
                 className={secondary}
                 onClick={() => void openDraft(latest.id)}
               >
+                <LuCopy aria-hidden="true" className="size-4" />
                 Duplicate
               </button>
             </div>
