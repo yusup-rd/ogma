@@ -354,9 +354,25 @@ const ImportResume = () => {
                             ? Boolean(document.content.summary.trim())
                             : Boolean(document.content[section]?.length)),
                       )}
-                      onReorder={(sectionOrder) =>
-                        setDocument({ ...document, sectionOrder })
-                      }
+                      onReorder={(sectionOrder) => {
+                        const currentOrder =
+                          document.sectionOrder ??
+                          (Object.keys(sectionTitles) as EditorSectionId[]);
+                        if (sectionOrder.length === currentOrder.length) {
+                          setDocument({ ...document, sectionOrder });
+                          return;
+                        }
+                        const visibleSections = new Set(sectionOrder);
+                        let nextVisibleIndex = 0;
+                        setDocument({
+                          ...document,
+                          sectionOrder: currentOrder.map((section) =>
+                            visibleSections.has(section)
+                              ? sectionOrder[nextVisibleIndex++]
+                              : section,
+                          ),
+                        });
+                      }}
                       hidden={new Set(document.hidden)}
                       onToggle={(key) =>
                         setDocument({
@@ -382,15 +398,12 @@ const ImportResume = () => {
                       }
                       onDraftChange={onDraftChange}
                       titles={document.sectionTitles ?? {}}
-                      onRename={(section, value) =>
-                        setDocument({
-                          ...document,
-                          sectionTitles: {
-                            ...document.sectionTitles,
-                            [section]: value,
-                          },
-                        })
-                      }
+                      onRename={(section, value) => {
+                        const sectionTitles = { ...document.sectionTitles };
+                        if (value.trim()) sectionTitles[section] = value.trim();
+                        else delete sectionTitles[section];
+                        setDocument({ ...document, sectionTitles });
+                      }}
                     />
                     {!showAllSections && (
                       <button

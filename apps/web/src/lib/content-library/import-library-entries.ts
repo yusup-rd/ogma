@@ -36,7 +36,22 @@ export function importLibraryEntries(
       value,
     })),
     ...content.projects.map((value) => ({ kind: "projects" as const, value })),
-    ...content.skills.map((value) => ({ kind: "skills" as const, value })),
+    ...content.skills.flatMap((value) => {
+      const namedSkills = value.skills.filter((skill) => skill.name.trim());
+      if (!namedSkills.length) return [];
+      if (value.category.trim())
+        return [
+          {
+            kind: "skills" as const,
+            value: { ...value, skills: namedSkills },
+          },
+        ];
+      return namedSkills.map((skill) => ({
+        kind: "skills" as const,
+        value: { id: skill.id, category: "", skills: [skill] },
+        legacySingle: true,
+      }));
+    }),
     ...(content.languages ?? []).map((value) => ({
       kind: "languages" as const,
       value,

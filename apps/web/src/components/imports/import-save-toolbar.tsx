@@ -59,7 +59,7 @@ const ImportSaveToolbar = ({
         )}
         <button
           type="button"
-          disabled={busy || disabled || !reviewed || draftCount > 0}
+          disabled={busy || !reviewed || draftCount > 0}
           onClick={onSave}
           className="pressable-action inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-accent px-5 text-sm font-semibold text-white shadow-sm hover:bg-accent-hover disabled:opacity-50 sm:ml-auto"
         >
