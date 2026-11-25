@@ -52,7 +52,7 @@ const DropdownSelect = ({
         />
       )}
       <Select.Root
-        value={`option:${selectedValue}`}
+        value={selectedOption ? `option:${selectedValue}` : ""}
         disabled={disabled}
         onValueChange={(next) => {
           const nextValue = next.slice("option:".length);
