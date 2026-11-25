@@ -3,6 +3,7 @@
 ## Application boundaries
 
 - Use a Yarn workspaces monorepo with `apps/web` for Next.js App Router, `apps/api` for NestJS, `packages/contracts` for shared validation and types, and `packages/resume-renderer` for document rendering. Use strict TypeScript throughout.
+- Generate the Prisma client into `apps/api/src/generated/ogma`. This output replaced a Windows-locked generated directory during the import milestone. Keep generated code ignored and excluded from formatting and linting.
 - Next.js serves the dashboard and editor. NestJS owns data access, revisions, imports, exports, analysis, and integrations. Route browser `/api` traffic to NestJS on the same origin. Keep PostgreSQL accessible from the backend only.
 - Use Prisma migrations for relational data and PostgreSQL JSONB for validated, versioned document payloads. Share payload validation with Zod where the editor and API both use the same shape. Use React Hook Form for structured fields. Add dnd-kit only if it meets the editor’s pointer and keyboard reorder needs.
 
