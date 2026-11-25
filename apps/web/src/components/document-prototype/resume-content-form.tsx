@@ -26,7 +26,7 @@ import { inputClass, TextField } from "@/components/ui/form-fields";
 import {
   EditorControlsProvider,
   type EditorControls,
-} from "./editor-controls-store";
+} from "@/stores/editor-controls-store";
 import {
   contactFields,
   newEntry,
