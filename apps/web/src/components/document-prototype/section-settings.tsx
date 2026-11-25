@@ -5,6 +5,7 @@ import type { SectionStyle } from "@ogma/contracts/resume-workspace";
 import type { ResumeSectionId } from "../../../../../packages/contracts/resume-content";
 import type { TemplateStyle } from "@/lib/document-prototype/resume-layout-model";
 import { sectionTitles } from "@/lib/document-prototype/content-presentation";
+import { DropdownSelect } from "@/components/ui/dropdown-select";
 
 interface SectionSettingsProps {
   section: ResumeSectionId;
@@ -144,18 +145,24 @@ export const SectionSettings = ({
               ))}
               <label className="flex flex-col gap-2 text-xs font-semibold">
                 Heading weight
-                <select
+                <DropdownSelect
+                  ariaLabel="Heading weight"
                   name="headingWeight"
-                  defaultValue={override?.headingWeight ?? ""}
-                  className={fieldClass}
-                >
-                  <option value="">Inherit</option>
-                  <option value="200">Extra light</option>
-                  <option value="300">Light</option>
-                  <option value="400">Regular</option>
-                  <option value="600">Semibold</option>
-                  <option value="700">Bold</option>
-                </select>
+                  defaultValue={
+                    override?.headingWeight === undefined
+                      ? ""
+                      : String(override.headingWeight)
+                  }
+                  triggerClassName={fieldClass}
+                  options={[
+                    { value: "", label: "Inherit" },
+                    { value: "200", label: "Extra light" },
+                    { value: "300", label: "Light" },
+                    { value: "400", label: "Regular" },
+                    { value: "600", label: "Semibold" },
+                    { value: "700", label: "Bold" },
+                  ]}
+                />
               </label>
             </div>
             <label className="flex min-h-11 items-center gap-3 text-sm">

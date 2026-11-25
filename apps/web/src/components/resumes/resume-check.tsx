@@ -7,6 +7,7 @@ import {
 } from "@ogma/contracts/resume-analysis";
 import { requestResume, ResumeRequestError } from "@/lib/resumes/resume-api";
 import { z } from "zod";
+import { DropdownSelect } from "@/components/ui/dropdown-select";
 
 interface ResumeCheckProps {
   resumeId: string;
@@ -101,18 +102,20 @@ const ResumeCheck = ({
       </p>
       <label className="flex flex-col gap-2 text-sm font-semibold">
         Export format
-        <select
+        <DropdownSelect
+          ariaLabel="Export format"
           disabled={busy}
           value={format}
-          onChange={(event) => {
+          onValueChange={(nextFormat) => {
             setError("");
-            setFormat(event.currentTarget.value === "docx" ? "docx" : "pdf");
+            setFormat(nextFormat === "docx" ? "docx" : "pdf");
           }}
-          className="min-h-11 rounded-lg border border-line bg-paper px-3"
-        >
-          <option value="pdf">PDF</option>
-          <option value="docx">Word DOCX</option>
-        </select>
+          triggerClassName="min-h-11"
+          options={[
+            { value: "pdf", label: "PDF" },
+            { value: "docx", label: "Word DOCX" },
+          ]}
+        />
       </label>
       <button
         type="button"

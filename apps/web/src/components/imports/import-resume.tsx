@@ -492,12 +492,18 @@ const ImportResume = () => {
                         </p>
                       </div>
                     </div>
-                    <details className="border-t border-line">
+                    <details className="group border-t border-line">
                       <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 text-sm font-medium">
-                        Extracted text
+                        <span className="inline-flex items-center gap-2">
+                          <LuFileText
+                            aria-hidden="true"
+                            className="size-4 text-muted"
+                          />
+                          Extracted text
+                        </span>
                         <LuChevronDown
                           aria-hidden="true"
-                          className="size-4 text-muted"
+                          className="size-4 text-muted transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none"
                         />
                       </summary>
                       <div className="max-h-96 overflow-auto border-t border-line px-4 py-3 text-sm leading-relaxed wrap-anywhere whitespace-pre-wrap">
@@ -505,7 +511,7 @@ const ImportResume = () => {
                       </div>
                     </details>
                     {review.links.length > 0 && (
-                      <details className="border-t border-line">
+                      <details className="group border-t border-line">
                         <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 text-sm font-medium">
                           <span className="inline-flex items-center gap-2">
                             <LuLink
@@ -516,7 +522,7 @@ const ImportResume = () => {
                           </span>
                           <LuChevronDown
                             aria-hidden="true"
-                            className="size-4 text-muted"
+                            className="size-4 text-muted transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none"
                           />
                         </summary>
                         <ul className="flex max-h-80 flex-col gap-4 overflow-auto border-t border-line p-4 text-sm">
