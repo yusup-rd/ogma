@@ -26,13 +26,12 @@ import type {
 } from "../../../../../packages/contracts/resume-content";
 import { EntrySection } from "./entry-section";
 import { ResumeImageUpload } from "./resume-image-upload";
+import { inputClass, TextField } from "@/components/ui/form-fields";
 import {
   contactFields,
-  inputClass,
   newEntry,
   emptyRange,
   emptyDescription,
-  TextField,
   WorkFields,
   EducationFields,
   SkillsFields,
