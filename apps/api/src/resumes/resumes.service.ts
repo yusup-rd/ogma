@@ -14,7 +14,7 @@ import {
 } from "@ogma/contracts/resume-workspace";
 import { DatabaseService } from "../database/database.service";
 import { DocumentPrototypeService } from "../document-prototype/document-prototype.service";
-import type { Prisma, Resume } from "../generated/prisma-client/client";
+import type { Prisma, Resume } from "../generated/ogma/client";
 import { getResumeLayout } from "../resume-layouts/layout-catalog";
 import { layoutDraftSchema } from "../resume-layouts/layout-draft";
 import { paginateResume } from "../resume-layouts/paginate-resume";

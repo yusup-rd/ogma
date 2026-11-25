@@ -7,6 +7,7 @@ import { HealthController } from "./health.controller";
 import { OwnerAuthModule } from "./owner-auth/owner-auth.module";
 import { ResumeLayoutsModule } from "./resume-layouts/resume-layouts.module";
 import { ResumesModule } from "./resumes/resumes.module";
+import { ImportsModule } from "./imports/imports.module";
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ResumesModule } from "./resumes/resumes.module";
     ResumeLayoutsModule,
     ResumesModule,
     ContentLibraryModule,
+    ImportsModule,
   ],
   controllers: [HealthController],
 })

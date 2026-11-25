@@ -28,6 +28,9 @@ import { paginateResume } from "../resume-layouts/paginate-resume";
 import { renderResumeLayout } from "../resume-layouts/render-resume-layout";
 import { ResumesService } from "./resumes.service";
 import { ResumeCheckpointsService } from "./resume-checkpoints.service";
+import { ResumeAnalysisService } from "./resume-analysis.service";
+import { ResumeImportService } from "./resume-import.service";
+import { libraryEntryContentSchema } from "@ogma/contracts/content-library";
 
 const createSchema = z.object({
   id: z.uuid(),
@@ -70,6 +73,8 @@ export class ResumesController {
     private readonly resumes: ResumesService,
     private readonly documents: DocumentPrototypeService,
     private readonly checkpoints: ResumeCheckpointsService,
+    private readonly analysis: ResumeAnalysisService,
+    private readonly imports: ResumeImportService,
   ) {}
 
   @Get()
@@ -81,6 +86,26 @@ export class ResumesController {
   create(@Req() request: OwnerRequest, @Body() body: unknown) {
     const { id, title, document } = readBody(createSchema, body);
     return this.resumes.create(ownerIdFor(request), id, title, document);
+  }
+
+  @Post("import")
+  commitImport(@Req() request: OwnerRequest, @Body() body: unknown) {
+    const parsed = readBody(
+      createSchema.extend({
+        document: resumeDocumentSchema,
+        libraryEntries: z
+          .array(z.object({ id: z.uuid(), content: libraryEntryContentSchema }))
+          .max(400),
+      }),
+      body,
+    );
+    return this.imports.commit(
+      ownerIdFor(request),
+      parsed.id,
+      parsed.title,
+      parsed.document,
+      parsed.libraryEntries,
+    );
   }
 
   @Get(":id")
@@ -114,6 +139,37 @@ export class ResumesController {
     );
     response.setHeader("X-Ogma-Draft-Revision", revision);
     return exportResume(this.documents, draft, layout, format);
+  }
+
+  @Get(":id/analysis/:format")
+  async latestAnalysis(
+    @Req() request: OwnerRequest,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("format") format: string,
+  ) {
+    return {
+      result: await this.analysis.latest(
+        ownerIdFor(request),
+        id,
+        readBody(z.enum(["pdf", "docx"]), format),
+      ),
+    };
+  }
+
+  @Post(":id/analysis/:format")
+  runAnalysis(
+    @Req() request: OwnerRequest,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("format") format: string,
+    @Body() body: unknown,
+  ) {
+    const { expectedRevision } = readBody(exportSchema, body);
+    return this.analysis.run(
+      ownerIdFor(request),
+      id,
+      expectedRevision,
+      readBody(z.enum(["pdf", "docx"]), format),
+    );
   }
 
   @Get(":id/thumbnail")
