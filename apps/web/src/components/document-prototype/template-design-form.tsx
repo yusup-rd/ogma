@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { ConfirmationDialog } from "@/components/confirmation-dialog";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import type {
   TemplateOption,
   TemplateStyle,

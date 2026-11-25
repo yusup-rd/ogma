@@ -27,10 +27,10 @@ import {
   type LibraryEntry,
   type LibraryKind,
 } from "@ogma/contracts/content-library";
-import { ConfirmationDialog } from "@/components/confirmation-dialog";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { ActionButton } from "@/components/ui/action-button";
 import { RetryNotice } from "@/components/ui/retry-notice";
-import { WorkspaceShell } from "@/components/workspace-shell";
+import { WorkspaceShell } from "@/components/layout/workspace-shell";
 import {
   archiveLibraryEntry,
   deleteLibraryEntry,

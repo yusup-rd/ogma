@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { LuArrowDown, LuChevronLeft, LuLayoutGrid } from "react-icons/lu";
 import type { TemplateOption } from "@/lib/document-prototype/resume-layout-model";
-import { TemplateSkeleton } from "./template-skeleton";
+import { TemplateSkeleton } from "../skeletons/template-skeleton";
 
 interface TemplateGalleryProps {
   templates: TemplateOption[];

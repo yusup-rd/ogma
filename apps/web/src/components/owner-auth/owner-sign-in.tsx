@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { FcGoogle } from "react-icons/fc";
-import { ClearSessionQueries } from "@/components/query-provider";
+import { ClearSessionQueries } from "@/providers/query-provider";
 import { InlineAlert } from "@/components/ui/inline-alert";
 
 interface OwnerSignInProps {

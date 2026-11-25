@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import type { ReactNode } from "react";
 import "./globals.css";
-import { QueryProvider } from "@/components/query-provider";
-import { AppToaster } from "@/components/app-toaster";
+import { QueryProvider } from "@/providers/query-provider";
+import { AppToaster } from "@/components/ui/app-toaster";
 
 const inter = localFont({
   src: "./fonts/inter-variable.woff2",

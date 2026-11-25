@@ -13,7 +13,7 @@ import {
 import { useRef, useState } from "react";
 import { LuClock3 } from "react-icons/lu";
 import { z } from "zod";
-import { ConfirmationDialog } from "@/components/confirmation-dialog";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { ActionButton } from "@/components/ui/action-button";
 import { DialogFrame } from "@/components/ui/dialog-frame";
 import { InlineAlert } from "@/components/ui/inline-alert";

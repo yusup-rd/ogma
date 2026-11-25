@@ -17,11 +17,11 @@ import {
   LuCircleAlert,
   LuRefreshCw,
 } from "react-icons/lu";
-import { ConfirmationDialog } from "@/components/confirmation-dialog";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { ImportUploadPanel } from "@/components/imports/import-upload-panel";
 import { ImportSourcePanel } from "@/components/imports/import-source-panel";
 import { ImportSaveToolbar } from "@/components/imports/import-save-toolbar";
-import { WorkspaceShell } from "@/components/workspace-shell";
+import { WorkspaceShell } from "@/components/layout/workspace-shell";
 import { ResumeContentForm } from "@/components/document-prototype/resume-content-form";
 import {
   sectionTitles,

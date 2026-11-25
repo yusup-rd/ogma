@@ -29,11 +29,11 @@ import {
   savedResumeSchema,
   type ResumeSummary,
 } from "@ogma/contracts/resume-workspace";
-import { ConfirmationDialog } from "@/components/confirmation-dialog";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { ActionButton, ActionLink } from "@/components/ui/action-button";
 import { RetryNotice } from "@/components/ui/retry-notice";
 import { LibraryOnboarding } from "@/components/content-library/library-onboarding";
-import { WorkspaceShell } from "@/components/workspace-shell";
+import { WorkspaceShell } from "@/components/layout/workspace-shell";
 import { SavedResumeThumbnail } from "./saved-resume-thumbnail";
 import { useResumePageCounts } from "@/hooks/resumes/use-resume-page-counts";
 import {
