@@ -23,10 +23,8 @@ import type {
 import { EntrySection } from "./entry-section";
 import { ResumeImageUpload } from "./resume-image-upload";
 import { inputClass, TextField } from "@/components/ui/form-fields";
-import {
-  EditorControlsProvider,
-  type EditorControls,
-} from "@/stores/editor-controls-store";
+import { EditorControlsProvider } from "@/providers/editor-controls-provider";
+import type { EditorControls } from "@/stores/editor-controls-store";
 import {
   contactFields,
   newEntry,

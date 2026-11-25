@@ -11,7 +11,7 @@ import {
 import { LuChevronRight, LuGripVertical } from "react-icons/lu";
 import type { SectionPreview } from "@/lib/document-prototype/content-preview";
 import { SectionTitleEditor } from "./section-title-editor";
-import { useEditorControls } from "@/stores/editor-controls-store";
+import { useEditorControls } from "@/providers/editor-controls-provider";
 import {
   sectionKey,
   sectionTitles,

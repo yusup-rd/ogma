@@ -8,7 +8,7 @@ import {
   type EditorSectionId,
 } from "@/lib/document-prototype/content-presentation";
 import { SectionCard, VisibilityCheckbox } from "./section-card";
-import { useEditorControls } from "@/stores/editor-controls-store";
+import { useEditorControls } from "@/providers/editor-controls-provider";
 
 interface EntrySectionProps<
   Entry extends { id: string; description?: RichText },
