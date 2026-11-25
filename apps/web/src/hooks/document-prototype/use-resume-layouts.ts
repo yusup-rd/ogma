@@ -171,9 +171,38 @@ export function useResumeLayouts(initialDocument: ResumeDocument) {
     })();
   }, [previewDraft, previewRetry]);
 
-  const setDocument = (update: (current: ResumeDocument) => ResumeDocument) => {
-    setEditedDocument((current) => update(current ?? initialDocument));
-  };
+  const setDocument = useCallback(
+    (update: (current: ResumeDocument) => ResumeDocument) => {
+      setEditedDocument((current) => update(current ?? initialDocument));
+    },
+    [initialDocument],
+  );
+  const setSectionTitle = useCallback(
+    (section: Exclude<EditorSectionId, "personal">, title: string) =>
+      setDocument((current) => renameSection(current, section, title)),
+    [setDocument],
+  );
+  const toggleVisibility = useCallback(
+    (key: string) =>
+      setDocument((current) => {
+        const next = new Set(current.hidden);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        return { ...current, hidden: [...next] };
+      }),
+    [setDocument],
+  );
+  const sectionOverrides = style?.sectionOverrides;
+  const sectionTitles = useMemo(
+    () =>
+      sectionOverrides &&
+      Object.fromEntries(
+        Object.entries(sectionOverrides)
+          .filter(([, value]) => value?.title)
+          .map(([id, value]) => [id, value?.title]),
+      ),
+    [sectionOverrides],
+  );
 
   const updateStyle = (changes: Partial<TemplateStyle>) => {
     if (!template) return;
@@ -218,17 +247,8 @@ export function useResumeLayouts(initialDocument: ResumeDocument) {
     hidden,
     photo,
     onPreviewChange,
-    sectionTitles:
-      style?.sectionOverrides &&
-      Object.fromEntries(
-        Object.entries(style.sectionOverrides)
-          .filter(([, value]) => value?.title)
-          .map(([id, value]) => [id, value?.title]),
-      ),
-    setSectionTitle: (
-      section: Exclude<EditorSectionId, "personal">,
-      title: string,
-    ) => setDocument((current) => renameSection(current, section, title)),
+    sectionTitles,
+    setSectionTitle,
     setDocument,
     setContent: (content: DraftContent) =>
       setDocument((current) => pruneLibrarySources({ ...current, content })),
@@ -251,13 +271,7 @@ export function useResumeLayouts(initialDocument: ResumeDocument) {
     setOrder: (sectionOrder: EditorSectionId[]) =>
       setDocument((current) => ({ ...current, sectionOrder })),
     updateStyle,
-    toggleVisibility: (key: string) =>
-      setDocument((current) => {
-        const next = new Set(current.hidden);
-        if (next.has(key)) next.delete(key);
-        else next.add(key);
-        return { ...current, hidden: [...next] };
-      }),
+    toggleVisibility,
     resetStyle: () => {
       if (template) {
         toast.success("Template design reset.", { id: "design-reset" });
