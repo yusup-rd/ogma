@@ -136,7 +136,10 @@ export function libraryValue(
       if (fields.url) {
         let host = "";
         try {
-          host = new URL(fields.url).hostname.toLowerCase();
+          const candidate = /^[a-z][\da-z+.-]*:/i.test(fields.url)
+            ? fields.url
+            : `https://${fields.url}`;
+          host = new URL(candidate).hostname.toLowerCase();
         } catch {
           host = "";
         }

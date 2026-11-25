@@ -31,6 +31,20 @@ function webHref(text: string) {
   return url.href;
 }
 
+export function displayWebUrl(value: string) {
+  const href = webHref(value.trim());
+  if (!href) return value.trim();
+  const url = new URL(href);
+  const pathname = url.pathname.replace(/\/+$/, "");
+  return `${url.host}${pathname}${url.search}${url.hash}`;
+}
+
+export function contactLabel(kind: string, value: string) {
+  return ["linkedin", "website", "github"].includes(kind)
+    ? displayWebUrl(value)
+    : value;
+}
+
 export function contactHref(kind: string, value: string) {
   const text = value.trim();
   if (kind === "email" && /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(text)) {
@@ -65,9 +79,13 @@ export function linkedTextParts(text: string) {
         const closes = (match[0].match(/\)/g) ?? []).length;
         return suffix.slice(Math.max(0, closes - opens));
       });
+    const href = webHref(label);
     parts.push(
       { text: text.slice(start, match.index) },
-      { text: label, href: webHref(label) },
+      {
+        text: href ? displayWebUrl(label) : label,
+        href,
+      },
     );
     start = match.index + label.length;
   }

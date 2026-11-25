@@ -5,6 +5,23 @@ const {
   photoCrop,
 } = require("./resume-content-schema.cjs");
 
+const webUrl = (value) => {
+  const candidate = /^[a-z][\da-z+.-]*:/i.test(value)
+    ? value
+    : `https://${value}`;
+  try {
+    const url = new URL(candidate);
+    return (
+      ["http:", "https:"].includes(url.protocol) &&
+      (url.hostname.includes(".") || url.hostname.startsWith("[")) &&
+      !url.username &&
+      !url.password
+    );
+  } catch {
+    return false;
+  }
+};
+
 const librarySections = {
   personal: {
     label: "Personal details",
@@ -177,15 +194,11 @@ const libraryEntryContentSchema = z
         });
       }
     }
-    if (
-      kind === "links" &&
-      fields.url &&
-      !z.url({ protocol: /^https?$/ }).safeParse(fields.url).success
-    ) {
+    if (kind === "links" && fields.url && !webUrl(fields.url)) {
       context.addIssue({
         code: "custom",
         path: ["fields", "url"],
-        message: "Use a full http or https URL.",
+        message: "Enter a valid website address.",
       });
     }
     if (fields.icon && !entryIcon.safeParse(fields.icon).success) {

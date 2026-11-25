@@ -59,7 +59,7 @@ import {
   workProjectEntries,
   type ResumeEntry,
 } from "./resume-content";
-import { contactHref, linkedTextParts } from "./resume-links";
+import { contactHref, contactLabel, linkedTextParts } from "./resume-links";
 
 function image(
   dataUri: string,
@@ -994,7 +994,10 @@ export async function renderResumeWord(
             alignment,
             children: details.flatMap(({ kind, value }, index) => {
               const href = contactHref(kind, value);
-              const text = new TextRun({ text: value, ...typography("minor") });
+              const text = new TextRun({
+                text: contactLabel(kind, value),
+                ...typography("minor"),
+              });
               return [
                 ...(index
                   ? [
