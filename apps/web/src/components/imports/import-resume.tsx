@@ -13,18 +13,14 @@ import {
 } from "@ogma/contracts/resume-workspace";
 import {
   LuArrowLeft,
-  LuArrowRight,
-  LuUpload,
-  LuFileText,
-  LuFileCheck2,
-  LuLink,
   LuChevronDown,
   LuCircleAlert,
-  LuLoaderCircle,
   LuRefreshCw,
 } from "react-icons/lu";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
-import { formatPageCount } from "@/lib/formatUtil";
+import { ImportUploadPanel } from "@/components/imports/import-upload-panel";
+import { ImportSourcePanel } from "@/components/imports/import-source-panel";
+import { ImportSaveToolbar } from "@/components/imports/import-save-toolbar";
 import { WorkspaceShell } from "@/components/workspace-shell";
 import { ResumeContentForm } from "@/components/document-prototype/resume-content-form";
 import {
@@ -294,74 +290,14 @@ const ImportResume = () => {
             </div>
           )}
           {!review && (
-            <section
-              aria-label="Upload resume"
-              onDragOver={(event) => {
-                event.preventDefault();
-                if (!busy) setDragging(true);
-              }}
-              onDragLeave={(event) => {
-                if (
-                  !event.currentTarget.contains(
-                    event.relatedTarget as Node | null,
-                  )
-                )
-                  setDragging(false);
-              }}
-              onDrop={(event) => {
-                event.preventDefault();
-                setDragging(false);
-                const file = event.dataTransfer.files[0];
-                if (file && !busy) void read(file);
-              }}
-              data-dragging={dragging}
-              className="mx-auto flex w-full max-w-3xl flex-col items-center rounded-3xl border border-line bg-paper px-6 py-16 text-center shadow-sm data-[dragging=true]:border-accent data-[dragging=true]:bg-accent-soft sm:py-24"
-            >
-              <div className="mb-6 grid size-16 place-items-center rounded-2xl border border-line bg-canvas text-accent">
-                {busy ? (
-                  <LuLoaderCircle
-                    aria-hidden="true"
-                    className="size-7 animate-spin motion-reduce:animate-none"
-                  />
-                ) : (
-                  <LuFileText aria-hidden="true" className="size-7" />
-                )}
-              </div>
-              <h2 className="text-xl font-semibold tracking-tight">
-                {busy
-                  ? "Reading your resume…"
-                  : "Start with the resume you have"}
-              </h2>
-              <p
-                role={busy ? "status" : undefined}
-                className="mt-2 max-w-sm text-sm leading-relaxed text-muted"
-              >
-                {busy ? fileName : "Drop a PDF or Word document here."}
-              </p>
-              <input
-                id={fileInputId}
-                type="file"
-                accept=".pdf,.docx"
-                disabled={busy}
-                className="peer sr-only"
-                onChange={(event) => {
-                  const file = event.currentTarget.files?.[0];
-                  if (file) void read(file);
-                  event.currentTarget.value = "";
-                }}
-              />
-              <label
-                htmlFor={fileInputId}
-                aria-disabled={busy}
-                className="pressable-action mt-7 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl bg-accent px-5 text-sm font-semibold text-white shadow-sm peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-accent hover:bg-accent-hover aria-disabled:pointer-events-none aria-disabled:opacity-50"
-              >
-                <LuUpload aria-hidden="true" className="size-4" />
-                Choose a file
-              </label>
-              <p className="mt-4 text-xs text-muted">
-                PDF or DOCX · Up to 1 MB
-              </p>
-            </section>
+            <ImportUploadPanel
+              fileInputId={fileInputId}
+              busy={busy}
+              dragging={dragging}
+              fileName={fileName}
+              onDraggingChange={setDragging}
+              onFile={(file) => void read(file)}
+            />
           )}
           {review && document && (
             <>
@@ -468,164 +404,18 @@ const ImportResume = () => {
                     )}
                   </div>
                 </div>
-                <aside
-                  aria-label="Import source"
-                  className="order-1 flex min-w-0 flex-col gap-4 xl:sticky xl:top-6 xl:order-2"
-                >
-                  <div className="overflow-hidden rounded-2xl border border-line bg-paper">
-                    <div className="flex items-center gap-3 p-4">
-                      <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent">
-                        <LuFileCheck2 aria-hidden="true" className="size-5" />
-                      </div>
-                      <div className="min-w-0">
-                        <h2
-                          className="truncate text-sm font-semibold"
-                          title={fileName}
-                        >
-                          {fileName}
-                        </h2>
-                        <p className="mt-0.5 text-xs text-muted">
-                          {review.pageCount
-                            ? formatPageCount(review.pageCount) + " · "
-                            : ""}
-                          Ready to review
-                        </p>
-                      </div>
-                    </div>
-                    <details className="group border-t border-line">
-                      <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 text-sm font-medium">
-                        <span className="inline-flex items-center gap-2">
-                          <LuFileText
-                            aria-hidden="true"
-                            className="size-4 text-muted"
-                          />
-                          Extracted text
-                        </span>
-                        <LuChevronDown
-                          aria-hidden="true"
-                          className="size-4 text-muted transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none"
-                        />
-                      </summary>
-                      <div className="max-h-96 overflow-auto border-t border-line px-4 py-3 text-sm leading-relaxed wrap-anywhere whitespace-pre-wrap">
-                        {review.text || "No selectable text found."}
-                      </div>
-                    </details>
-                    {review.links.length > 0 && (
-                      <details className="group border-t border-line">
-                        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 text-sm font-medium">
-                          <span className="inline-flex items-center gap-2">
-                            <LuLink
-                              aria-hidden="true"
-                              className="size-4 text-muted"
-                            />
-                            Link destinations
-                          </span>
-                          <LuChevronDown
-                            aria-hidden="true"
-                            className="size-4 text-muted transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none"
-                          />
-                        </summary>
-                        <ul className="flex max-h-80 flex-col gap-4 overflow-auto border-t border-line p-4 text-sm">
-                          {review.links.map((link, index) => (
-                            <li
-                              key={index}
-                              className="flex flex-col gap-1 wrap-anywhere"
-                            >
-                              <span className="font-medium">
-                                {link.label || "Link"}
-                              </span>
-                              <span className="text-xs leading-relaxed text-muted">
-                                {link.url}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
-                    )}
-                  </div>
-                  {review.unmapped && (
-                    <details
-                      open
-                      className="overflow-hidden rounded-2xl border border-accent/20 bg-paper"
-                    >
-                      <summary className="flex min-h-12 cursor-pointer items-center gap-2 px-4 text-sm font-semibold text-accent">
-                        <LuCircleAlert
-                          aria-hidden="true"
-                          className="size-4 shrink-0"
-                        />
-                        Needs your attention
-                      </summary>
-                      <div className="flex flex-col gap-3 border-t border-line p-4">
-                        <p className="text-sm text-muted">
-                          Place this text in the right section.
-                        </p>
-                        <div className="max-h-80 overflow-auto text-sm leading-relaxed wrap-anywhere whitespace-pre-wrap">
-                          {review.unmapped}
-                        </div>
-                      </div>
-                    </details>
-                  )}
-                </aside>
+                <ImportSourcePanel fileName={fileName} review={review} />
               </div>
-              <footer className="import-toolbar relative z-10 flex flex-col gap-4 rounded-2xl border border-line bg-paper p-4 shadow-sm sm:p-5 lg:sticky lg:bottom-4 lg:shadow-lg">
-                <div className="flex flex-col gap-3">
-                  <label className="flex items-start gap-3 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={addToLibrary}
-                      disabled={busy || Boolean(submission)}
-                      onChange={(event) =>
-                        setAddToLibrary(event.currentTarget.checked)
-                      }
-                      className="mt-0.5 size-4 shrink-0 accent-accent"
-                    />
-                    <span className="flex items-center gap-2">
-                      Save a copy to Library
-                    </span>
-                  </label>
-                  <label className="flex items-start gap-3 text-sm">
-                    <input
-                      type="checkbox"
-                      disabled={busy || Boolean(submission)}
-                      checked={reviewed}
-                      onChange={(event) =>
-                        setReviewed(event.currentTarget.checked)
-                      }
-                      className="mt-0.5 size-4 shrink-0 accent-accent"
-                    />
-                    I have reviewed my content
-                  </label>
-                </div>
-                <div className="flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
-                  {(busy || drafts.size > 0) && (
-                    <p
-                      role="status"
-                      className="text-xs leading-relaxed text-muted"
-                    >
-                      {busy
-                        ? "Creating your resume…"
-                        : drafts.size > 0
-                          ? "Save or cancel your section edits to continue."
-                          : ""}
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    disabled={busy || !reviewed || drafts.size > 0}
-                    onClick={() => void save()}
-                    className="pressable-action inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-accent px-5 text-sm font-semibold text-white shadow-sm hover:bg-accent-hover disabled:opacity-50 sm:ml-auto"
-                  >
-                    {busy ? (
-                      <LuLoaderCircle
-                        aria-hidden="true"
-                        className="size-4 animate-spin motion-reduce:animate-none"
-                      />
-                    ) : null}
-                    Create resume
-                    <LuArrowRight aria-hidden="true" className="size-4" />
-                  </button>
-                </div>
-              </footer>
+              <ImportSaveToolbar
+                busy={busy}
+                disabled={Boolean(submission)}
+                reviewed={reviewed}
+                addToLibrary={addToLibrary}
+                draftCount={drafts.size}
+                onReviewedChange={setReviewed}
+                onAddToLibraryChange={setAddToLibrary}
+                onSave={() => void save()}
+              />
             </>
           )}
         </div>
