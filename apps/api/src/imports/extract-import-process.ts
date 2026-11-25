@@ -1,10 +1,12 @@
 import mammoth from "mammoth";
+import { inflateRawSync } from "node:zlib";
 import { z } from "zod";
 
 const maxTextLength = 200_000;
 
-// Bound the declared expansion before handing an OOXML archive to Mammoth.
+// Count actual decompressed bytes before handing an OOXML archive to Mammoth.
 function validateWordArchive(buffer: Buffer) {
+  const maxExpandedBytes = 20 * 1024 * 1024;
   let end = buffer.length - 22;
   const earliest = Math.max(0, end - 65_535);
   while (end >= earliest && buffer.readUInt32LE(end) !== 0x06054b50) end--;
@@ -12,7 +14,11 @@ function validateWordArchive(buffer: Buffer) {
   if (buffer.readUInt16LE(end + 4) || buffer.readUInt16LE(end + 6))
     throw new Error("Multipart archive");
   const count = buffer.readUInt16LE(end + 10);
-  let offset = buffer.readUInt32LE(end + 16);
+  const directoryOffset = buffer.readUInt32LE(end + 16);
+  const directorySize = buffer.readUInt32LE(end + 12);
+  let offset = directoryOffset;
+  if (directoryOffset + directorySize > end)
+    throw new Error("Invalid directory");
   let expanded = 0;
   let hasDocument = false;
   if (count > 1000) throw new Error("Too many archive entries");
@@ -21,8 +27,9 @@ function validateWordArchive(buffer: Buffer) {
       throw new Error("Invalid directory");
     if (buffer.readUInt16LE(offset + 8) & 1)
       throw new Error("Encrypted archive");
-    expanded += buffer.readUInt32LE(offset + 24);
-    if (expanded > 20 * 1024 * 1024) throw new Error("Archive too large");
+    const method = buffer.readUInt16LE(offset + 10);
+    const compressedSize = buffer.readUInt32LE(offset + 20);
+    const declaredExpandedSize = buffer.readUInt32LE(offset + 24);
     const nameLength = buffer.readUInt16LE(offset + 28);
     const next =
       offset +
@@ -31,9 +38,37 @@ function validateWordArchive(buffer: Buffer) {
       buffer.readUInt16LE(offset + 30) +
       buffer.readUInt16LE(offset + 32);
     if (next > end) throw new Error("Invalid entry");
-    hasDocument ||=
-      buffer.toString("utf8", offset + 46, offset + 46 + nameLength) ===
-      "word/document.xml";
+    const name = buffer.toString("utf8", offset + 46, offset + 46 + nameLength);
+    hasDocument ||= name === "word/document.xml";
+    const localOffset = buffer.readUInt32LE(offset + 42);
+    if (
+      localOffset + 30 > directoryOffset ||
+      buffer.readUInt32LE(localOffset) !== 0x04034b50
+    )
+      throw new Error("Invalid local entry");
+    const dataOffset =
+      localOffset +
+      30 +
+      buffer.readUInt16LE(localOffset + 26) +
+      buffer.readUInt16LE(localOffset + 28);
+    const dataEnd = dataOffset + compressedSize;
+    if (dataEnd > directoryOffset) throw new Error("Invalid entry data");
+    const compressed = buffer.subarray(dataOffset, dataEnd);
+    const remaining = maxExpandedBytes - expanded;
+    let actualExpandedSize: number;
+    if (method === 0) actualExpandedSize = compressed.length;
+    else if (method === 8) {
+      const output = inflateRawSync(compressed, {
+        maxOutputLength: remaining + 1,
+      });
+      actualExpandedSize = output.length;
+    } else throw new Error("Unsupported compression method");
+    if (
+      actualExpandedSize > remaining ||
+      actualExpandedSize !== declaredExpandedSize
+    )
+      throw new Error("Archive too large or invalid");
+    expanded += actualExpandedSize;
     offset = next;
   }
   if (!hasDocument) throw new Error("Missing Word document");

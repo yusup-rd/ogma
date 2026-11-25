@@ -188,18 +188,36 @@ export class ResumeAnalysisService {
       const coverage = words.length
         ? words.filter((word) => actual.includes(word)).length / words.length
         : 0;
+      const identity = [
+        [content.contact.firstName.trim(), content.contact.lastName.trim()]
+          .filter(Boolean)
+          .join(" "),
+        content.contact.email,
+        content.contact.phone,
+      ].filter(Boolean);
+      const identityPresent = identity.every((value) =>
+        actual.includes(normalized(value)),
+      );
       add(
         "text-extraction",
         "Extraction",
         "Expected text survives export",
         25,
-        Boolean(actual) && coverage >= 0.98,
+        Boolean(actual) && identityPresent && coverage >= 0.98,
         "Review missing or garbled text in the export. Try a simpler template or a bundled font.",
       );
       const headings = [
         ...new Set(inspection.headings.map(normalized).filter(Boolean)),
       ];
-      const positions = headings.map((heading) => actual.indexOf(heading));
+      const actualLines = extracted.text.split(/\r?\n/).map(normalized);
+      let nextLine = 0;
+      const positions = headings.map((heading) => {
+        const position = actualLines.findIndex(
+          (line, index) => index >= nextLine && line === heading,
+        );
+        if (position >= 0) nextLine = position + 1;
+        return position;
+      });
       add(
         "reading-order",
         "Extraction",

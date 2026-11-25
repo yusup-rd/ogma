@@ -31,11 +31,13 @@ function webHref(text: string) {
   return url.href;
 }
 
-export function displayWebUrl(value: string) {
+export function displayWebUrl(value: string, preserveTrailingSlash = false) {
   const href = webHref(value.trim());
   if (!href) return value.trim();
   const url = new URL(href);
-  const pathname = url.pathname.replace(/\/+$/, "");
+  const pathname = preserveTrailingSlash
+    ? url.pathname
+    : url.pathname.replace(/\/+$/, "");
   return `${url.host}${pathname}${url.search}${url.hash}`;
 }
 
@@ -83,7 +85,7 @@ export function linkedTextParts(text: string) {
     parts.push(
       { text: text.slice(start, match.index) },
       {
-        text: href ? displayWebUrl(label) : label,
+        text: href ? displayWebUrl(label, true) : label,
         href,
       },
     );

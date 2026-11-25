@@ -172,16 +172,18 @@ export function proposeImportedResume(
     .filter(Boolean);
   const sections = new Map<string, string[]>();
   let section = "header";
+  const appendSectionLine = (key: string, line: string) => {
+    const existing = sections.get(key);
+    if (existing) existing.push(line);
+    else sections.set(key, [line]);
+  };
   for (const line of lines) {
     const inlineLanguages = line.match(
       /^(languages?|spoken languages|language proficiency|языки)\s*:\s*(.+)$/iu,
     );
     if (inlineLanguages && section !== "skills") {
       section = "languages";
-      sections.set(section, [
-        ...(sections.get(section) ?? []),
-        inlineLanguages[2],
-      ]);
+      appendSectionLine(section, inlineLanguages[2]);
       continue;
     }
     const heading = headings[line.toLowerCase().replace(/:$/, "")];
@@ -189,7 +191,7 @@ export function proposeImportedResume(
       section = heading;
       continue;
     }
-    sections.set(section, [...(sections.get(section) ?? []), line]);
+    appendSectionLine(section, line);
   }
   const header = sections.get("header") ?? [];
   const name = header[0] ?? "";
@@ -212,12 +214,18 @@ export function proposeImportedResume(
           ((link.label.trim() && headerText.includes(link.label.trim())) ||
             headerText.includes(link.url)),
       )
-      .map((link) => link.url),
-    ...(headerText.match(
-      /(?:https?:\/\/|www\.|(?:linkedin|github)\.com\/)[^\s•|]+/gi,
-    ) ?? []),
+      .map((link) => ({ url: link.url, label: link.label })),
+    ...(
+      headerText.match(
+        /(?:https?:\/\/|www\.|(?:linkedin|github)\.com\/)[^\s•|]+/gi,
+      ) ?? []
+    ).map((url) => ({ url, label: "" })),
   ];
-  for (const candidate of candidates) {
+  const mappedContactTokens = new Set<string>([
+    content.contact.email,
+    content.contact.phone,
+  ]);
+  for (const { url: candidate, label } of candidates) {
     try {
       const url = new URL(
         /^https?:\/\//i.test(candidate) ? candidate : "https://" + candidate,
@@ -235,39 +243,54 @@ export function proposeImportedResume(
           : host === "linkedin.com" || host.endsWith(".linkedin.com")
             ? "linkedin"
             : "website";
-      if (!content.contact[key] && url.href.length <= 240)
+      if (!content.contact[key] && url.href.length <= 240) {
         content.contact[key] = url.href;
+        mappedContactTokens.add(candidate);
+        if (label) mappedContactTokens.add(label);
+      }
     } catch {
       /* Ambiguous links remain in the original source for review. */
     }
   }
-  const contactLine = header.findIndex(
-    (line) =>
-      (Boolean(content.contact.email) &&
-        line.includes(content.contact.email)) ||
-      (Boolean(content.contact.phone) &&
-        line.includes(content.contact.phone)) ||
-      /(?:https?:|linkedin\.com|github\.com|www\.)/.test(line),
+  const addressLine = header.find((line) =>
+    /^(?:address|location)\s*:\s*.+$/i.test(line),
   );
-  const headerRemainder = [...header];
-  if (contactLine >= 0) {
-    let end = contactLine;
-    while (
-      end + 1 < header.length &&
-      /(?:https?:|linkedin\.com|github\.com|www\.)/.test(header[end + 1])
-    )
-      end++;
-    const contactLines = header.slice(0, end + 1);
-    const address = contactLines.join(" ").split(/[•+]/)[0].trim();
+  const labeledAddress = addressLine?.match(
+    /^(?:address|location)\s*:\s*(.+)$/i,
+  )?.[1];
+  if (addressLine && labeledAddress && labeledAddress.length <= 240) {
+    content.contact.address = labeledAddress;
+    mappedContactTokens.add(addressLine);
+    mappedContactTokens.add(labeledAddress);
+  } else {
+    const contactLine = header.find((line) =>
+      [...mappedContactTokens].some((token) => token && line.includes(token)),
+    );
+    const inlineAddress = contactLine?.split(/[•|]/)[0]?.trim();
     if (
-      address &&
-      !address.includes("@") &&
-      !/(?:https?:|\.com)/.test(address) &&
-      address.length <= 240
-    )
-      content.contact.address = address.replace(/[|\s]+$/, "");
-    headerRemainder.splice(0, end + 1);
+      inlineAddress &&
+      inlineAddress.includes(",") &&
+      inlineAddress.length <= 240 &&
+      !content.contact.address
+    ) {
+      content.contact.address = inlineAddress;
+      mappedContactTokens.add(inlineAddress);
+    }
   }
+  const headerRemainder = header
+    .map((line) => {
+      let remainder = line;
+      for (const token of mappedContactTokens) {
+        if (!token) continue;
+        const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        remainder = remainder.replace(new RegExp(escaped, "giu"), " ");
+      }
+      return remainder
+        .replace(/^[\s•|,;:–—-]+|[\s•|,;:–—-]+$/g, "")
+        .replace(/\s+[•|]\s+/g, " ")
+        .trim();
+    })
+    .filter(Boolean);
   if (headerRemainder[0]?.length <= 120)
     content.targetTitle = headerRemainder.shift() ?? "";
   content.summary = [
@@ -276,20 +299,31 @@ export function proposeImportedResume(
   ].join("\n");
   const unmapped: string[] = [];
   const work = sections.get("experience") ?? [];
-  const starts = work.flatMap((line, index) =>
-    dateRange.test(line)
-      ? [index > 0 && !line.replace(dateRange, "").trim() ? index - 1 : index]
-      : [],
-  );
+  const starts = [
+    ...new Set(
+      work.flatMap((line, index) =>
+        dateRange.test(line)
+          ? [
+              index > 0 && !line.replace(dateRange, "").trim()
+                ? index - 1
+                : index,
+            ]
+          : [],
+      ),
+    ),
+  ];
   if (!starts.length && work.length)
     unmapped.push("EXPERIENCE\n" + work.join("\n"));
   for (let index = 0; index < starts.length; index++) {
     const chunk = work.slice(starts[index], starts[index + 1]);
     const dateIndex = chunk.findIndex((line) => dateRange.test(line));
-    const match = chunk[dateIndex].match(dateRange);
-    if (!match) continue;
-    const employer = chunk[0].replace(dateRange, "").trim();
+    const match = chunk[dateIndex]?.match(dateRange);
+    const employer = chunk[0]?.replace(dateRange, "").trim() ?? "";
     const role = chunk[dateIndex + 1] ?? "";
+    if (!match || !employer || !role) {
+      if (chunk.length) unmapped.push("EXPERIENCE\n" + chunk.join("\n"));
+      continue;
+    }
     const [position, employment = ""] = role.split(/\s*[•|]\s*/);
     const employmentMatch = employment.match(
       /^(Full[- ]time|Part[- ]time|Internship|Contract|Freelance|Temporary|Self[- ]employed)(?:\s+(.+))?$/i,

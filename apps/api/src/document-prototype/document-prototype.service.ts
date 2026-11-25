@@ -79,11 +79,11 @@ export class DocumentPrototypeService implements OnModuleDestroy {
               .closest("section")
               ?.querySelector<HTMLElement>(".section-copy > :first-child");
             const sheet = heading.closest<HTMLElement>(".page");
-            return (
-              !first ||
-              !sheet ||
+            return Boolean(
+              first &&
+              sheet &&
               first.getBoundingClientRect().top >=
-                sheet.getBoundingClientRect().bottom
+                sheet.getBoundingClientRect().bottom,
             );
           }),
           smallText: content.some(
