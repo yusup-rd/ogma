@@ -3,7 +3,76 @@ import {
   resumeDocumentSchema,
   type ResumeDocument,
 } from "@ogma/contracts/resume-workspace";
-import type { RichText } from "../../../../packages/contracts/resume-content";
+import type {
+  RichText,
+  Skill,
+  SkillLevel,
+} from "../../../../packages/contracts/resume-content";
+
+const languageHeading =
+  /^(?:languages?|spoken languages|language proficiency|языки)$/iu;
+const languageLevels: [SkillLevel, RegExp][] = [
+  [
+    "Native",
+    /^(?:native(?: speaker| proficiency| or bilingual(?: proficiency)?)?|mother tongue|bilingual(?: proficiency)?)$/i,
+  ],
+  ["Expert", /^(?:expert|mastery|near native|c2)$/i],
+  [
+    "Advanced",
+    /^(?:advanced|fluent|professional(?: working| proficiency| working proficiency)?|full professional(?: proficiency)?|proficient|c1)$/i,
+  ],
+  [
+    "Intermediate",
+    /^(?:intermediate|upper intermediate|conversational|working(?: proficiency)?|limited working(?: proficiency)?|b[12])$/i,
+  ],
+  ["Beginner", /^(?:beginner|basic|elementary(?: proficiency)?|a[12])$/i],
+];
+
+function importedLanguageLevel(value: string): SkillLevel {
+  const label = value.trim().replace(/[-_]/g, " ").replace(/\s+/g, " ");
+  if (/[^\p{ASCII}]/u.test(label)) return "";
+  const cefr = label.match(/\b[abc][12]\b/i)?.[0];
+  return (
+    languageLevels.find(([, pattern]) => pattern.test(cefr ?? label))?.[0] ?? ""
+  );
+}
+
+function importedLanguages(lines: string[]): Skill[] {
+  const languages: Skill[] = [];
+  for (const item of lines.flatMap((line) => line.split(/[,;•|]/))) {
+    const value = item.replace(/^[\s•●▪*-]+/, "").trim();
+    if (!value) continue;
+    const parts = value.match(
+      /^(.*?)\s*(?:\(([^()]*)\)|\[([^\]]*)\]|\s+-\s+(.+)|\s*[:–—]\s*(.+))$/u,
+    );
+    let name = (parts?.[1] ?? value).trim();
+    let level = importedLanguageLevel(
+      parts ? (parts[2] ?? parts[3] ?? parts[4] ?? parts[5]) : "",
+    );
+    if (!parts) {
+      const suffix = value.match(
+        /^(.*?)\s+(native|fluent|beginner|intermediate|advanced|expert|[abc][12])$/i,
+      );
+      if (suffix) {
+        name = suffix[1].trim();
+        level = importedLanguageLevel(suffix[2]);
+      }
+    }
+    const previous = languages.at(-1);
+    const standaloneLevel = importedLanguageLevel(value);
+    if (previous && !previous.level && (!name || standaloneLevel)) {
+      previous.level = level || standaloneLevel;
+      continue;
+    }
+    if (!name) continue;
+    const existing = languages.find(
+      (language) => language.name.toLowerCase() === name.toLowerCase(),
+    );
+    if (existing) existing.level ||= level;
+    else languages.push({ id: randomUUID(), name, level });
+  }
+  return languages;
+}
 
 const headings: Record<string, string> = {
   "work experience": "experience",
@@ -13,6 +82,10 @@ const headings: Record<string, string> = {
   skills: "skills",
   "technical skills": "skills",
   languages: "languages",
+  language: "languages",
+  "spoken languages": "languages",
+  "language proficiency": "languages",
+  языки: "languages",
   projects: "projects",
   "personal projects": "projects",
   certifications: "certifications",
@@ -100,6 +173,17 @@ export function proposeImportedResume(
   const sections = new Map<string, string[]>();
   let section = "header";
   for (const line of lines) {
+    const inlineLanguages = line.match(
+      /^(languages?|spoken languages|language proficiency|языки)\s*:\s*(.+)$/iu,
+    );
+    if (inlineLanguages && section !== "skills") {
+      section = "languages";
+      sections.set(section, [
+        ...(sections.get(section) ?? []),
+        inlineLanguages[2],
+      ]);
+      continue;
+    }
     const heading = headings[line.toLowerCase().replace(/:$/, "")];
     if (heading) {
       section = heading;
@@ -228,6 +312,7 @@ export function proposeImportedResume(
       description: richText(chunk.slice(dateIndex + (hasLocation ? 3 : 2))),
     });
   }
+  const languageLines: string[] = [];
   for (const [kind, values] of sections) {
     if (["header", "summary", "experience"].includes(kind)) continue;
     if (kind === "skills") {
@@ -236,20 +321,26 @@ export function proposeImportedResume(
         if (line.includes(":") || !groups.length) groups.push(line);
         else groups[groups.length - 1] += " " + line;
       }
-      content.skills = groups.map((line) => {
+      content.skills = groups.flatMap((line) => {
         const split = line.indexOf(":");
-        return {
-          id: randomUUID(),
-          category: split >= 0 ? line.slice(0, split) : "",
-          skills: (split >= 0 ? line.slice(split + 1) : line)
-            .split(/[,;•]/)
-            .map((name) => ({
-              id: randomUUID(),
-              name: name.trim(),
-              level: "" as const,
-            }))
-            .filter((skill) => skill.name),
-        };
+        if (split >= 0 && languageHeading.test(line.slice(0, split).trim())) {
+          languageLines.push(line.slice(split + 1));
+          return [];
+        }
+        return [
+          {
+            id: randomUUID(),
+            category: split >= 0 ? line.slice(0, split) : "",
+            skills: (split >= 0 ? line.slice(split + 1) : line)
+              .split(/[,;•]/)
+              .map((name) => ({
+                id: randomUUID(),
+                name: name.trim(),
+                level: "" as const,
+              }))
+              .filter((skill) => skill.name),
+          },
+        ];
       });
     } else if (kind === "projects" && values.length) {
       const starts = values.flatMap((line, index) =>
@@ -273,10 +364,7 @@ export function proposeImportedResume(
         });
       }
     } else if (kind === "languages") {
-      content.languages = values
-        .join(",")
-        .split(/[,;•]/)
-        .map((value) => ({ id: randomUUID(), name: value.trim(), level: "" }));
+      languageLines.push(...values);
     } else if (kind === "education" && values.length) {
       const dates = values.join(" ").match(dateRange);
       const institution = values[1] ?? "";
@@ -308,6 +396,7 @@ export function proposeImportedResume(
       unmapped.push(kind.toUpperCase() + "\n" + values.join("\n"));
     }
   }
+  content.languages = importedLanguages(languageLines);
   // Oversized or ambiguous proposals stay available as plain source text.
   const parsed = resumeDocumentSchema.safeParse(document);
   if (!parsed.success) {

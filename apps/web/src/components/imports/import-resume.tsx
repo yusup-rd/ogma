@@ -21,7 +21,6 @@ import {
   LuChevronDown,
   LuCircleAlert,
   LuLoaderCircle,
-  LuLibrary,
   LuRefreshCw,
 } from "react-icons/lu";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
@@ -575,10 +574,6 @@ const ImportResume = () => {
                       className="mt-0.5 size-4 shrink-0 accent-accent"
                     />
                     <span className="flex items-center gap-2">
-                      <LuLibrary
-                        aria-hidden="true"
-                        className="size-4 shrink-0 text-muted"
-                      />
                       Save a copy to Library
                     </span>
                   </label>
@@ -592,7 +587,7 @@ const ImportResume = () => {
                       }
                       className="mt-0.5 size-4 shrink-0 accent-accent"
                     />
-                    I have reviewed my content and links
+                    I have reviewed my content
                   </label>
                 </div>
                 <div className="flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
