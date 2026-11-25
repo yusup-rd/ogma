@@ -28,6 +28,8 @@ import {
   type LibraryKind,
 } from "@ogma/contracts/content-library";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
+import { ActionButton } from "@/components/ui/action-button";
+import { RetryNotice } from "@/components/ui/retry-notice";
 import { WorkspaceShell } from "@/components/workspace-shell";
 import {
   archiveLibraryEntry,
@@ -53,11 +55,6 @@ type EditState = { id?: string; entry?: LibraryEntry };
 const emptyEntries: LibraryEntry[] = [];
 
 const kinds = Object.keys(librarySections) as LibraryKind[];
-const primary =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60";
-const secondary =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-line bg-paper px-3 text-sm font-semibold hover:bg-canvas disabled:opacity-60";
-
 const ContentLibrary = ({
   loadFailed,
   continueToResume,
@@ -231,42 +228,35 @@ const ContentLibrary = ({
         </div>
         <div className="flex flex-wrap gap-2">
           {continueToResume && !archived && entries.length > 0 && (
-            <button
+            <ActionButton
+              variant="secondary"
               type="button"
-              className={secondary}
               disabled={locked}
               onClick={() => void startResume()}
             >
               Continue to new resume
-            </button>
+            </ActionButton>
           )}
           {!archived && !singleton && rows.length > 0 && (
-            <button
+            <ActionButton
+              variant="primary"
               type="button"
-              className={primary}
               disabled={locked || blocked || Boolean(editor && !editor.entry)}
               onClick={() => setEditor({ id: crypto.randomUUID() })}
             >
               <LuPlus aria-hidden="true" className="size-4" />
               Add another
-            </button>
+            </ActionButton>
           )}
         </div>
       </header>
       {(error || list.isError) && (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-paper p-3">
-          <p role="alert" className="text-sm text-red-800">
-            {error || "Couldn’t refresh your Library. Try again."}
-          </p>
-          <button
-            type="button"
-            className={secondary}
-            disabled={locked}
-            onClick={() => void openLibrary(archived)}
-          >
-            Reload Library
-          </button>
-        </div>
+        <RetryNotice
+          message={error || "Couldn’t refresh your Library. Try again."}
+          actionLabel="Reload Library"
+          disabled={locked}
+          onRetry={() => void openLibrary(archived)}
+        />
       )}
       <div className="grid items-start gap-5 lg:grid-cols-[14rem_minmax(0,1fr)]">
         <nav
@@ -311,15 +301,15 @@ const ContentLibrary = ({
                 </p>
               )}
             </div>
-            <button
+            <ActionButton
+              variant="secondary"
               type="button"
-              className={secondary}
               disabled={locked}
               onClick={() => void openLibrary(!archived)}
             >
               <LuArchive aria-hidden="true" className="size-4" />
               {archived ? "Back to Library" : "View archive"}
-            </button>
+            </ActionButton>
           </header>
           {rows.length > 0 && (archived || !singleton) && (
             <ul className="flex flex-col gap-2.5">
@@ -365,16 +355,16 @@ const ContentLibrary = ({
                     </button>
                     <ConfirmationDialog
                       trigger={
-                        <button
+                        <ActionButton
+                          variant="secondary"
                           type="button"
                           disabled={locked}
                           aria-label={label + " entry " + title}
                           title={label + " entry"}
-                          className={secondary}
                         >
                           <LuArchive aria-hidden="true" className="size-4" />
                           {archived ? "Restore" : "Archive entry"}
-                        </button>
+                        </ActionButton>
                       }
                       title={
                         archived ? "Restore this entry?" : "Archive this entry?"
@@ -408,15 +398,15 @@ const ContentLibrary = ({
                     {archived && (
                       <ConfirmationDialog
                         trigger={
-                          <button
+                          <ActionButton
+                            variant="secondary"
                             type="button"
                             disabled={locked}
-                            className={secondary}
                             aria-label={"Delete entry " + title}
                           >
                             <LuTrash2 aria-hidden="true" className="size-4" />
                             Delete
-                          </button>
+                          </ActionButton>
                         }
                         title="Delete this entry permanently?"
                         description="This removes the archived entry and its Library history. Resumes and checkpoints keep their saved content."
@@ -493,13 +483,13 @@ const ContentLibrary = ({
                     {drafts.has(draftKey) && (
                       <ConfirmationDialog
                         trigger={
-                          <button
+                          <ActionButton
+                            variant="secondary"
                             type="button"
                             disabled={locked}
-                            className={secondary}
                           >
                             Discard and reload
-                          </button>
+                          </ActionButton>
                         }
                         title={`Reload ${sectionTitle.toLowerCase()}?`}
                         description="Discard unsaved changes in this section and load its latest saved entry. Drafts in other sections are kept."
@@ -510,14 +500,14 @@ const ContentLibrary = ({
                     {activeEditor.entry && (
                       <ConfirmationDialog
                         trigger={
-                          <button
+                          <ActionButton
+                            variant="secondary"
                             type="button"
                             disabled={locked}
-                            className={secondary}
                           >
                             <LuArchive aria-hidden="true" className="size-4" />
                             Archive this entry
-                          </button>
+                          </ActionButton>
                         }
                         title="Archive this entry?"
                         description="Move the saved entry to the archive and start with a blank form. Unsaved edits will be discarded. You can restore the saved entry later."

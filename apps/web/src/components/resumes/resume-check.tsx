@@ -8,6 +8,7 @@ import {
 import { requestResume, ResumeRequestError } from "@/lib/resumes/resume-api";
 import { z } from "zod";
 import { DropdownSelect } from "@/components/ui/dropdown-select";
+import { InlineAlert } from "@/components/ui/inline-alert";
 
 interface ResumeCheckProps {
   resumeId: string;
@@ -125,11 +126,7 @@ const ResumeCheck = ({
       >
         {busy ? "Checking export…" : "Run Resume Check"}
       </button>
-      {error && (
-        <p role="alert" className="text-sm text-red-800">
-          {error}
-        </p>
-      )}
+      {error && <InlineAlert>{error}</InlineAlert>}
       {result && result.format === format && (
         <>
           <p className="text-3xl font-semibold">

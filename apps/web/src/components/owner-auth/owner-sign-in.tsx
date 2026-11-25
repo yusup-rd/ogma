@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { FcGoogle } from "react-icons/fc";
 import { ClearSessionQueries } from "@/components/query-provider";
+import { InlineAlert } from "@/components/ui/inline-alert";
 
 interface OwnerSignInProps {
   available: boolean;
@@ -25,11 +26,7 @@ const OwnerSignIn = ({ available, error }: OwnerSignInProps) => {
         <p className="mt-3 text-sm text-muted">
           Access your private resume workspace.
         </p>
-        {error && (
-          <p role="alert" className="mt-4 text-sm text-red-800">
-            {error}
-          </p>
-        )}
+        {error && <InlineAlert className="mt-4">{error}</InlineAlert>}
         {available && (
           <form action="/api/auth/sign-in" method="post" className="mt-9">
             <button

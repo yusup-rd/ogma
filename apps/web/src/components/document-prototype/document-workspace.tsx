@@ -16,6 +16,7 @@ import { SignOutDialog } from "@/components/owner-auth/sign-out-dialog";
 import { ResumeConflictDialog } from "@/components/resumes/resume-conflict-dialog";
 import { CheckpointHistory } from "@/components/resumes/checkpoint-history";
 import { ResumeLockDialog } from "@/components/resumes/resume-lock-dialog";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import { useResumeLayouts } from "@/hooks/document-prototype/use-resume-layouts";
 import { useResumeHistoryGuard } from "@/hooks/resumes/use-resume-history-guard";
 import { useResumeAutosave } from "@/hooks/resumes/use-resume-autosave";
@@ -320,9 +321,7 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
 
       {model.error && (
         <div className="flex items-center justify-between gap-3 border-b border-line bg-paper px-5 py-3 text-sm">
-          <p role="alert" className="text-red-800">
-            {model.error}
-          </p>
+          <InlineAlert>{model.error}</InlineAlert>
           <button
             type="button"
             className="min-h-10 shrink-0 rounded-md border border-line px-3 font-semibold"
