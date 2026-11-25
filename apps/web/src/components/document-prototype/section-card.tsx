@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { LuCheck, LuChevronRight, LuGripVertical } from "react-icons/lu";
+import { LuChevronRight, LuGripVertical } from "react-icons/lu";
 import type { ResumeDocument } from "@ogma/contracts/resume-workspace";
 import type { SectionPreview } from "@/lib/document-prototype/content-preview";
 import { SectionTitleEditor } from "./section-title-editor";
@@ -43,19 +43,13 @@ const VisibilityCheckbox = ({
   onChange,
 }: VisibilityCheckboxProps) => {
   return (
-    <span className="relative inline-grid shrink-0 place-items-center">
-      <input
-        type="checkbox"
-        aria-label={label}
-        checked={checked}
-        onChange={onChange}
-        className="peer size-4.5 cursor-pointer appearance-none rounded-[5px] border border-line bg-paper checked:border-accent checked:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent forced-colors:appearance-auto"
-      />
-      <LuCheck
-        aria-hidden="true"
-        className="pointer-events-none absolute hidden size-3.5 stroke-3 text-white peer-checked:block forced-colors:hidden!"
-      />
-    </span>
+    <input
+      type="checkbox"
+      aria-label={label}
+      checked={checked}
+      onChange={onChange}
+      className="size-4.5 shrink-0"
+    />
   );
 };
 

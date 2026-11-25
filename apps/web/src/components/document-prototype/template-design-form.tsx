@@ -110,7 +110,7 @@ const ToggleSetting = ({ label, checked, onChange }: ToggleSettingProps) => {
     <label className="col-span-2 flex min-h-9 cursor-pointer items-center gap-2 text-sm">
       <input
         type="checkbox"
-        className="size-4 shrink-0 accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="size-4 shrink-0"
         checked={checked}
         onChange={(event) => onChange(event.currentTarget.checked)}
       />
@@ -445,7 +445,7 @@ const TemplateDesignForm = ({
                     onChange={(event) =>
                       onChange({ [newLine]: event.currentTarget.checked })
                     }
-                    className="size-4 rounded accent-accent"
+                    className="size-4"
                   />
                   New line
                 </label>
