@@ -6,9 +6,15 @@ const {
 } = require("./resume-content-schema.cjs");
 
 const webUrl = (value) => {
-  const candidate = /^[a-z][\da-z+.-]*:/i.test(value)
-    ? value
-    : `https://${value}`;
+  const protocol = /^[a-z][\da-z+.-]*:/i.exec(value)?.[0];
+  const hasWebProtocol = protocol !== undefined && /^https?:$/i.test(protocol);
+  if (
+    protocol &&
+    !hasWebProtocol &&
+    !/^\d+(?:[/?#]|$)/.test(value.slice(protocol.length))
+  )
+    return false;
+  const candidate = hasWebProtocol ? value : `https://${value}`;
   try {
     const url = new URL(candidate);
     return (
