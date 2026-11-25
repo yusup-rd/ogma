@@ -15,11 +15,7 @@ import {
 } from "@dnd-kit/sortable";
 import { useId } from "react";
 import { type EditorSectionId } from "@/lib/document-prototype/content-presentation";
-import {
-  SectionCard,
-  VisibilityCheckbox,
-  type SectionControls,
-} from "./section-card";
+import { SectionCard, VisibilityCheckbox } from "./section-card";
 import type {
   ContactInformation,
   DraftContent,
@@ -27,6 +23,10 @@ import type {
 import { EntrySection } from "./entry-section";
 import { ResumeImageUpload } from "./resume-image-upload";
 import { inputClass, TextField } from "@/components/ui/form-fields";
+import {
+  EditorControlsProvider,
+  type EditorControls,
+} from "./editor-controls-store";
 import {
   contactFields,
   newEntry,
@@ -43,7 +43,7 @@ import {
   LanguageFields,
 } from "./resume-entry-fields";
 
-interface ResumeContentFormProps extends SectionControls {
+interface ResumeContentFormProps extends EditorControls {
   order: EditorSectionId[];
   onReorder: (order: EditorSectionId[]) => void;
   content: DraftContent;
@@ -95,22 +95,12 @@ const ResumeContentForm = ({
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
-  const controls = {
-    locked,
-    hidden,
-    onToggle,
-    onDraftChange,
-    titles,
-    onRename,
-    onPreviewChange,
-  };
   const sections = {
     personal: (
       <SectionCard<PersonalDetailsDraft>
         section="personal"
         initialOpen={initialPersonalDetailsOpen}
         subtitle="Name, title and contact information"
-        {...controls}
         value={{
           contact: content.contact,
           targetTitle: content.targetTitle,
@@ -193,7 +183,6 @@ const ResumeContentForm = ({
     summary: (
       <SectionCard
         section="summary"
-        {...controls}
         value={content.summary}
         previewValue={(summary) => ({ content: { summary } })}
         onSave={(value) => field("summary", value)}
@@ -222,7 +211,6 @@ const ResumeContentForm = ({
     experience: (
       <EntrySection<DraftContent["experience"][number]>
         section="experience"
-        {...controls}
         singular="position"
         entries={content.experience}
         update={(entries) => field("experience", entries)}
@@ -243,8 +231,8 @@ const ResumeContentForm = ({
             patch={patch}
             showWorkProjects={showWorkProjects}
             visibility={{
-              hidden: controls.hidden,
-              onToggle: controls.onToggle,
+              hidden,
+              onToggle,
             }}
           />
         )}
@@ -253,7 +241,6 @@ const ResumeContentForm = ({
     education: (
       <EntrySection<DraftContent["education"][number]>
         section="education"
-        {...controls}
         singular="education entry"
         entries={content.education}
         update={(entries) => field("education", entries)}
@@ -275,7 +262,6 @@ const ResumeContentForm = ({
     skills: (
       <EntrySection<DraftContent["skills"][number]>
         section="skills"
-        {...controls}
         singular="category"
         entries={content.skills}
         update={(entries) => field("skills", entries)}
@@ -294,7 +280,6 @@ const ResumeContentForm = ({
     languages: (
       <EntrySection
         section="languages"
-        {...controls}
         singular="language"
         entries={content.languages ?? []}
         update={(entries) => field("languages", entries)}
@@ -307,7 +292,6 @@ const ResumeContentForm = ({
     certifications: (
       <EntrySection
         section="certifications"
-        {...controls}
         singular="certification"
         entries={content.certifications}
         update={(entries) => field("certifications", entries)}
@@ -325,7 +309,6 @@ const ResumeContentForm = ({
     awards: (
       <EntrySection<DraftContent["awards"][number]>
         section="awards"
-        {...controls}
         singular="award or scholarship"
         entries={content.awards}
         update={(entries) => field("awards", entries)}
@@ -343,7 +326,6 @@ const ResumeContentForm = ({
     projects: (
       <EntrySection<DraftContent["projects"][number]>
         section="projects"
-        {...controls}
         singular="project"
         entries={content.projects}
         update={(entries) => field("projects", entries)}
@@ -362,7 +344,6 @@ const ResumeContentForm = ({
     volunteering: (
       <EntrySection
         section="volunteering"
-        {...controls}
         singular="volunteer or leadership role"
         entries={content.volunteering}
         update={(entries) => field("volunteering", entries)}
@@ -383,7 +364,6 @@ const ResumeContentForm = ({
     publications: (
       <EntrySection
         section="publications"
-        {...controls}
         singular="publication"
         entries={content.publications}
         update={(entries) => field("publications", entries)}
@@ -401,45 +381,55 @@ const ResumeContentForm = ({
     ),
   } satisfies Record<EditorSectionId, React.ReactNode>;
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
-        <h2 className="text-2xl font-semibold tracking-tight">Content</h2>
-        <p className="text-sm text-muted">
-          {locked
-            ? "This CV is locked. Apply section edits to the preview, then unlock to save them."
-            : (guidance ??
-              "Edits appear in the preview. Save each section to keep them, or Cancel to undo.")}
-        </p>
-      </div>
-      <DndContext
-        id={contextId}
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={({ active, over }) => {
-          if (
-            !over ||
-            active.id === over.id ||
-            over.id === "personal" ||
-            over.id === "summary"
-          )
-            return;
-          const from = order.findIndex((section) => section === active.id);
-          const to = order.findIndex((section) => section === over.id);
-          if (from >= 0 && to >= 0) onReorder(arrayMove(order, from, to));
-        }}
-      >
-        <SortableContext
-          items={order.filter((id) => id !== "personal" && id !== "summary")}
-          strategy={verticalListSortingStrategy}
+    <EditorControlsProvider
+      locked={locked}
+      hidden={hidden}
+      onToggle={onToggle}
+      titles={titles}
+      onDraftChange={onDraftChange}
+      onPreviewChange={onPreviewChange}
+      onRename={onRename}
+    >
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <h2 className="text-2xl font-semibold tracking-tight">Content</h2>
+          <p className="text-sm text-muted">
+            {locked
+              ? "This CV is locked. Apply section edits to the preview, then unlock to save them."
+              : (guidance ??
+                "Edits appear in the preview. Save each section to keep them, or Cancel to undo.")}
+          </p>
+        </div>
+        <DndContext
+          id={contextId}
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={({ active, over }) => {
+            if (
+              !over ||
+              active.id === over.id ||
+              over.id === "personal" ||
+              over.id === "summary"
+            )
+              return;
+            const from = order.findIndex((section) => section === active.id);
+            const to = order.findIndex((section) => section === over.id);
+            if (from >= 0 && to >= 0) onReorder(arrayMove(order, from, to));
+          }}
         >
-          <div className="flex flex-col gap-3">
-            {order.map((id) => (
-              <div key={id}>{sections[id]}</div>
-            ))}
-          </div>
-        </SortableContext>
-      </DndContext>
-    </div>
+          <SortableContext
+            items={order.filter((id) => id !== "personal" && id !== "summary")}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="flex flex-col gap-3">
+              {order.map((id) => (
+                <div key={id}>{sections[id]}</div>
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      </div>
+    </EditorControlsProvider>
   );
 };
 

@@ -9,27 +9,14 @@ import {
   type ReactNode,
 } from "react";
 import { LuChevronRight, LuGripVertical } from "react-icons/lu";
-import type { ResumeDocument } from "@ogma/contracts/resume-workspace";
 import type { SectionPreview } from "@/lib/document-prototype/content-preview";
 import { SectionTitleEditor } from "./section-title-editor";
+import { useEditorControls } from "./editor-controls-store";
 import {
   sectionKey,
   sectionTitles,
   type EditorSectionId,
 } from "@/lib/document-prototype/content-presentation";
-
-export interface SectionControls {
-  locked?: boolean;
-  hidden: ReadonlySet<string>;
-  onToggle: (key: string) => void;
-  onDraftChange: (section: EditorSectionId, hasDraft: boolean) => void;
-  titles: ResumeDocument["sectionTitles"];
-  onRename: (
-    section: Exclude<EditorSectionId, "personal">,
-    title: string,
-  ) => void;
-  onPreviewChange: (section: EditorSectionId, preview?: SectionPreview) => void;
-}
 
 interface VisibilityCheckboxProps {
   label: string;
@@ -53,7 +40,7 @@ const VisibilityCheckbox = ({
   );
 };
 
-interface SectionCardProps<Value> extends SectionControls {
+interface SectionCardProps<Value> {
   section: EditorSectionId;
   value: Value;
   onSave: (value: Value) => void;
@@ -73,16 +60,16 @@ const SectionCard = <Value,>({
   onSave,
   subtitle,
   initialOpen = false,
-  hidden,
-  onToggle,
-  onDraftChange,
-  titles,
-  onRename,
-  onPreviewChange,
   previewValue,
-  locked = false,
   children,
 }: SectionCardProps<Value>) => {
+  const locked = useEditorControls((state) => state.locked ?? false);
+  const hidden = useEditorControls((state) => state.hidden);
+  const onToggle = useEditorControls((state) => state.onToggle);
+  const titles = useEditorControls((state) => state.titles);
+  const onDraftChange = useEditorControls((state) => state.onDraftChange);
+  const onPreviewChange = useEditorControls((state) => state.onPreviewChange);
+  const onRename = useEditorControls((state) => state.onRename);
   const [open, setOpen] = useState(initialOpen);
   const [{ draft, revision, resetCount }, setDraftState] = useState<{
     draft?: Value;
