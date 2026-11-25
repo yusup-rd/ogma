@@ -38,6 +38,7 @@ These instructions apply throughout the repository. Do ongoing development on `d
 - Apply concentric corners where rounded containers have inset rounded children. Calculate outer radius as inner radius plus the inset and outer border. Recheck the relationship when the inset changes at a breakpoint.
 - Use keyboard-accessible controls for disclosures, selects, tabs, sorting, and dialogs. Preserve focus, show meaningful statuses inline, and give touch and keyboard users the same actions as pointer users.
 - Use the shared custom `DropdownSelect` for dropdown inputs throughout the app. Do not introduce native `<select>` controls; extend the shared component when a dropdown needs new behavior or presentation.
+- After changing frontend Tailwind classes, inspect Tailwind CSS IntelliSense diagnostics and apply relevant v4 utility suggestions. Run the web production build so invalid or ungenerated utilities are caught before finishing.
 - Give controls immediate press feedback. Prefer short, interruptible property-specific transitions for occasional pointer actions. Anchor popovers to their triggers, keep frequent edits and keyboard actions immediate, and respect reduced motion and transparency preferences. Use springs only when a direct manipulation gesture benefits from velocity and interruption.
 
 ## Animation & Motion Design Preferences
