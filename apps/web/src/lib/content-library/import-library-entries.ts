@@ -46,11 +46,12 @@ export function importLibraryEntries(
             value: { ...value, skills: namedSkills },
           },
         ];
-      return namedSkills.map((skill) => ({
-        kind: "skills" as const,
-        value: { id: skill.id, category: "", skills: [skill] },
-        legacySingle: true,
-      }));
+      return [
+        {
+          kind: "skills" as const,
+          value: { ...value, skills: namedSkills },
+        },
+      ];
     }),
     ...(content.languages ?? []).map((value) => ({
       kind: "languages" as const,

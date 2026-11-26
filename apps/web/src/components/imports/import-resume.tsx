@@ -136,6 +136,13 @@ const ImportResume = () => {
       const libraryEntries = addToLibrary
         ? importLibraryEntries(document, libraryIds.current)
         : [];
+      if (libraryEntries.length > 400) {
+        setError(
+          "Library copies are limited to 400 entries per import. Turn off Save a copy to Library to create this resume without Library copies.",
+        );
+        setBusy(false);
+        return;
+      }
       const payload = submission ?? {
         method: "POST",
         body: {

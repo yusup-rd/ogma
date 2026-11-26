@@ -14,16 +14,25 @@ function validateWordArchive(buffer: Buffer) {
   if (buffer.readUInt16LE(end + 4) || buffer.readUInt16LE(end + 6))
     throw new Error("Multipart archive");
   const count = buffer.readUInt16LE(end + 10);
+  const directoryCount = buffer.readUInt16LE(end + 8);
   const directoryOffset = buffer.readUInt32LE(end + 16);
   const directorySize = buffer.readUInt32LE(end + 12);
   let offset = directoryOffset;
-  if (directoryOffset + directorySize > end)
+  const directoryEnd = directoryOffset + directorySize;
+  if (
+    directoryCount !== count ||
+    directoryOffset + directorySize > end ||
+    directoryOffset + directorySize < directoryOffset
+  )
     throw new Error("Invalid directory");
   let expanded = 0;
   let hasDocument = false;
   if (count > 1000) throw new Error("Too many archive entries");
   for (let index = 0; index < count; index++) {
-    if (offset + 46 > end || buffer.readUInt32LE(offset) !== 0x02014b50)
+    if (
+      offset + 46 > directoryEnd ||
+      buffer.readUInt32LE(offset) !== 0x02014b50
+    )
       throw new Error("Invalid directory");
     if (buffer.readUInt16LE(offset + 8) & 1)
       throw new Error("Encrypted archive");
@@ -37,7 +46,7 @@ function validateWordArchive(buffer: Buffer) {
       nameLength +
       buffer.readUInt16LE(offset + 30) +
       buffer.readUInt16LE(offset + 32);
-    if (next > end) throw new Error("Invalid entry");
+    if (next > directoryEnd) throw new Error("Invalid entry");
     const name = buffer.toString("utf8", offset + 46, offset + 46 + nameLength);
     hasDocument ||= name === "word/document.xml";
     const localOffset = buffer.readUInt32LE(offset + 42);
@@ -71,6 +80,7 @@ function validateWordArchive(buffer: Buffer) {
     expanded += actualExpandedSize;
     offset = next;
   }
+  if (offset !== directoryEnd) throw new Error("Invalid directory size");
   if (!hasDocument) throw new Error("Missing Word document");
 }
 

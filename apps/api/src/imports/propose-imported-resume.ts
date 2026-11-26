@@ -266,26 +266,54 @@ export function proposeImportedResume(
     const contactLine = header.find((line) =>
       [...mappedContactTokens].some((token) => token && line.includes(token)),
     );
-    const inlineAddress = contactLine?.split(/[•|]/)[0]?.trim();
-    if (
-      inlineAddress &&
-      inlineAddress.includes(",") &&
-      inlineAddress.length <= 240 &&
-      !content.contact.address
-    ) {
+    const fragments =
+      contactLine?.split(/[•|]/).map((fragment) => fragment.trim()) ?? [];
+    const contactFragments = new Set(
+      fragments.flatMap((fragment, index) =>
+        [...mappedContactTokens].some(
+          (token) => token && fragment.includes(token),
+        )
+          ? [index]
+          : [],
+      ),
+    );
+    const addressCandidates = fragments.filter(
+      (fragment, index) =>
+        [...contactFragments].some(
+          (contactIndex) => Math.abs(index - contactIndex) === 1,
+        ) &&
+        fragment.includes(",") &&
+        fragment.length <= 240 &&
+        /\p{L}/u.test(fragment) &&
+        !/[\w.+-]+@[\w.-]+\.[a-z]{2,}|(?:https?:\/\/|www\.)|\+?\d[\d ()-]{6,}\d/i.test(
+          fragment,
+        ) &&
+        ![...mappedContactTokens].some(
+          (token) => token && fragment.includes(token),
+        ),
+    );
+    const inlineAddress =
+      addressCandidates.length === 1 ? addressCandidates[0] : undefined;
+    if (inlineAddress && !content.contact.address) {
       content.contact.address = inlineAddress;
       mappedContactTokens.add(inlineAddress);
     }
   }
   const headerRemainder = header
     .map((line) => {
-      let remainder = line;
-      for (const token of mappedContactTokens) {
-        if (!token) continue;
-        const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        remainder = remainder.replace(new RegExp(escaped, "giu"), " ");
-      }
-      return remainder
+      return line
+        .split(/([•|])/)
+        .map((fragment) => {
+          if (fragment === "•" || fragment === "|") return fragment;
+          let remainder = fragment;
+          for (const token of mappedContactTokens) {
+            if (!token || !fragment.includes(token)) continue;
+            const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            remainder = remainder.replace(new RegExp(escaped, "giu"), " ");
+          }
+          return remainder;
+        })
+        .join("")
         .replace(/^[\s•|,;:–—-]+|[\s•|,;:–—-]+$/g, "")
         .replace(/\s+[•|]\s+/g, " ")
         .trim();
