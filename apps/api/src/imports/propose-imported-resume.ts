@@ -265,7 +265,8 @@ export function proposeImportedResume(
   if (addressLine && explicitAddress && explicitAddress.length <= 240) {
     content.contact.address = explicitAddress;
     mappedContactTokens.add(explicitAddress);
-    const prefix = addressLine.slice(0, addressLine.indexOf(labeledAddress));
+    const prefix =
+      addressLine.match(/^(?:address|location)\s*:\s*/i)?.[0] ?? "";
     wholeLineContactTokens.set(
       addressLine,
       new Set([prefix + explicitAddress]),
