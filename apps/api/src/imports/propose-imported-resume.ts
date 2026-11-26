@@ -225,6 +225,7 @@ export function proposeImportedResume(
     content.contact.email,
     content.contact.phone,
   ]);
+  const wholeLineContactTokens = new Map<string, Set<string>>();
   for (const { url: candidate, label } of candidates) {
     try {
       const url = new URL(
@@ -262,6 +263,7 @@ export function proposeImportedResume(
     content.contact.address = labeledAddress;
     mappedContactTokens.add(addressLine);
     mappedContactTokens.add(labeledAddress);
+    wholeLineContactTokens.set(addressLine, new Set([addressLine]));
   } else {
     const contactLine = header.find((line) =>
       [...mappedContactTokens].some((token) => token && line.includes(token)),
@@ -301,7 +303,12 @@ export function proposeImportedResume(
   }
   const headerRemainder = header
     .map((line) => {
-      return line
+      let remainder = line;
+      for (const token of wholeLineContactTokens.get(line) ?? []) {
+        const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        remainder = remainder.replace(new RegExp(escaped, "giu"), " ");
+      }
+      return remainder
         .split(/([•|])/)
         .map((fragment) => {
           if (fragment === "•" || fragment === "|") return fragment;

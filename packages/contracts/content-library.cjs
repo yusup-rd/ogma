@@ -179,7 +179,7 @@ const libraryEntryContentSchema = z
       personal: Object.values(fields).some(Boolean) || content.photo,
       summary: content.summary,
       skills: content.skills
-        ? fields.category && content.skills.some(({ name }) => name.trim())
+        ? content.skills.some(({ name }) => name.trim())
         : fields.name,
       volunteering: fields.organization || fields.involvement,
     };
