@@ -33,6 +33,7 @@ export class HealthController {
         await transaction.resumeCheckpointRestore.findFirst({
           select: { id: true },
         });
+        await transaction.analysisRun.findFirst({ select: { id: true } });
       });
       return { status: "ok", database: "ok" };
     } catch {

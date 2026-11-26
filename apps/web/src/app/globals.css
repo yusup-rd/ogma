@@ -40,13 +40,15 @@
     [role="radio"],
     [role="switch"],
     [role="tab"],
-    label:has(input:is([type="checkbox"], [type="radio"]):not(:disabled))
+    label:has(
+      input:is([type="checkbox"], [type="radio"], [type="file"]):not(:disabled)
+    )
   ):where(:not(:disabled, [aria-disabled="true"], [data-disabled])) {
     cursor: pointer;
   }
 
   :where(
-    input:focus,
+    input:not([type="checkbox"]):focus,
     select:focus,
     textarea:focus,
     [role="combobox"]:focus,
@@ -58,11 +60,98 @@
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
   }
+
+  input[type="checkbox"] {
+    appearance: none;
+    border: 1px solid var(--color-line);
+    border-radius: 0.3125rem;
+    background-color: var(--color-paper);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 75% 75%;
+    vertical-align: middle;
+  }
+
+  input[type="checkbox"]:checked {
+    border-color: var(--color-accent);
+    background-color: var(--color-accent);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 4 4L19 6'/%3E%3C/svg%3E");
+  }
+
+  :where(
+    input[type="checkbox"]:focus-visible,
+    [role="checkbox"]:focus-visible
+  ) {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--color-paper),
+      0 0 0 4px var(--color-accent);
+  }
+
+  input[type="checkbox"]:disabled {
+    opacity: 0.5;
+  }
+
+  @media (forced-colors: active) {
+    input[type="checkbox"],
+    input[type="checkbox"]:checked {
+      appearance: auto;
+      background-image: none;
+    }
+
+    :where(
+      input[type="checkbox"]:focus-visible,
+      [role="checkbox"]:focus-visible
+    ) {
+      outline: 2px solid Highlight;
+      outline-offset: 2px;
+      box-shadow: none;
+    }
+  }
 }
 
 :root {
   color-scheme: light;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.pressable-action {
+  transition:
+    background-color 140ms ease,
+    transform 140ms var(--ease-out);
+}
+
+.pressable-action:active:not(
+    :disabled,
+    :focus-visible,
+    [aria-disabled="true"]
+  ) {
+  transform: scale(0.98);
+}
+
+@media (min-width: 64rem) {
+  @supports (backdrop-filter: blur(16px)) {
+    .import-toolbar {
+      background: rgb(255 255 255 / 98%);
+      backdrop-filter: blur(16px);
+    }
+  }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .import-toolbar {
+    background: var(--color-paper);
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pressable-action {
+    transition: none;
+  }
+  .pressable-action:active {
+    transform: none;
+  }
 }
 
 .resume-thumbnail-paper {

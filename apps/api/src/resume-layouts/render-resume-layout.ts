@@ -42,6 +42,7 @@ import { resumeLayoutStyles } from "./resume-layout-styles";
 import { resumeColors } from "./resume-colors";
 import {
   contactHref,
+  contactLabel,
   escapeText,
   renderLinkedText,
   renderLink,
@@ -83,12 +84,14 @@ function contactDetails(
 ) {
   if (essential && !showIcons)
     return details
-      .map(({ kind, value }) => renderLink(value, contactHref(kind, value)))
+      .map(({ kind, value }) =>
+        renderLink(contactLabel(kind, value), contactHref(kind, value)),
+      )
       .join(' <span aria-hidden="true">•</span> ');
   return details
     .map(
       ({ kind, value }) =>
-        `<span>${showIcons ? `<i class="contact-icon">${contactSvg(kind)}</i>` : ""}<span>${renderLink(value, contactHref(kind, value))}</span></span>`,
+        `<span>${showIcons ? `<i class="contact-icon">${contactSvg(kind)}</i>` : ""}<span>${renderLink(contactLabel(kind, value), contactHref(kind, value))}</span></span>`,
     )
     .join("");
 }

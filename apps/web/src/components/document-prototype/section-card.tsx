@@ -8,28 +8,15 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { LuCheck, LuChevronRight, LuGripVertical } from "react-icons/lu";
-import type { ResumeDocument } from "@ogma/contracts/resume-workspace";
+import { LuChevronRight, LuGripVertical } from "react-icons/lu";
 import type { SectionPreview } from "@/lib/document-prototype/content-preview";
 import { SectionTitleEditor } from "./section-title-editor";
+import { useEditorControls } from "@/providers/editor-controls-provider";
 import {
   sectionKey,
   sectionTitles,
   type EditorSectionId,
 } from "@/lib/document-prototype/content-presentation";
-
-export interface SectionControls {
-  locked?: boolean;
-  hidden: ReadonlySet<string>;
-  onToggle: (key: string) => void;
-  onDraftChange: (section: EditorSectionId, hasDraft: boolean) => void;
-  titles: ResumeDocument["sectionTitles"];
-  onRename: (
-    section: Exclude<EditorSectionId, "personal">,
-    title: string,
-  ) => void;
-  onPreviewChange: (section: EditorSectionId, preview?: SectionPreview) => void;
-}
 
 interface VisibilityCheckboxProps {
   label: string;
@@ -43,23 +30,17 @@ const VisibilityCheckbox = ({
   onChange,
 }: VisibilityCheckboxProps) => {
   return (
-    <span className="relative inline-grid shrink-0 place-items-center">
-      <input
-        type="checkbox"
-        aria-label={label}
-        checked={checked}
-        onChange={onChange}
-        className="peer size-4.5 cursor-pointer appearance-none rounded-[5px] border border-line bg-paper checked:border-accent checked:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent forced-colors:appearance-auto"
-      />
-      <LuCheck
-        aria-hidden="true"
-        className="pointer-events-none absolute hidden size-3.5 stroke-3 text-white peer-checked:block forced-colors:hidden!"
-      />
-    </span>
+    <input
+      type="checkbox"
+      aria-label={label}
+      checked={checked}
+      onChange={onChange}
+      className="size-4.5 shrink-0"
+    />
   );
 };
 
-interface SectionCardProps<Value> extends SectionControls {
+interface SectionCardProps<Value> {
   section: EditorSectionId;
   value: Value;
   onSave: (value: Value) => void;
@@ -79,16 +60,16 @@ const SectionCard = <Value,>({
   onSave,
   subtitle,
   initialOpen = false,
-  hidden,
-  onToggle,
-  onDraftChange,
-  titles,
-  onRename,
-  onPreviewChange,
   previewValue,
-  locked = false,
   children,
 }: SectionCardProps<Value>) => {
+  const locked = useEditorControls((state) => state.locked ?? false);
+  const hidden = useEditorControls((state) => state.hidden);
+  const onToggle = useEditorControls((state) => state.onToggle);
+  const titles = useEditorControls((state) => state.titles);
+  const onDraftChange = useEditorControls((state) => state.onDraftChange);
+  const onPreviewChange = useEditorControls((state) => state.onPreviewChange);
+  const onRename = useEditorControls((state) => state.onRename);
   const [open, setOpen] = useState(initialOpen);
   const [{ draft, revision, resetCount }, setDraftState] = useState<{
     draft?: Value;

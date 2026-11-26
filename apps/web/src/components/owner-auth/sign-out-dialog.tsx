@@ -1,7 +1,7 @@
 import { notifyAfterNavigation } from "@/lib/notifications/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { LuLogOut } from "react-icons/lu";
-import { ConfirmationDialog } from "@/components/confirmation-dialog";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 interface SignOutDialogProps {
   beforeSignOut?: () => Promise<number | null>;

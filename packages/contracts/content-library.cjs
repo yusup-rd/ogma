@@ -5,6 +5,29 @@ const {
   photoCrop,
 } = require("./resume-content-schema.cjs");
 
+const webUrl = (value) => {
+  const protocol = /^[a-z][\da-z+.-]*:/i.exec(value)?.[0];
+  const hasWebProtocol = protocol !== undefined && /^https?:$/i.test(protocol);
+  if (
+    protocol &&
+    !hasWebProtocol &&
+    !/^\d+(?:[/?#]|$)/.test(value.slice(protocol.length))
+  )
+    return false;
+  const candidate = hasWebProtocol ? value : `https://${value}`;
+  try {
+    const url = new URL(candidate);
+    return (
+      ["http:", "https:"].includes(url.protocol) &&
+      (url.hostname.includes(".") || url.hostname.startsWith("[")) &&
+      !url.username &&
+      !url.password
+    );
+  } catch {
+    return false;
+  }
+};
+
 const librarySections = {
   personal: {
     label: "Personal details",
@@ -156,7 +179,7 @@ const libraryEntryContentSchema = z
       personal: Object.values(fields).some(Boolean) || content.photo,
       summary: content.summary,
       skills: content.skills
-        ? fields.category && content.skills.some(({ name }) => name.trim())
+        ? content.skills.some(({ name }) => name.trim())
         : fields.name,
       volunteering: fields.organization || fields.involvement,
     };
@@ -177,15 +200,11 @@ const libraryEntryContentSchema = z
         });
       }
     }
-    if (
-      kind === "links" &&
-      fields.url &&
-      !z.url({ protocol: /^https?$/ }).safeParse(fields.url).success
-    ) {
+    if (kind === "links" && fields.url && !webUrl(fields.url)) {
       context.addIssue({
         code: "custom",
         path: ["fields", "url"],
-        message: "Use a full http or https URL.",
+        message: "Enter a valid website address.",
       });
     }
     if (fields.icon && !entryIcon.safeParse(fields.icon).success) {

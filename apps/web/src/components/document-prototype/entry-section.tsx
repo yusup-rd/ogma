@@ -7,15 +7,12 @@ import {
   entryKey,
   type EditorSectionId,
 } from "@/lib/document-prototype/content-presentation";
-import {
-  SectionCard,
-  VisibilityCheckbox,
-  type SectionControls,
-} from "./section-card";
+import { SectionCard, VisibilityCheckbox } from "./section-card";
+import { useEditorControls } from "@/providers/editor-controls-provider";
 
 interface EntrySectionProps<
   Entry extends { id: string; description?: RichText },
-> extends SectionControls {
+> {
   section: Exclude<EditorSectionId, "personal" | "summary">;
   singular: string;
   entries: Entry[];
@@ -36,14 +33,9 @@ const EntrySection = <Entry extends { id: string; description?: RichText }>({
   update,
   label,
   children,
-  hidden,
-  onToggle,
-  onDraftChange,
-  titles,
-  onRename,
-  onPreviewChange,
-  locked,
 }: EntrySectionProps<Entry>) => {
+  const hidden = useEditorControls((state) => state.hidden);
+  const onToggle = useEditorControls((state) => state.onToggle);
   const [expanded, setExpanded] = useState<string[]>([]);
   const id = useId();
   const count = entries.filter(
@@ -53,13 +45,6 @@ const EntrySection = <Entry extends { id: string; description?: RichText }>({
   return (
     <SectionCard
       section={section}
-      locked={locked}
-      hidden={hidden}
-      onToggle={onToggle}
-      onDraftChange={onDraftChange}
-      titles={titles}
-      onRename={onRename}
-      onPreviewChange={onPreviewChange}
       previewValue={(value) => ({ content: { [section]: value } })}
       value={entries}
       onSave={update}

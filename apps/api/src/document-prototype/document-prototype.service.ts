@@ -49,6 +49,57 @@ export class DocumentPrototypeService implements OnModuleDestroy {
     });
   }
 
+  inspectResume(html: string, prepare: (page: Page) => Promise<void>) {
+    return this.withDocumentPage(html, async (page) => {
+      await prepare(page);
+      return page.locator(".workspace").evaluate((root) => {
+        const sheets = Array.from(root.querySelectorAll<HTMLElement>(".page"));
+        const headings = Array.from(root.querySelectorAll<HTMLElement>("h2"));
+        const content = Array.from(
+          root.querySelectorAll<HTMLElement>("p, li, h1, h2, h3"),
+        );
+        const overflow = content.some((element) => {
+          const sheet = element.closest<HTMLElement>(".page");
+          if (!sheet) return false;
+          const box = element.getBoundingClientRect();
+          const bounds = sheet.getBoundingClientRect();
+          return (
+            box.bottom > bounds.bottom + 1 ||
+            box.right > bounds.right + 1 ||
+            box.left < bounds.left - 1 ||
+            element.scrollWidth > element.clientWidth + 2
+          );
+        });
+        return {
+          text: (root as HTMLElement).innerText,
+          headings: headings.map((element) => element.innerText),
+          overflow,
+          detachedHeadings: headings.some((heading) => {
+            const first = heading
+              .closest("section")
+              ?.querySelector<HTMLElement>(".section-copy > :first-child");
+            const sheet = heading.closest<HTMLElement>(".page");
+            return Boolean(
+              first &&
+              sheet &&
+              first.getBoundingClientRect().top >=
+                sheet.getBoundingClientRect().bottom,
+            );
+          }),
+          smallText: content.some(
+            (element) =>
+              element.innerText.trim() &&
+              parseFloat(getComputedStyle(element).fontSize) < 10.66,
+          ),
+          pageCount: sheets.length,
+          links: Array.from(
+            root.querySelectorAll<HTMLAnchorElement>("a[href]"),
+          ).map((element) => ({ url: element.href, label: element.innerText })),
+        };
+      });
+    });
+  }
+
   async printPdf(html: string, prepare?: (page: Page) => Promise<void>) {
     if (this.rendering) {
       throw new ServiceUnavailableException(

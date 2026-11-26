@@ -14,7 +14,7 @@ import { DatabaseService } from "../database/database.service";
 import {
   Prisma,
   type LibraryEntry as StoredEntry,
-} from "../generated/prisma-client/client";
+} from "../generated/ogma/client";
 
 const latestRevision = {
   revisions: { orderBy: { revision: "desc" }, take: 1 },

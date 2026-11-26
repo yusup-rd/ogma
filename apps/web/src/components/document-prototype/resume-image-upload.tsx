@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import type { PhotoCrop } from "@ogma/contracts/resume-content-schema";
 import { PhotoCropDialog } from "./photo-crop-dialog";
 import Image from "next/image";
@@ -216,11 +217,7 @@ const ResumeImageUpload = ({
           }}
         />
       )}
-      {error && (
-        <p role="alert" className="text-xs text-red-800">
-          {error}
-        </p>
-      )}
+      {error && <InlineAlert className="text-xs">{error}</InlineAlert>}
     </div>
   );
 };

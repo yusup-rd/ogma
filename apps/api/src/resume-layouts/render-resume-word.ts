@@ -59,7 +59,7 @@ import {
   workProjectEntries,
   type ResumeEntry,
 } from "./resume-content";
-import { contactHref } from "./resume-links";
+import { contactHref, contactLabel, linkedTextParts } from "./resume-links";
 
 function image(
   dataUri: string,
@@ -118,16 +118,23 @@ async function prepareWordImage(dataUri: string, cover: boolean) {
 }
 
 function runs(paragraph: RichParagraph) {
-  return (paragraph.content ?? []).map((part) => {
-    if (part.type === "hardBreak") return new TextRun({ break: 1 });
-    const marks = new Set(part.marks?.map((mark) => mark.type));
-    return new TextRun({
-      text: part.text,
-      bold: marks.has("bold"),
-      italics: marks.has("italic"),
-      underline: marks.has("underline") ? {} : undefined,
-    });
-  });
+  return (paragraph.content ?? []).flatMap(
+    (part): (TextRun | ExternalHyperlink)[] => {
+      if (part.type === "hardBreak") return [new TextRun({ break: 1 })];
+      const marks = new Set(part.marks?.map((mark) => mark.type));
+      return linkedTextParts(part.text).map(({ text, href }) => {
+        const run = new TextRun({
+          text,
+          bold: marks.has("bold"),
+          italics: marks.has("italic"),
+          underline: marks.has("underline") ? {} : undefined,
+        });
+        return href
+          ? new ExternalHyperlink({ link: href, children: [run] })
+          : run;
+      });
+    },
+  );
 }
 
 export async function renderResumeWord(
@@ -987,7 +994,10 @@ export async function renderResumeWord(
             alignment,
             children: details.flatMap(({ kind, value }, index) => {
               const href = contactHref(kind, value);
-              const text = new TextRun({ text: value, ...typography("minor") });
+              const text = new TextRun({
+                text: contactLabel(kind, value),
+                ...typography("minor"),
+              });
               return [
                 ...(index
                   ? [

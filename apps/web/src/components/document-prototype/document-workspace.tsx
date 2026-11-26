@@ -1,6 +1,11 @@
 "use client";
 
-import { LuChevronLeft, LuFileText, LuPalette } from "react-icons/lu";
+import {
+  LuChevronLeft,
+  LuFileText,
+  LuPalette,
+  LuListChecks,
+} from "react-icons/lu";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import Image from "next/image";
@@ -11,6 +16,7 @@ import { SignOutDialog } from "@/components/owner-auth/sign-out-dialog";
 import { ResumeConflictDialog } from "@/components/resumes/resume-conflict-dialog";
 import { CheckpointHistory } from "@/components/resumes/checkpoint-history";
 import { ResumeLockDialog } from "@/components/resumes/resume-lock-dialog";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import { useResumeLayouts } from "@/hooks/document-prototype/use-resume-layouts";
 import { useResumeHistoryGuard } from "@/hooks/resumes/use-resume-history-guard";
 import { useResumeAutosave } from "@/hooks/resumes/use-resume-autosave";
@@ -21,6 +27,11 @@ import { ResumePreview } from "./resume-preview";
 
 const TemplateGallery = dynamic(() =>
   import("./template-gallery").then((module) => module.TemplateGallery),
+);
+const ResumeCheck = dynamic(() =>
+  import("@/components/resumes/resume-check").then(
+    (module) => module.ResumeCheck,
+  ),
 );
 const TemplateDesignForm = dynamic(() =>
   import("./template-design-form").then((module) => module.TemplateDesignForm),
@@ -58,7 +69,10 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
     model.document,
     hasSectionDrafts,
   );
-  const [screen, setScreen] = useState<"Content" | "Design">("Content");
+  const [screen, setScreen] = useState<"Content" | "Design" | "Resume Check">(
+    "Content",
+  );
+  const [checkOpened, setCheckOpened] = useState(false);
   const [mobileView, setMobileView] = useState<"Edit" | "Preview">("Edit");
   const [leaving, setLeaving] = useState(false);
   const [leaveAfterPreview, setLeaveAfterPreview] = useState(false);
@@ -307,9 +321,7 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
 
       {model.error && (
         <div className="flex items-center justify-between gap-3 border-b border-line bg-paper px-5 py-3 text-sm">
-          <p role="alert" className="text-red-800">
-            {model.error}
-          </p>
+          <InlineAlert>{model.error}</InlineAlert>
           <button
             type="button"
             className="min-h-10 shrink-0 rounded-md border border-line px-3 font-semibold"
@@ -333,13 +345,17 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
               [
                 ["Content", LuFileText],
                 ["Design", LuPalette],
+                ["Resume Check", LuListChecks],
               ] as const
             ).map(([name, Icon]) => (
               <button
                 key={name}
                 type="button"
                 aria-pressed={screen === name}
-                onClick={() => setScreen(name)}
+                onClick={() => {
+                  setScreen(name);
+                  if (name === "Resume Check") setCheckOpened(true);
+                }}
                 className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-3 text-xs font-semibold text-muted aria-pressed:bg-accent-soft aria-pressed:text-accent"
               >
                 <Icon aria-hidden="true" className="size-4 shrink-0" />
@@ -443,6 +459,19 @@ const DocumentWorkspace = ({ resume }: DocumentWorkspaceProps) => {
                 )}
               </>
             )}
+            <div hidden={screen !== "Resume Check"}>
+              {checkOpened && (
+                <ResumeCheck
+                  resumeId={resume.id}
+                  documentKey={JSON.stringify(model.document)}
+                  initialRevision={resume.draftRevision}
+                  initialDocumentKey={JSON.stringify(resume.document)}
+                  dirty={hasSectionDrafts || autosave.previewChanged}
+                  beforeRun={requireSavedSections}
+                  onConflict={autosave.reportConflict}
+                />
+              )}
+            </div>
           </div>
         </section>
 

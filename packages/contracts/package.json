@@ -3,6 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "exports": {
+    "./resume-analysis": "./resume-analysis.cjs",
+    "./resume-import": "./resume-import.cjs",
     "./resume-content-schema": "./resume-content-schema.cjs",
     "./resume-workspace": "./resume-workspace.cjs",
     "./content-library": "./content-library.cjs",

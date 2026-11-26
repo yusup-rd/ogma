@@ -7,6 +7,7 @@ import { LuFileText, LuLibrary } from "react-icons/lu";
 interface WorkspaceShellProps {
   active: "resumes" | "library";
   children: ReactNode;
+  beforeSignOut?: () => Promise<number | null>;
 }
 
 const pages = [
@@ -14,7 +15,11 @@ const pages = [
   { id: "library", href: "/library", label: "Library", Icon: LuLibrary },
 ] as const;
 
-const WorkspaceShell = ({ active, children }: WorkspaceShellProps) => {
+const WorkspaceShell = ({
+  active,
+  children,
+  beforeSignOut,
+}: WorkspaceShellProps) => {
   return (
     <div className="min-h-dvh bg-canvas text-ink md:grid md:grid-cols-[13.5rem_minmax(0,1fr)]">
       <aside className="grid grid-cols-[1fr_auto] items-center gap-3 border-b border-line bg-paper px-4 py-3 md:sticky md:top-0 md:flex md:h-dvh md:flex-col md:items-stretch md:border-r md:border-b-0 md:px-5 md:py-6">
@@ -47,7 +52,7 @@ const WorkspaceShell = ({ active, children }: WorkspaceShellProps) => {
           ))}
         </nav>
         <div className="col-start-2 row-start-1 md:mt-auto md:border-t md:border-line md:pt-3">
-          <SignOutDialog sidebar />
+          <SignOutDialog sidebar beforeSignOut={beforeSignOut} />
         </div>
       </aside>
       <main className="mx-auto flex w-full max-w-7xl min-w-0 flex-col gap-7 px-4 py-7 md:gap-8 md:px-10 md:py-10">

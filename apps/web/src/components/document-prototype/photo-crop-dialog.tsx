@@ -1,6 +1,8 @@
 "use client";
 
 import * as Dialog from "@radix-ui/react-dialog";
+import { DialogFrame } from "@/components/ui/dialog-frame";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import Image from "next/image";
 import { useRef, useState, type RefObject } from "react";
 import type { PhotoCrop } from "@ogma/contracts/resume-content-schema";
@@ -83,155 +85,157 @@ const PhotoCropDialog = ({
         if (!open) onCancel();
       }}
     >
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-ink/45" />
-        <Dialog.Content
-          onCloseAutoFocus={(event) => {
+      <DialogFrame
+        size="md"
+        responsivePadding={false}
+        strongBackdrop
+        contentClassName="text-ink"
+        contentProps={{
+          onCloseAutoFocus: (event) => {
             event.preventDefault();
             requestAnimationFrame(() => returnFocus.current?.focus());
+          },
+        }}
+      >
+        <header>
+          <Dialog.Title className="text-xl font-semibold tracking-tight">
+            Crop profile photo
+          </Dialog.Title>
+          <Dialog.Description className="mt-1 text-sm text-muted">
+            Drag the photo or use the arrow keys to position it. Use Zoom to
+            adjust the framing.
+          </Dialog.Description>
+        </header>
+        <div
+          tabIndex={0}
+          role="group"
+          aria-label="Photo position"
+          className="relative mx-auto aspect-square w-full max-w-72 shrink-0 cursor-grab touch-none overflow-hidden rounded-xl bg-paper active:cursor-grabbing"
+          onKeyDown={(event) => {
+            const direction = arrows[event.key];
+            if (!ready || !direction) return;
+            event.preventDefault();
+            const step = event.shiftKey ? 0.06 : 0.015;
+            move(direction[0] * step, direction[1] * step);
           }}
-          className="fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-auto rounded-2xl border border-line bg-paper p-5 text-ink shadow-xl"
+          onPointerDown={(event) => {
+            if (!ready || !event.isPrimary || event.button !== 0) return;
+            event.currentTarget.setPointerCapture(event.pointerId);
+            grip.current = {
+              id: event.pointerId,
+              x: event.clientX,
+              y: event.clientY,
+            };
+          }}
+          onPointerMove={(event) => {
+            const previous = grip.current;
+            if (previous?.id !== event.pointerId) return;
+            const size = event.currentTarget.clientWidth;
+            move(
+              (event.clientX - previous.x) / size,
+              (event.clientY - previous.y) / size,
+            );
+            grip.current = {
+              id: event.pointerId,
+              x: event.clientX,
+              y: event.clientY,
+            };
+          }}
+          onLostPointerCapture={() => {
+            grip.current = null;
+          }}
         >
-          <header>
-            <Dialog.Title className="text-xl font-semibold tracking-tight">
-              Crop profile photo
-            </Dialog.Title>
-            <Dialog.Description className="mt-1 text-sm text-muted">
-              Drag the photo or use the arrow keys to position it. Use Zoom to
-              adjust the framing.
-            </Dialog.Description>
-          </header>
-          <div
-            tabIndex={0}
-            role="group"
-            aria-label="Photo position"
-            className="relative mx-auto aspect-square w-full max-w-72 shrink-0 cursor-grab touch-none overflow-hidden rounded-xl bg-paper active:cursor-grabbing"
-            onKeyDown={(event) => {
-              const direction = arrows[event.key];
-              if (!ready || !direction) return;
-              event.preventDefault();
-              const step = event.shiftKey ? 0.06 : 0.015;
-              move(direction[0] * step, direction[1] * step);
-            }}
-            onPointerDown={(event) => {
-              if (!ready || !event.isPrimary || event.button !== 0) return;
-              event.currentTarget.setPointerCapture(event.pointerId);
-              grip.current = {
-                id: event.pointerId,
-                x: event.clientX,
-                y: event.clientY,
-              };
-            }}
-            onPointerMove={(event) => {
-              const previous = grip.current;
-              if (previous?.id !== event.pointerId) return;
-              const size = event.currentTarget.clientWidth;
-              move(
-                (event.clientX - previous.x) / size,
-                (event.clientY - previous.y) / size,
+          <Image
+            ref={image}
+            src={source}
+            alt=""
+            width={320}
+            height={320}
+            unoptimized
+            draggable={false}
+            onLoad={(event) => {
+              setRatio(
+                event.currentTarget.naturalWidth /
+                  event.currentTarget.naturalHeight,
               );
-              grip.current = {
-                id: event.pointerId,
-                x: event.clientX,
-                y: event.clientY,
-              };
+              setReady(true);
             }}
-            onLostPointerCapture={() => {
-              grip.current = null;
+            onError={() => setFailed(true)}
+            className="pointer-events-none absolute max-w-none -translate-x-1/2 -translate-y-1/2 select-none"
+            style={{
+              visibility: ready ? "visible" : "hidden",
+              left: (0.5 + x) * 100 + "%",
+              top: (0.5 + y) * 100 + "%",
+              width: width * 100 + "%",
+              height: height * 100 + "%",
             }}
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 grid grid-cols-3 grid-rows-3 [&_span]:border-white/45"
           >
-            <Image
-              ref={image}
-              src={source}
-              alt=""
-              width={320}
-              height={320}
-              unoptimized
-              draggable={false}
-              onLoad={(event) => {
-                setRatio(
-                  event.currentTarget.naturalWidth /
-                    event.currentTarget.naturalHeight,
-                );
-                setReady(true);
-              }}
-              onError={() => setFailed(true)}
-              className="pointer-events-none absolute max-w-none -translate-x-1/2 -translate-y-1/2 select-none"
-              style={{
-                visibility: ready ? "visible" : "hidden",
-                left: (0.5 + x) * 100 + "%",
-                top: (0.5 + y) * 100 + "%",
-                width: width * 100 + "%",
-                height: height * 100 + "%",
-              }}
-            />
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 grid grid-cols-3 grid-rows-3 [&_span]:border-white/45"
-            >
-              <span className="col-start-2 row-span-3 row-start-1 border-x" />
-              <span className="col-span-3 col-start-1 row-start-2 border-y" />
-            </div>
+            <span className="col-start-2 row-span-3 row-start-1 border-x" />
+            <span className="col-span-3 col-start-1 row-start-2 border-y" />
           </div>
-          <label className="flex items-center gap-3 text-sm font-medium">
-            Zoom
-            <input
-              type="range"
-              min={1}
-              max={3}
-              step={0.01}
-              value={crop.zoom}
-              disabled={!ready}
-              className="min-h-11 min-w-0 flex-1 accent-accent"
-              aria-valuetext={Math.round(crop.zoom * 100) + "%"}
-              onChange={(event) => {
-                const zoom = Number(event.currentTarget.value);
-                setCrop({
-                  x: bound(x, Math.max(1, ratio) * zoom),
-                  y: bound(y, Math.max(1, 1 / ratio) * zoom),
-                  zoom,
-                });
-              }}
-            />
-            <span
-              aria-hidden="true"
-              className="w-11 text-right text-xs text-muted tabular-nums"
-            >
-              {Math.round(crop.zoom * 100)}%
-            </span>
-          </label>
-          {failed && (
-            <p role="alert" className="text-sm text-red-800">
-              Couldn’t prepare this crop. Try a different photo.
-            </p>
-          )}
-          <footer className="flex flex-wrap items-center justify-end gap-2">
+        </div>
+        <label className="flex items-center gap-3 text-sm font-medium">
+          Zoom
+          <input
+            type="range"
+            min={1}
+            max={3}
+            step={0.01}
+            value={crop.zoom}
+            disabled={!ready}
+            className="min-h-11 min-w-0 flex-1 accent-accent"
+            aria-valuetext={Math.round(crop.zoom * 100) + "%"}
+            onChange={(event) => {
+              const zoom = Number(event.currentTarget.value);
+              setCrop({
+                x: bound(x, Math.max(1, ratio) * zoom),
+                y: bound(y, Math.max(1, 1 / ratio) * zoom),
+                zoom,
+              });
+            }}
+          />
+          <span
+            aria-hidden="true"
+            className="w-11 text-right text-xs text-muted tabular-nums"
+          >
+            {Math.round(crop.zoom * 100)}%
+          </span>
+        </label>
+        {failed && (
+          <InlineAlert>
+            Couldn’t prepare this crop. Try a different photo.
+          </InlineAlert>
+        )}
+        <footer className="flex flex-wrap items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setCrop(center)}
+            className="mr-auto min-h-11 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-canvas"
+          >
+            Reset
+          </button>
+          <Dialog.Close asChild>
             <button
               type="button"
-              onClick={() => setCrop(center)}
-              className="mr-auto min-h-11 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-canvas"
+              className="min-h-11 rounded-lg border border-line px-3 text-sm font-semibold hover:bg-canvas"
             >
-              Reset
+              Cancel
             </button>
-            <Dialog.Close asChild>
-              <button
-                type="button"
-                className="min-h-11 rounded-lg border border-line px-3 text-sm font-semibold hover:bg-canvas"
-              >
-                Cancel
-              </button>
-            </Dialog.Close>
-            <button
-              type="button"
-              disabled={!ready}
-              onClick={apply}
-              className="min-h-11 rounded-lg bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover active:brightness-90 disabled:opacity-60"
-            >
-              Apply crop
-            </button>
-          </footer>
-        </Dialog.Content>
-      </Dialog.Portal>
+          </Dialog.Close>
+          <button
+            type="button"
+            disabled={!ready}
+            onClick={apply}
+            className="min-h-11 rounded-lg bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover active:brightness-90 disabled:opacity-60"
+          >
+            Apply crop
+          </button>
+        </footer>
+      </DialogFrame>
     </Dialog.Root>
   );
 };

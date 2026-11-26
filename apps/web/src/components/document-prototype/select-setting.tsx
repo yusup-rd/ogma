@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
-import * as Select from "@radix-ui/react-select";
-import { LuCheck, LuChevronDown } from "react-icons/lu";
+import {
+  DropdownSelect,
+  type DropdownSelectOption,
+} from "@/components/ui/dropdown-select";
 
-const fieldClass =
-  "min-h-10 w-full min-w-0 rounded-lg border border-line bg-paper px-3 text-sm font-normal focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent";
 const DefaultTag = () => {
   return (
     <span className="min-w-0 truncate rounded-sm bg-canvas px-1.5 py-0.5 text-[10px] font-medium text-muted">
@@ -31,77 +31,27 @@ export const SelectSetting = <Value extends string | number>({
   renderPreview,
   onChange,
 }: SelectSettingProps<Value>) => {
+  const dropdownOptions: DropdownSelectOption[] = options.map(
+    ([id, title]) => ({
+      value: `option:${id}`,
+      label: title,
+      prefix: renderPreview?.(id),
+      suffix: id === defaultValue ? <DefaultTag /> : undefined,
+    }),
+  );
+
   return (
     <div className="flex min-w-0 flex-col gap-1 text-xs font-semibold">
       <span>{label}</span>
-      <Select.Root
+      <DropdownSelect
+        ariaLabel={accessibleLabel ?? label}
         value={`option:${value}`}
+        options={dropdownOptions}
         onValueChange={(next) => {
           const option = options.find(([id]) => `option:${id}` === next);
           if (option) onChange(option[0]);
         }}
-      >
-        <Select.Trigger
-          aria-label={accessibleLabel ?? label}
-          className={`${fieldClass} flex items-center justify-between gap-1 text-left active:bg-canvas data-[state=open]:border-accent/60`}
-        >
-          {renderPreview && (
-            <span
-              aria-hidden="true"
-              className="mr-1 grid size-4 shrink-0 place-items-center"
-            >
-              {renderPreview(value)}
-            </span>
-          )}
-          <span className="min-w-0 flex-1 truncate">
-            <Select.Value />
-          </span>
-          {value === defaultValue && <DefaultTag />}
-          <LuChevronDown
-            aria-hidden="true"
-            className="size-4 shrink-0 text-muted"
-          />
-        </Select.Trigger>
-        <Select.Portal>
-          <Select.Content
-            position="popper"
-            sideOffset={5}
-            className="z-60 max-h-[var(--radix-select-content-available-height)] max-w-[calc(100dvw-1.25rem)] min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-xl border border-line bg-paper p-1 shadow-lg"
-          >
-            <Select.Viewport className="max-h-[var(--radix-select-content-available-height)]">
-              {options.map(([id, title]) => (
-                <Select.Item
-                  key={id}
-                  value={`option:${id}`}
-                  className="flex min-h-9 items-center justify-between gap-3 rounded-lg px-2.5 text-sm outline-none data-highlighted:bg-accent-soft data-highlighted:text-accent"
-                >
-                  <span className="flex min-w-0 flex-1 items-center gap-2">
-                    {renderPreview && (
-                      <span
-                        aria-hidden="true"
-                        className="grid size-4 shrink-0 place-items-center"
-                      >
-                        {renderPreview(id)}
-                      </span>
-                    )}
-                    <Select.ItemText className="min-w-0 truncate">
-                      {title}
-                    </Select.ItemText>
-                  </span>
-                  <span className="flex max-w-[45%] min-w-0 items-center gap-1.5">
-                    {id === defaultValue && <DefaultTag />}
-                    <span className="size-4 shrink-0">
-                      <Select.ItemIndicator>
-                        <LuCheck aria-hidden="true" className="size-4" />
-                      </Select.ItemIndicator>
-                    </span>
-                  </span>
-                </Select.Item>
-              ))}
-            </Select.Viewport>
-          </Select.Content>
-        </Select.Portal>
-      </Select.Root>
+      />
     </div>
   );
 };

@@ -6,17 +6,17 @@ import {
   type LibraryEntryContent,
   type LibraryKind,
 } from "@ogma/contracts/content-library";
+import { TextField, TextareaField } from "@/components/ui/form-fields";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import {
   AwardFields,
   CertificationFields,
   contactFields,
   EducationFields,
-  inputClass,
   LanguageFields,
   ProjectFields,
   PublicationFields,
   SkillsFields,
-  TextField,
   VolunteerFields,
   WorkFields,
 } from "@/components/document-prototype/resume-entry-fields";
@@ -153,21 +153,13 @@ const LibraryEntryForm = ({
         });
       case "summary":
         return (
-          <label className="flex flex-col gap-1 text-xs font-semibold">
-            Professional Summary
-            <textarea
-              className={inputClass}
-              rows={5}
-              maxLength={8000}
-              value={draft.value.summary}
-              onChange={(event) =>
-                setDraft({
-                  ...draft,
-                  value: { summary: event.currentTarget.value },
-                })
-              }
-            />
-          </label>
+          <TextareaField
+            label="Professional Summary"
+            rows={5}
+            maxLength={8000}
+            value={draft.value.summary}
+            onChange={(summary) => setDraft({ ...draft, value: { summary } })}
+          />
         );
       case "experience":
         return (
@@ -305,11 +297,7 @@ const LibraryEntryForm = ({
           </legend>
         )}
         {fields}
-        {error && (
-          <p role="alert" className="text-sm text-red-800">
-            {error}
-          </p>
-        )}
+        {error && <InlineAlert>{error}</InlineAlert>}
         <div className="flex flex-wrap justify-end gap-2">
           {actions}
           {onCancel && (

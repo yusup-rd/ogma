@@ -4,10 +4,18 @@ import { DocumentPrototypeModule } from "../document-prototype/document-prototyp
 import { ResumesController } from "./resumes.controller";
 import { ResumesService } from "./resumes.service";
 import { ResumeCheckpointsService } from "./resume-checkpoints.service";
+import { ResumeAnalysisService } from "./resume-analysis.service";
+import { ImportsModule } from "../imports/imports.module";
+import { ResumeImportService } from "./resume-import.service";
 
 @Module({
-  imports: [DatabaseModule, DocumentPrototypeModule],
+  imports: [DatabaseModule, DocumentPrototypeModule, ImportsModule],
   controllers: [ResumesController],
-  providers: [ResumesService, ResumeCheckpointsService],
+  providers: [
+    ResumesService,
+    ResumeCheckpointsService,
+    ResumeAnalysisService,
+    ResumeImportService,
+  ],
 })
 export class ResumesModule {}

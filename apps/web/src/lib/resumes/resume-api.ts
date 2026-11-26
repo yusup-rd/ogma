@@ -23,7 +23,9 @@ async function fetchResume(
   options?: ResumeMutation,
   signal?: AbortSignal,
 ) {
-  const timeout = AbortSignal.timeout(25000);
+  const timeout = AbortSignal.timeout(
+    path.includes("/analysis/") ? 70000 : 25000,
+  );
   const response = await fetch(`/api/resumes${path}`, {
     method: options?.method,
     headers: options ? { "Content-Type": "application/json" } : undefined,

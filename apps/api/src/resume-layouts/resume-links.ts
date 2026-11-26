@@ -31,6 +31,22 @@ function webHref(text: string) {
   return url.href;
 }
 
+export function displayWebUrl(value: string, preserveTrailingSlash = false) {
+  const href = webHref(value.trim());
+  if (!href) return value.trim();
+  const url = new URL(href);
+  const pathname = preserveTrailingSlash
+    ? url.pathname
+    : url.pathname.replace(/\/+$/, "");
+  return `${url.host}${pathname}${url.search}${url.hash}`;
+}
+
+export function contactLabel(kind: string, value: string) {
+  return ["linkedin", "website", "github"].includes(kind)
+    ? displayWebUrl(value)
+    : value;
+}
+
 export function contactHref(kind: string, value: string) {
   const text = value.trim();
   if (kind === "email" && /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(text)) {
@@ -52,11 +68,11 @@ export function renderLink(label: string, href?: string) {
 }
 
 // Bare domains are recognized after a Link: label, so terms like Node.js stay plain text.
-export function renderLinkedText(text: string) {
+export function linkedTextParts(text: string) {
   const links =
     /\b(?:https?:\/\/|www\.)[^\s<>"']+|(?<=\bLink:[ \t]{0,8})[\w-]+(?:\.[\w-]+)+(?:[/?#][^\s<>"']*)?/gi;
   let start = 0;
-  let html = "";
+  const parts: { text: string; href?: string }[] = [];
   for (const match of text.matchAll(links)) {
     const label = match[0]
       .replace(/[.,;!?]+$/, "")
@@ -65,10 +81,22 @@ export function renderLinkedText(text: string) {
         const closes = (match[0].match(/\)/g) ?? []).length;
         return suffix.slice(Math.max(0, closes - opens));
       });
-    html +=
-      escapeText(text.slice(start, match.index)) +
-      renderLink(label, webHref(label));
+    const href = webHref(label);
+    parts.push(
+      { text: text.slice(start, match.index) },
+      {
+        text: href ? displayWebUrl(label, true) : label,
+        href,
+      },
+    );
     start = match.index + label.length;
   }
-  return html + escapeText(text.slice(start));
+  parts.push({ text: text.slice(start) });
+  return parts;
+}
+
+export function renderLinkedText(text: string) {
+  return linkedTextParts(text)
+    .map((part) => renderLink(part.text, part.href))
+    .join("");
 }

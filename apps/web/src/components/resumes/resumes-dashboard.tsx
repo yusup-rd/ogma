@@ -22,15 +22,18 @@ import {
   LuLockKeyhole,
   LuLockKeyholeOpen,
   LuTrash2,
+  LuUpload,
 } from "react-icons/lu";
 import {
   resumeSummarySchema,
   savedResumeSchema,
   type ResumeSummary,
 } from "@ogma/contracts/resume-workspace";
-import { ConfirmationDialog } from "@/components/confirmation-dialog";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { ActionButton, ActionLink } from "@/components/ui/action-button";
+import { RetryNotice } from "@/components/ui/retry-notice";
 import { LibraryOnboarding } from "@/components/content-library/library-onboarding";
-import { WorkspaceShell } from "@/components/workspace-shell";
+import { WorkspaceShell } from "@/components/layout/workspace-shell";
 import { SavedResumeThumbnail } from "./saved-resume-thumbnail";
 import { useResumePageCounts } from "@/hooks/resumes/use-resume-page-counts";
 import {
@@ -49,11 +52,6 @@ interface ResumesDashboardProps {
   initialClock: { now: number; timeZone: string } | null;
   loadFailed: boolean;
 }
-
-const primary =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60";
-const secondary =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-line bg-paper px-3 text-sm font-semibold hover:bg-canvas disabled:opacity-60";
 
 const ResumesDashboard = ({
   initialClock,
@@ -246,28 +244,27 @@ const ResumesDashboard = ({
             Create, tailor, and manage your resume versions.
           </p>
         </div>
-        <LibraryOnboarding
-          open={showLibraryPrompt}
-          onOpenChange={setShowLibraryPrompt}
-          busy={busy}
-          onNewResume={() => void startNewResume()}
-          onStartBlank={() => void openDraft()}
-        />
+        <div className="flex flex-wrap gap-2">
+          <ActionLink href="/import">
+            <LuUpload aria-hidden="true" className="size-4" />
+            Import resume
+          </ActionLink>
+          <LibraryOnboarding
+            open={showLibraryPrompt}
+            onOpenChange={setShowLibraryPrompt}
+            busy={busy}
+            onNewResume={() => void startNewResume()}
+            onStartBlank={() => void openDraft()}
+          />
+        </div>
       </header>
       {(error || list.isError) && (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-paper p-3">
-          <p role="alert" className="text-sm text-red-800">
-            {error || "Couldn’t refresh your resumes. Try again."}
-          </p>
-          <button
-            type="button"
-            className={secondary}
-            disabled={busy}
-            onClick={() => void showRows(archived)}
-          >
-            Reload list
-          </button>
-        </div>
+        <RetryNotice
+          message={error || "Couldn’t refresh your resumes. Try again."}
+          actionLabel="Reload list"
+          disabled={busy}
+          onRetry={() => void showRows(archived)}
+        />
       )}
       {latest && (
         <section
@@ -293,18 +290,19 @@ const ResumesDashboard = ({
             </p>
             <div className="mt-4 flex flex-wrap gap-2.5 md:mt-7">
               {/* Full page navigation lets the editor guard browser Back. */}
-              <Link href={`/resumes/${latest.id}`} className={primary}>
+              <ActionLink href={`/resumes/${latest.id}`} variant="primary">
                 <LuChevronRight aria-hidden="true" className="size-4" />
                 Continue editing
-              </Link>
-              <button
+              </ActionLink>
+              <ActionButton
+                variant="secondary"
                 type="button"
                 disabled={busy}
-                className={secondary}
                 onClick={() => void openDraft(latest.id)}
               >
+                <LuCopy aria-hidden="true" className="size-4" />
                 Duplicate
-              </button>
+              </ActionButton>
             </div>
           </div>
           <div
@@ -339,14 +337,14 @@ const ResumesDashboard = ({
                 className="min-h-11 rounded-lg border border-line bg-paper px-3 text-sm font-normal md:w-64"
               />
             </label>
-            <button
+            <ActionButton
+              variant="secondary"
               type="button"
               disabled={busy}
-              className={secondary}
               onClick={() => void showRows(!archived)}
             >
               {archived ? "Active resumes" : "Archive"}
-            </button>
+            </ActionButton>
           </div>
         </div>
         {!list.data ? (
@@ -416,12 +414,13 @@ const ResumesDashboard = ({
                   {!row.archived && (
                     <ConfirmationDialog
                       trigger={
-                        <button
+                        <ActionButton
+                          variant="secondary"
                           type="button"
                           disabled={busy}
                           title={row.locked ? "Unlock resume" : "Lock resume"}
                           aria-label={`${row.locked ? "Unlock" : "Lock"} ${row.title}`}
-                          className={`${secondary} min-w-11 active:bg-accent-soft ${row.locked ? "border-accent/25 bg-accent-soft text-accent" : ""}`}
+                          className={`min-w-11 ${row.locked ? "border-accent/25 bg-accent-soft text-accent" : ""}`}
                         >
                           {row.locked ? (
                             <LuLockKeyhole
@@ -434,7 +433,7 @@ const ResumesDashboard = ({
                               className="size-4"
                             />
                           )}
-                        </button>
+                        </ActionButton>
                       }
                       title={row.locked ? "Unlock this CV?" : "Lock this CV?"}
                       description={
@@ -447,30 +446,30 @@ const ResumesDashboard = ({
                     />
                   )}
                   {!row.archived && (
-                    <button
+                    <ActionButton
+                      variant="secondary"
                       type="button"
                       disabled={busy}
                       title="Duplicate resume"
                       aria-label={`Duplicate ${row.title}`}
-                      className={secondary}
                       onClick={() => void openDraft(row.id)}
                     >
                       <LuCopy aria-hidden="true" className="size-4" />
-                    </button>
+                    </ActionButton>
                   )}
                   <ConfirmationDialog
                     trigger={
-                      <button
+                      <ActionButton
+                        variant="secondary"
                         type="button"
                         disabled={busy}
-                        className={secondary}
                         title={
                           row.archived ? "Restore resume" : "Archive resume"
                         }
                         aria-label={`${row.archived ? "Restore" : "Archive"} ${row.title}`}
                       >
                         <LuArchive aria-hidden="true" className="size-4" />
-                      </button>
+                      </ActionButton>
                     }
                     title={row.archived ? "Restore resume?" : "Archive resume?"}
                     description={
@@ -484,15 +483,16 @@ const ResumesDashboard = ({
                   {row.archived && (
                     <ConfirmationDialog
                       trigger={
-                        <button
+                        <ActionButton
+                          variant="secondary"
                           type="button"
                           disabled={busy}
-                          className={`${secondary} text-red-800 hover:bg-red-50`}
+                          className="text-red-800 hover:bg-red-50"
                           aria-label={`Delete ${row.title}`}
                         >
                           <LuTrash2 aria-hidden="true" className="size-4" />
                           Delete
-                        </button>
+                        </ActionButton>
                       }
                       title="Delete archived resume?"
                       description={`Permanently delete “${row.title}” and its saved checkpoints. This can’t be undone.`}

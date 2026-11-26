@@ -48,6 +48,13 @@ Teal documents separate resume-analysis and job-match scores. A real ATS parser 
 
 The core release is complete when you can import an existing CV, reuse its content in two independently styled CVs, preview and export both formats, act on the structure score, and reopen the same drafts on another device. See [ARCHITECTURE.md](ARCHITECTURE.md) for the technical design and [AGENTS.md](AGENTS.md) for repository conventions.
 
+## Milestone 4 progress
+
+- The pre-AI implementation includes private PDF and DOCX extraction, editable import review with original text and link destinations, and an atomic reviewed CV import with optional Library entries. Ambiguous content remains visible for manual placement. Uploads are held in memory, with a 1 MB file limit, 30 PDF pages, bounded archive expansion, and a 15-second parser deadline. Parsing runs in a separate process to contain native parser failures on Windows.
+- Resume Check inspects the selected export format and stores its revision, resolved-document fingerprint, rubric version, checks, and score. The UI retains previous results, marks edited drafts as needing another check, and exposes failed, passed, skipped, advisory, and incomplete checks. Word geometry checks remain skipped because pagination depends on the Word renderer and installed fonts.
+- Verification covers both supplied CVs privately, text and hyperlink round trips, absent contact fields, synthetic atomicity and conflict paths, desktop Chromium, mobile WebKit, and a PostgreSQL backup restored into a separate verification database. The supplied CVs remain outside repository fixtures. Microsoft Word rendered both test exports with three populated pages, while the corresponding PDF exports have two pages.
+- The next implementation step is optional AI-assisted rewrites. Pause for owner input before integrating the provider and its consent, preview, apply, and usage-limit flow. Deployment and physical-device release checks remain part of the final release rehearsal.
+
 ## Future authentication
 
 - The current private release uses Google sign-in for the owner account. In a later milestone, integrate Clerk for email and password sign-in, password reset, and email one-time passwords (OTP). Link the existing Google identity to the same Ogma owner record so the owner keeps access to their saved resumes when switching sign-in methods.
