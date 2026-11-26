@@ -259,11 +259,17 @@ export function proposeImportedResume(
   const labeledAddress = addressLine?.match(
     /^(?:address|location)\s*:\s*(.+)$/i,
   )?.[1];
-  if (addressLine && labeledAddress && labeledAddress.length <= 240) {
-    content.contact.address = labeledAddress;
-    mappedContactTokens.add(addressLine);
-    mappedContactTokens.add(labeledAddress);
-    wholeLineContactTokens.set(addressLine, new Set([addressLine]));
+  const labeledAddressFragments =
+    labeledAddress?.split(/[•|]/).map((fragment) => fragment.trim()) ?? [];
+  const explicitAddress = labeledAddressFragments[0];
+  if (addressLine && explicitAddress && explicitAddress.length <= 240) {
+    content.contact.address = explicitAddress;
+    mappedContactTokens.add(explicitAddress);
+    const prefix = addressLine.slice(0, addressLine.indexOf(labeledAddress));
+    wholeLineContactTokens.set(
+      addressLine,
+      new Set([prefix + explicitAddress]),
+    );
   } else {
     const contactLine = header.find((line) =>
       [...mappedContactTokens].some((token) => token && line.includes(token)),
