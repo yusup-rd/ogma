@@ -226,6 +226,14 @@ export function proposeImportedResume(
     content.contact.phone,
   ]);
   const wholeLineContactTokens = new Map<string, Set<string>>();
+  const addMappedContactToken = (token: string, sourceLine?: string) => {
+    if (!token) return;
+    mappedContactTokens.add(token);
+    if (!sourceLine || !/[•|]/.test(token)) return;
+    const wholeLineTokens = wholeLineContactTokens.get(sourceLine) ?? new Set();
+    wholeLineTokens.add(token);
+    wholeLineContactTokens.set(sourceLine, wholeLineTokens);
+  };
   for (const { url: candidate, label } of candidates) {
     try {
       const url = new URL(
@@ -246,8 +254,15 @@ export function proposeImportedResume(
             : "website";
       if (!content.contact[key] && url.href.length <= 240) {
         content.contact[key] = url.href;
-        mappedContactTokens.add(candidate);
-        if (label) mappedContactTokens.add(label);
+        addMappedContactToken(
+          candidate,
+          header.find((line) => line.includes(candidate)),
+        );
+        if (label)
+          addMappedContactToken(
+            label,
+            header.find((line) => line.includes(label)),
+          );
       }
     } catch {
       /* Ambiguous links remain in the original source for review. */
@@ -264,13 +279,13 @@ export function proposeImportedResume(
   const explicitAddress = labeledAddressFragments[0];
   if (addressLine && explicitAddress && explicitAddress.length <= 240) {
     content.contact.address = explicitAddress;
-    mappedContactTokens.add(explicitAddress);
+    addMappedContactToken(explicitAddress);
     const prefix =
       addressLine.match(/^(?:address|location)\s*:\s*/i)?.[0] ?? "";
-    wholeLineContactTokens.set(
-      addressLine,
-      new Set([prefix + explicitAddress]),
-    );
+    const wholeLineTokens =
+      wholeLineContactTokens.get(addressLine) ?? new Set();
+    wholeLineTokens.add(prefix + explicitAddress);
+    wholeLineContactTokens.set(addressLine, wholeLineTokens);
   } else {
     const contactLine = header.find((line) =>
       [...mappedContactTokens].some((token) => token && line.includes(token)),
@@ -305,7 +320,7 @@ export function proposeImportedResume(
       addressCandidates.length === 1 ? addressCandidates[0] : undefined;
     if (inlineAddress && !content.contact.address) {
       content.contact.address = inlineAddress;
-      mappedContactTokens.add(inlineAddress);
+      addMappedContactToken(inlineAddress, contactLine);
     }
   }
   const headerRemainder = header
