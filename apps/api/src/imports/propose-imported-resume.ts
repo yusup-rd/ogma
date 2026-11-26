@@ -303,9 +303,7 @@ export function proposeImportedResume(
     );
     const addressCandidates = fragments.filter(
       (fragment, index) =>
-        [...contactFragments].some(
-          (contactIndex) => Math.abs(index - contactIndex) === 1,
-        ) &&
+        (contactFragments.has(index - 1) || contactFragments.has(index + 1)) &&
         fragment.includes(",") &&
         fragment.length <= 240 &&
         /\p{L}/u.test(fragment) &&
